@@ -1,11 +1,13 @@
 # cloudOS – Anwendungsarchitektur und `.cloudApp`-Paketformat
 
 > **Dokument:** `docs/APPLICATION_SYSTEM.md`  
-> **Version:** 0.2 – Architekturentwurf / verbindliches App-first-Zielbild  
+> **Version:** 0.3 – App-first, X.509-Signing und verpflichtende API-Endpoint-Allowlist  
 > **Stand:** 15.11.2026  
-> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
+> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
 > **Übergeordnete Dokumente:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`  
-> **Signatur- und Vertrauenskonzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.1; fuer kryptografische Details fachlich fuehrend)  
+> **Signatur- und Vertrauenskonzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.2; für kryptografische Details fachlich führend)  
+
+> **Verbindliche API-Endpoint-Policy:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (v0.1; für Deklaration, Freigaben, Installationsvorschau und API-Enforcement führend)
 > **Geltungsbereich:** CloudOS-Core, Core-Apps, installierbare Apps, Paketformat, Installation, Laufzeit, Berechtigungen, UI-Integration und Wartung
 
 ## 1. Ziel und verbindliche Produktentscheidung
@@ -13,6 +15,8 @@
 cloudOS wird als **App-first-Plattform** entwickelt. Der **cloudOS Core** stellt sämtliche Systemfunktionen und das technische Framework über versionierte APIs bereit. **Alle von Benutzern gestarteten Anwendungen und alle sichtbaren Desktop-Systemfunktionen sind Anwendungen im einheitlichen `.cloudApp`-Format**. Es gibt keine parallel implementierten, fest in das Browser-Frontend einkompilierten Dateimanager, Einstellungen, App-Launcher oder Desktop-Sonderanwendungen.
 
 Eine Anwendung muss im cloudOS-App-Register **ordnungsgemäß installiert** und für den jeweiligen Benutzer **freigegeben** sein, bevor sie gestartet werden darf. Das bloße Vorhandensein einer `.cloudApp`-Datei im Benutzer-Home führt **nie** automatisch zur Ausführung.
+
+Die normalen grafischen Apps werden **auf dem Server gespeichert und im Browser ausgeführt** (Web/TypeScript oder Rust/WebAssembly). Der Core stellt Backend-Dienste bereit, führt aber nicht den normalen App-Oberflächencode aus. Spätere ausdrücklich freigegebene WASI-/Native-Jobs sind getrennte isolierte Hintergrundkomponenten, keine implizite Fähigkeit jeder `.cloudApp`.
 
 Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstützten Installation mit cloudOS ausgeliefert, automatisch provisioniert und stehen ab dem ersten Start bereit. Dazu gehören mindestens `Desktop`, `File Explorer`, `Settings` und `App Installer`. Ein Administrator kann zusätzliche `.cloudApp`-Pakete bequem im File Explorer per **Rechtsklick → App installieren** installieren.
 
@@ -34,6 +38,9 @@ Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstütz
 12. **API-/ABI-Kompatibilität ist explizit.** Paketformat, Manifest, SDK, App-Bridge, Core-API und Runtime-Profil werden unabhängig versioniert.
 13. **Reproduzierbarer Systemstart.** Eine signierte, versionsgebundene Core-App-Baseline darf durch Drittanbieter-Apps weder überschrieben noch entfernt werden.
 14. **Wiederherstellbarkeit.** Fehlerhafte Installationen, Updates und App-Abstürze dürfen cloudOS nicht unbootbar machen; ein minimaler Recovery-Pfad bleibt erhalten.
+15. **API-Allowlist je App-Version:** Jedes Paket muss die signierte Datei `permissions/api-access.json` mit den benötigten cloudOS-Core-API-Endpunkten enthalten, auch bei leerer Liste. Nicht aufgeführte Operationen sind immer serverseitig verboten.
+16. **Vollständige API-Freigabe vor Installation:** Der Administrator sieht bei jeder Installation und jedem Update **alle** beantragten Endpunkte, ihre Methoden, Ressourcenscopes und die vom Core ermittelten Sicherheitsrisiken. Die Genehmigung ist an den signierten Paket-/Deklarationsdigest gebunden.
+17. **Keine indirekte Privilegienausweitung:** Die App darf Core-APIs nur über einen validierten App-Kontext nutzen; dieselbe Prüfung gilt für Web, Rust/WASM, WASI, WebSocket und spätere native Runner. Selbst Core-Apps erhalten keine pauschalen API-Rechte.
 
 ### 1.2 Nichtziele der ersten Version
 
@@ -58,6 +65,8 @@ Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstütz
 | **Zuweisung** | Festlegung, welchen Benutzern/Gruppen eine installierte App angeboten werden darf |
 | **App-Instanz** | Konkrete, authentifizierte laufende Anwendung, mit Instanz-ID, Owner, Runtime und Lifecycle |
 | **Capability Grant** | Geprüfte, begrenzte Berechtigung einer App-Instanz für eine bestimmte Operation/Ressource |
+| **API-Zugriffsdeklaration** | Signierte `permissions/api-access.json` je App-Version mit genau den beanspruchten Core-Operationen |
+| **API-Freigabe** | Administrativ akzeptierte, versions- und digestgebundene API-Allowlist samt Ressourcenscopes |
 | **App Host** | Vom Desktop gestarteter, kontrollierter Browser-Container für eine App-Oberfläche |
 | **Runtime** | Technik, mit der eine App ausgeführt wird: Web, Rust-WASM, Server-WASI oder später native Isolation |
 | **Preinstall Baseline** | Signierte Liste aller für eine cloudOS-Version verpflichtenden Core-App-Versionen |
@@ -77,6 +86,7 @@ flowchart TB
     GW["Core API Gateway / BFF"]
     APP["Core: App Registry / Installer / Lifecycle"]
     PERM["Core: Identity / Permissions / Capability Broker"]
+    API["Core: API Contract Registry / App API Policy Enforcer"]
     FILE["Core: VFS / File / Storage"]
     OTHER["Core: Desktop State / Theme / Settings / Events / Jobs"]
     RUNTIME["Isolierte Server-WASI-/Native-Worker (optional)"]
@@ -88,10 +98,11 @@ flowchart TB
     Desktop --> Installer
     Desktop --> UserApps
     Desktop & Explorer & Installer & UserApps -->|HTTPS / App-Bridge| GW
-    GW --> APP
-    GW --> PERM
-    GW --> FILE
-    GW --> OTHER
+    GW --> API
+    API --> APP
+    API --> PERM
+    API --> FILE
+    API --> OTHER
     APP --> SYS
     FILE --> SYS
     FILE --> HOMES
@@ -127,6 +138,8 @@ Vor dem ersten Start einer Desktop-App sind die Anmeldung über OIDC, das Laden 
 | **Runtime Manager** | Auswahl, Konfiguration und Überwachung zulässiger Runtime-Profile | Nein |
 | **Process Registry** | Instanz-/Job-IDs, Owner, Status, Ressourcenlimits und Wiederanlaufstatus | Nein |
 | **App Capability Broker** | App-Berechtigungen, ausgewählte Datei-Handles, Revocation, Session-Bindung | Nein |
+| **Core API Contract Registry** | Vertrauenswürdige Operation-IDs, HTTP-Methoden, kanonische Pfade, erlaubte Scopes und vom Core gepflegte Risikoangaben | Nein |
+| **App API Policy Enforcer** | Deklarationsprüfung, Installationsfreigabe, instanzgebundene Endpoint-Allowlist, Policy-Widerruf und Audit | Nein |
 | **File Service** | VFS, beide Volumes, persistente Benutzerdateien, systeminterne Paketablage | Nein |
 | **Permission Service** | Systemrollen, Ressourcen-ACLs, Recht auf Installation, Paketfreigabe und App-Operationen | Nein |
 | **Desktop State Service** | Persistente Desktop-, Fenster- und Launcher-Zustände | Nein |
@@ -174,6 +187,7 @@ Auch eine vertrauenswürdige Core-App darf keine Sicherheitsprüfung im Go-Core 
 - **Vorgeschlagener MIME-Typ:** `application/vnd.cloudos.app+zip` (projektinterner Typ; keine Behauptung einer registrierten IANA-Zuordnung).
 - **Containerformat v1:** ZIP-Archiv mit unveränderlicher, dokumentierter Verzeichnisstruktur.
 - **Manifest:** `cloudos.app.json` im Archivstamm.
+- **API-Deklaration:** verpflichtende `permissions/api-access.json` mit allen benötigten cloudOS-API-Endpunkten; auch ohne API-Bedarf ist die signierte leere Liste Pflicht.
 - **Inhaltsverifikation:** SHA-512-Digest-Liste jedes relevanten Archiveintrags (Nextcloud-inspiriertes Modell).
 - **Authentizität:** X.509-Code-Signing-Zertifikat mit App-ID-Scope, signierter kanonischer Paketindex und differenziertes Vertrauensmodell (CA-verifiziert oder explizit genehmigte Selbstsignatur).
 - **Spezifikation:** eigenständige `package_format_version`, unabhängig von `app_version` und `core_api_version`.
@@ -185,6 +199,8 @@ Das Archivformat ist eine **Architekturvorgabe**, keine bereits implementierte D
 ```text
 ExampleEditor-1.0.0.cloudApp
 ├── cloudos.app.json
+├── permissions/
+│   └── api-access.json       # Signierter, verpflichtender Endpoint-Katalog der App
 ├── META-INF/
 │   ├── package-index.json
 │   ├── signature.json
@@ -224,6 +240,10 @@ Die Inhalte richten sich nach dem Runtime-Profil: Eine reine Web-App benötigt k
     "window": { "default_width": 900, "default_height": 640 },
     "theme_bridge": "1"
   },
+  "api_access": {
+    "schema_version": "1.0",
+    "file": "permissions/api-access.json"
+  },
   "capabilities_requested": [
     "files.open:selected",
     "files.save:selected",
@@ -253,6 +273,10 @@ Die gleichen Manifestregeln gelten für die Desktop-App:
   "core_api": ">=1.0.0 <2.0.0",
   "runtime": { "type": "web", "entrypoint": "web/index.html" },
   "ui": { "role": "desktop-shell", "theme_bridge": "1" },
+  "api_access": {
+    "schema_version": "1.0",
+    "file": "permissions/api-access.json"
+  },
   "capabilities_requested": [
     "desktop.shell",
     "windows.manage",
@@ -267,11 +291,33 @@ Die gleichen Manifestregeln gelten für die Desktop-App:
 
 **Wichtig:** Das Manifest enthält kein vom Installer vertrautes `is_core: true`. Ob eine App verpflichtend ist, ergibt sich ausschließlich aus der geschützten Release-Baseline, Publisher-Prüfung und Policy.
 
+### 6.4a Verpflichtende API-Deklarationsdatei
+
+Die Manifestreferenz `api_access.file` zeigt auf `permissions/api-access.json` im unveränderlichen Paket. Darin stehen **alle angeforderten cloudOS-API-Operationen** mit stabiler `operation_id`, exakter HTTP-Methode, kanonischem Pfad, Ressourcenscope und Entwicklerbegründung. Beispielsweise:
+
+```json
+{
+  "schema_version": "1.0",
+  "api_contract": "cloudos.core.v1",
+  "endpoints": [
+    {
+      "operation_id": "files.contents.read",
+      "method": "GET",
+      "path": "/api/v1/files/{id}/content",
+      "resource_scope": "user_selected",
+      "reason": "Vom Benutzer ausgewählte Datei bearbeiten"
+    }
+  ]
+}
+```
+
+**Wichtig:** Diese Route ist ein künftiger Contract-Entwurf. Einträge sind **Anforderungen**, keine gewährten Rechte. Nur die Go-Core-API-Registry legt Methode, Route, zulässigen Scope und sicherheitliche Einstufung autoritativ fest. Das Installationsverfahren nimmt nur explizit genehmigte, vollständig validierte Endpunkte in die wirksame Allowlist auf. Änderungen erfordern ein neues signiertes Paket. Fachlich führend ist [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ### 6.5 Paketindex, X.509-Zertifikat und Signaturmodell
 
 cloudOS orientiert sich bewusst am **Nextcloud-Code-Signing-Prinzip**: appgebundene X.509-Herausgeberzertifikate, eine vollstaendige SHA-512-Dateihashliste und eine kryptografisch pruefbare Signatur. Die Implementierung ist jedoch cloudOS-spezifisch und **nicht binaerkompatibel mit Nextcloud**.
 
-Der Paketindex `META-INF/package-index.json` enthaelt alle Payload-Dateien mit ihren SHA-512-Digests und die gebundenen Felder App-ID, Version, Herausgeber und Paketformat. Ein streng kanonisches JSON-Format (RFC 8785 JCS, Entwurf) stellt sicher, dass dieselben Bytes signiert und geprueft werden. `META-INF/signature.json` enthaelt die X.509-Zertifikate und eine abgekoppelte digitale Signatur **ueber die kanonischen Indexbytes**. Index und Signaturdatei bilden eine definierte selbstreferenzfreie Ausnahme aus der Dateiliste; der **gesamte restliche Payload** muss abgedeckt sein.
+Der Paketindex `META-INF/package-index.json` enthaelt alle Payload-Dateien **einschließlich `permissions/api-access.json`** mit ihren SHA-512-Digests und die gebundenen Felder App-ID, Version, Herausgeber und Paketformat. Ein streng kanonisches JSON-Format (RFC 8785 JCS, Entwurf) stellt sicher, dass dieselben Bytes signiert und geprueft werden. `META-INF/signature.json` enthaelt die X.509-Zertifikate und eine abgekoppelte digitale Signatur **ueber die kanonischen Indexbytes**. Index und Signaturdatei bilden eine definierte selbstreferenzfreie Ausnahme aus der Dateiliste; der **gesamte restliche Payload** muss abgedeckt sein.
 
 | Pruefschritt | Ergebnis |
 |---|---|
@@ -339,7 +385,7 @@ sequenceDiagram
 
 Ein Administrator lädt `ExampleEditor-1.0.0.cloudApp` beispielsweise nach `/Downloads/` hoch. Der File Explorer erkennt Dateiendung, validen Dateityp und die Installer-Verfügbarkeit. Im Kontextmenü erscheint **App installieren**. Die Aktion öffnet den vorinstallierten App Installer über den Core App-Lifecycle; es wird **nicht** die Datei als Skript gestartet.
 
-Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signaturstatus, benötigte Core-Version, Runtime, benötigte Abhängigkeiten, angeforderte Capabilities, Paketgröße und vorhandene Installation. Anschließend bestätigt der Administrator die Installation und legt die erlaubten Benutzer/Gruppen fest. **Bei einer gueltigen Selbstsignatur** zeigt `AppInstaller.cloudApp` vorher einen hervorgehobenen Sicherheitsdialog: Der Herausgeber ist nicht unabhaengig verifiziert, die App kann Schadcode enthalten; App-ID, Version, SHA-256-Zertifikatsfingerprint, Paketdigest und angeforderte Rechte werden angezeigt. Die Aktion `Risiko akzeptieren und installieren` ist nur durch einen berechtigten Administrator mit einmaliger, paketgebundener Bestätigung moeglich; Abbrechen ist der sichere Standard. Bei ungueltiger Signatur erscheint ausschliesslich ein Fehler, keine Risiko-Ausnahme.
+Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signaturstatus, benötigte Core-Version, Runtime, benötigte Abhängigkeiten, angeforderte Capabilities, Paketgröße und vorhandene Installation. **Sie muss immer jede deklarierte API mit Methode, Endpunkt, Scope, Datenkategorie und den vom Core ermittelten Sicherheitsauswirkungen anzeigen.** Der Administrator bestätigt die komplette API-Freigabe ausdrücklich; ohne Bestätigung ist die Installation unmöglich. Anschließend legt er die erlaubten Benutzer/Gruppen fest. **Unabhängig von der Signaturvertrauensklasse ist die API-Freigabe ein eigenständiger Pflichtschritt.** Bei einer gueltigen Selbstsignatur zeigt `AppInstaller.cloudApp` vorher einen hervorgehobenen Sicherheitsdialog: Der Herausgeber ist nicht unabhaengig verifiziert, die App kann Schadcode enthalten; App-ID, Version, SHA-256-Zertifikatsfingerprint, Paketdigest und angeforderte Rechte werden angezeigt. Die Aktion `Risiko akzeptieren und installieren` ist nur durch einen berechtigten Administrator mit einmaliger, paketgebundener Bestätigung moeglich; Abbrechen ist der sichere Standard. Bei ungueltiger Signatur erscheint ausschliesslich ein Fehler, keine Risiko-Ausnahme.
 
 **Standardpolitik MVP:** Installation ist ausschließlich eine administrative, systemweite Aktion. Nach Installation ist die App **nicht automatisch für alle Nutzer freigegeben**. Nur ausdrücklich zugewiesene Nutzer/Gruppen können sie in ihrer App-Liste sehen und starten. Core-Apps sind durch die Baseline von dieser optionalen Zuweisung ausgenommen und für berechtigte cloudOS-Nutzer verfügbar.
 
@@ -381,7 +427,11 @@ sequenceDiagram
     G->>P: Preview und Installationsplan
     P->>F: Eingeschränktes Paket lesen
     P->>T: Signatur / Publisher / Berechtigung prüfen
-    P-->>I: Version, Capabilities, Dependencies, Trust
+    P-->>I: Version, Capabilities, Dependencies, Trust und API-Endpoints
+    I-->>A: Alle API-Endpoints mit Methode, Pfad, Scope und Sicherheitsrisiko anzeigen
+    A->>I: Gesamte Endpoint-Liste explizit genehmigen
+    I->>G: POST /app-installation-previews/{id}/api-approvals
+    G->>P: Genehmigung mit Paket-/Deklarationsdigest und Plan-Hash binden
     opt Gueltige Selbstsignatur
         I-->>A: Warnung, App-ID, Fingerprint, Paketdigest und Berechtigungen
         A->>I: Selbstsigniertes Risiko bewusst akzeptieren
@@ -412,6 +462,19 @@ sequenceDiagram
 - Jede neue selbstsignierte Version und jeder neue Digest benoetigt eine erneute Warnung. Automatische stille Updates sind ausgeschlossen.
 - Die eigene Warnungs- und Key-Rotation-Policy ist in [`APP_SIGNING.md`](APP_SIGNING.md) definiert.
 
+### 8.5 Verpflichtender API-Dialog und signierte Endpoint-Allowlist
+
+Das Paket enthält verpflichtend die Datei `permissions/api-access.json`. Die Prüfung erfolgt **vor** dem Installationsdialog und umfasst auch ihre SHA-512-Signaturbindung. Der Installer holt Methode/Pfad/Ressourcenrisiko aus dem **vertrauenswürdigen** Core-API-Katalog und zeigt **alle** Endpunkte an; für `core_only`- oder `internal_only`-Operationen ist eine reguläre Drittanbieterinstallation unabhängig von der Administratorrolle ausgeschlossen; eine einzelne Capability-Zusammenfassung reicht nicht aus.
+
+- Die Entscheidung ist an `preview_id`, `plan_hash`, Paketdigest, API-Deklarationsdigest, Katalogrevision, App-Version und den bestätigenden Administrator gebunden.
+- **MVP bei manuellen Installationen und Updates:** Alle deklarierten API-Zugriffe genehmigen oder die Installation abbrechen. Nicht genehmigte Endpunkte dürfen niemals zur Laufzeit genutzt werden. Verpflichtende Core-Apps erhalten ihre **signierte, einsehbare** Endpoint-Freigabe über die freigegebene Release-Baseline, ohne Bootstrap-Dialog.
+- Auch Updates zeigen die **gesamte** neue Liste sowie einen Berechtigungsdiff (neu, entfernt, geänderte Methode, Scope erweitert/reduziert).
+- Der Server prüft jeden App-Aufruf in der Schnittmenge aus signierter Deklaration, Installationsfreigabe, aktuellem App-Kontext, Benutzer-/App-Capabilities und Ressourcen-ACL.
+- Ein selbstsigniertes Paket erhält **zusätzlich** den unabhängigen Zertifikatsrisikodialog; beide Entscheidungen sind nötig.
+- Die geschützte Core-App-Baseline besitzt je Pflicht-App ebenfalls signierte API-Deklarationen und eine releasegebundene interne Genehmigung, aber **keinen** pauschalen All-API-Bonus.
+
+Ausführliches Schema, Browser-Isolation, REST-/WebSocket-/WASI-Enforcement und Testmatrix: [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ## 9. App-Berechtigungen, Zuweisungen und Sichtbarkeit
 
 ### 9.1 Rollen und Operationen
@@ -429,6 +492,8 @@ sequenceDiagram
 | App-Berechtigungen für eigenen App-Start bestätigen | Nur im Rahmen definierter Policies | Ja | Kein pauschaler Bypass |
 
 ### 9.2 Capability-Entscheidung
+
+**Zusätzliche notwendige Bedingung:** Bei einer durch eine `.cloudApp` ausgelösten Operation muss die kanonische API-Operation samt HTTP-Methode in `permissions/api-access.json` **deklariert und administrativ genehmigt** sein. Capability/ACL allein reicht nicht aus. Jeder Zugriff ohne passende Deklaration wird vom Go-Core serverseitig verweigert und auditiert. Herkunftsheader sind kein Ersatz für eine gebundene App-Instanz.
 
 Eine App kann eine Aktion nur ausführen, wenn **alle** Bedingungen erfüllt sind: authentifizierte Sitzung, installierte aktive App-Version, Benutzerzuweisung, gültige Instanz, passende deklarierte Capability, tatsächlich erteilter Grant, Ressourcen-ACL und aktuelle Policy. Ein Admin mit Installationsrecht darf dem Paket **nicht** heimlich beliebige Laufzeit-Dateirechte anderer Benutzer zuweisen.
 
@@ -549,6 +614,11 @@ Alle Ressourcen liegen unter `/api/v1/` und werden vor der Implementierung in Op
 | `GET` | `/api/v1/app-installations/{id}/verification` | Integritaet, Zertifikatsstatus und Risikoklasse anzeigen | `apps.manage` |
 | `POST` | `/api/v1/app-installations/{id}/integrity-checks` | Neues Signatur-/Hash-Audit ausloesen | `apps.manage` |
 | `GET` | `/api/v1/core-apps/status` | Baseline-/Recovery-Status | `system.health` |
+| `GET` | `/api/v1/app-installation-previews/{id}/api-access` | Alle geprüften API-Endpoints und Sicherheitsauswirkungen anzeigen | `apps.install` |
+| `POST` | `/api/v1/app-installation-previews/{id}/api-approvals` | Gesamte signierte Endpoint-Liste gesondert bestätigen | `apps.install` |
+| `GET` | `/api/v1/app-installations/{id}/api-access` | Wirksame Endpoint-Allowlist der Installation | `apps.manage` |
+| `GET` | `/api/v1/app-instances/{id}/api-access` | Laufzeitberechtigungen der konkreten Instanz | Instanz-Owner / Policy |
+| `POST` | `/api/v1/app-installations/{id}/api-access/revocations` | Genehmigte Endpoint-Rechte beschränken/widerrufen | `apps.manage` + Policy |
 
 **API-Stil:** `POST /app-installation-previews` bekommt eine begrenzte `source_file_handle`-Referenz, *keinen* frei wählbaren VFS- oder Hostpfad. `POST /app-installations` bindet `preview_id`, `plan_hash`, Installationsziel und Zuweisungen. Alle schreibenden Endpunkte verwenden geeignete Idempotenzschlüssel. Die hier skizzierten Routen sind noch nicht freigegebene Contracts.
 
@@ -586,12 +656,27 @@ Alle Ressourcen liegen unter `/api/v1/` und werden vor der Implementierung in Op
     "compatibility": "compatible"
   },
   "capabilities_requested": ["files.open:selected", "files.save:selected"],
+  "api_declaration_digest": "sha512:illustrative-declaration",
+  "api_contract": "cloudos.core.v1",
+  "api_catalog_revision": "rev-42",
+  "api_endpoints": [
+    {
+      "operation_id": "files.contents.read",
+      "method": "GET",
+      "path": "/api/v1/files/{id}/content",
+      "requested_scope": "user_selected",
+      "risk_level": "high",
+      "risk_explanation": "Die App kann Inhalte einer ausgewählten Datei lesen."
+    }
+  ],
+  "api_endpoints_total": 1,
+  "api_approval_required": true,
   "dependencies": [],
   "requires_confirmation": true
 }
 ```
 
-Alle Werte in den Beispielen sind demonstrativ. Ein `plan_hash` wird vom Core berechnet und serverseitig geprüft. Eine Vorschau verleiht **keine** Rechte und installiert noch nichts.
+Alle Werte in den Beispielen sind demonstrativ. Ein `plan_hash` wird vom Core berechnet und serverseitig geprüft. Eine Vorschau verleiht **keine** Rechte und installiert noch nichts. Der tatsächliche Core liefert **alle** angeforderten Endpunkte, nicht nur den demonstrativen Eintrag. Die separat zu bestätigende API-Freigabe und gegebenenfalls die Self-signed-Risikoannahme müssen vor dem Commit vorliegen.
 
 ## 15. Interne gRPC- und Event-Verträge
 
@@ -656,6 +741,9 @@ Events werden in der Owner-Datenbank mit einer Outbox erzeugt und über NATS Jet
 | `app_dependencies` | `app_version_id`, `required_app_id`, `required_range` | Registry Service |
 | `app_capability_declarations` | `app_version_id`, `capability`, `scope` | Package Service |
 | `app_capability_grants` | `instance_id`, `actor_id`, `capability`, `resource_id`, `expiry`, `revoked` | Permission Service |
+| `app_api_declarations` | `app_version_id`, `declaration_digest`, `api_contract`, `canonical_operations` | Package / Registry Service |
+| `app_api_installation_approvals` | `installation_id`, `version_id`, `plan_hash`, `catalog_revision`, `approved_by`, `approved_at` | Installer / Permission Service |
+| `app_api_grants` | `installation_id`, `operation_id`, `resource_scope`, `policy_revision`, `revoked_at` | Permission Service |
 | `app_instances` | `id`, `installation_id`, `version_id`, `user_id`, `session_id`, `runtime`, `state`, `started_at` | Lifecycle Service |
 | `app_file_associations` | `app_version_id`, `mime`, `extension`, `verb`, `priority` | Registry Service |
 | `core_app_baseline` | `cloudos_release`, `app_id`, `required_digest`, `required`, `autostart`, `status` | Release Manager |
@@ -704,6 +792,8 @@ Eine Installation kann **mehrere Instanzen bei verschiedenen Benutzern** haben. 
 
 ### 17.3 Updates und Rollback
 
+**Neue Pflichtprüfung:** Jedes Update enthält eine neue signierte `permissions/api-access.json`. Auch bei unveränderten Rechten zeigt der Installer die komplette Endpoint-Liste; neue Methoden, Endpunkte oder erweiterte Scopes benötigen vor Aktivierung ausdrückliche administrative Genehmigung. Geänderte oder widerrufene Rechte müssen bei laufenden Instanzen wirksam werden. Für selbstsignierte Updates kommt der separate Zertifikatsrisikodialog dazu.
+
 - Core-App-Updates sind an einen kompatiblen Core-Release beziehungsweise eine freigegebene Baseline gebunden.
 - Drittanbieter-Updates durchlaufen denselben vollständigen Prüfpfad wie Erstinstallationen.
 - Ein Update darf keine neuen Capabilities ohne erneute administrative Prüfung erhalten.
@@ -746,6 +836,8 @@ await cloudOS.notifications.show({
 Diese Aufrufe sind **SDK-Entwürfe**, keine bereits existierenden APIs. Implementiert wird erst nach Freigabe eines versionierten App-SDK-Vertrags. Bridge-Nachrichten werden validiert, dürfen keine Host-Credentials enthalten und müssen die App-Instanz kryptografisch/transportseitig eindeutig zuordnen.
 
 ### 18.3 Kompatibilitätsdimensionen
+
+**API-Entwicklung:** Ein generiertes SDK darf nur bekannte `operation_id`-Werte anbieten. Das Paket-Buildtool validiert `permissions/api-access.json` gegen die vertrauenswürdige OpenAPI-Registry und signiert ihren exakten Byteinhalt mit. Runtime-Autorisierung bleibt auch bei Verwendung eines SDKs serverseitig verpflichtend.
 
 | Vertrag | Unabhängige Version |
 |---|---|
@@ -827,6 +919,9 @@ cloudOS/
 | App liest alle Homes | Benutzergebundene Session + File-Handles + ACLs und Capabilities |
 | Installation durch nicht autorisierten Nutzer | API-seitige `apps.install`-Prüfung |
 | App beansprucht ohne Freigabe Adminfunktionen | Capability-Matrix und serverseitige Operationserlaubnis |
+| App ruft nicht deklarierten API-Endpoint auf | Methode und registrierte Operation-ID am Gateway prüfen; signierte App-API-Allowlist und Admin-Freigabe **default deny** |
+| App umgeht Browser-SDK und nutzt Core-Sessioncookie / fremde App-Identität | Separierte App-Origins, instanzgebundene App-Bridge, kein allgemeines BFF-Cookie in der App |
+| App missbraucht Core-App als Confused Deputy | End-to-End-Weitergabe der verursachenden App-Identität und erneute Prüfung im Owner-Service |
 | Drittanbieter-App im privilegierten Browserkontext | Separate Origin, sandboxed iframe, CSP, COOP/COEP nach Bedarf |
 | Cross-App-Nachrichtenmissbrauch | Validierte Bridge, Origin-/Instanz-Bindung, keine geheimen Tokens im Message-Bus |
 | App-Update erweitert stillschweigend Rechte | Capabilities-Diff, erneute Bestaetigung, signiertes neues Artefakt |
@@ -911,6 +1006,23 @@ Installationsdauer (p50/p95), Paketprüffehler, Signaturfehler, Installations-Ro
 | APP-SIGN-010 | Self-signed-Freigabe widerrufen | Weitere Starts verboten, Audit gespeichert |
 
 Die ausfuehrliche Pruefmatrix mit `SIGN-001` bis `SIGN-034` ist in [`APP_SIGNING.md`](APP_SIGNING.md) definiert.
+
+### 22.1b API-Allowlist- und Installationsdialog-Tests
+
+| ID | Test | Erwartung |
+|---|---|---|
+| APP-API-001 | `.cloudApp` ohne `permissions/api-access.json` | Installation hart abgelehnt |
+| APP-API-002 | API-Deklaration nach X.509-Signierung verändert | Hash-/Signaturfehler |
+| APP-API-003 | App ruft nicht aufgeführte `GET`-Operation auf | Serverseitiges `403`, Audit |
+| APP-API-004 | App nutzt `POST` statt deklarierter `GET`-Methode | Verweigert |
+| APP-API-005 | Administrator sieht Installation-Preview | **Alle** Endpunkte samt Wirkung, Scope und Risiko sichtbar |
+| APP-API-006 | Administrator bestätigt nur Self-signed-Warnung | Kein Install ohne separate Endpoint-Freigabe |
+| APP-API-007 | Update erweitert API-Zugriff | Differenz + erneute Freigabe notwendig |
+| APP-API-008 | Core-App mit nicht genehmigtem Endpoint | Kein implizites Superuser-Recht |
+| APP-API-009 | Rust-WASM-App ruft undeklarierte Core-API auf | Serverseitig verweigert |
+| APP-API-010 | API-Grant während Laufzeit widerrufen | Weitere Aufrufe blockiert |
+
+Die umfassende Matrix `API-001` bis `API-041` steht im fachlich führenden Dokument [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
 
 ### 22.2 VFS-, Rust- und Sicherheitstests
 

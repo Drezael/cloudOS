@@ -1,11 +1,11 @@
 # cloudOS - App-Signierung, Zertifikate und Vertrauensmodell
 
 > **Pfad:** `docs/APP_SIGNING.md`  
-> **Dokumentversion:** 0.1 (verbindlicher Architekturentwurf)  
+> **Dokumentversion:** 0.2 (mit signierter App-API-Allowlist und getrennten Freigaben)  
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Basis:** App-first-Architektur v0.4; `.cloudApp`-Paketformat, Go-Core und Zwei-Volume-VFS  
-> **Referenzen:** [`APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md), [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md), [`VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md), [`CONCEPT.md`](CONCEPT.md)
+> **Referenzen:** [`APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md), [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md), [`VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md), [`CONCEPT.md`](CONCEPT.md), [`APP_API_ACCESS.md`](APP_API_ACCESS.md)
 
 ## 1. Ziel, Geltungsbereich und Grundentscheidung
 
@@ -48,6 +48,16 @@ Quellen: [Nextcloud Developer Manual - Code signing](https://docs.nextcloud.com/
 8. **Keine generelle Trust-Root-Aufwertung durch Selbstsignatur.** Die Ausnahme autorisiert einen konkret identifizierten Paket-Digest, nicht alle Programme des Zertifikats oder zukuenftige Apps.
 9. **App-Berechtigungen bleiben unabhaengig von der Signatur.** Kryptografisch gültige Apps erhalten nicht automatisch Datei-, Admin- oder Netzwerkrechte.
 10. **Fehler fallen geschlossen aus.** Ist die Signatur nicht verifizierbar oder die Policy nicht erreichbar, findet keine neue Aktivierung statt.
+11. **API-Deklaration wird immer signiert:** `permissions/api-access.json` gehört zwingend zum vollständigen SHA-512-Paketindex. Änderung oder Fehlen führt zur harten Ablehnung.
+12. **Signing ersetzt keine Endpoint-Freigabe:** Kryptografisch gültige und selbstsignierte Pakete müssen vor Installation ihre gesamte beantragte API-Liste samt Risiken offenlegen und administrativ freigeben lassen.
+
+### 3.1 Verpflichtende API-Datei als signierte Payload
+
+Jedes `.cloudApp`-Paket enthält `permissions/api-access.json` und referenziert sie im signierten `cloudos.app.json`. Der SHA-512-Digest der API-Datei ist Bestandteil von `META-INF/package-index.json`; **jede Modifikation der Endpoint-Liste erfordert neues Packaging und erneute Signierung**. `[]` ist eine zulässige leere, aber vorhandene Liste. Ein fehlender oder unbekannter API-Vertrag ist nicht installierbar.
+
+Die Signatur belegt **nicht**, dass eine App die deklarierten Endpunkte sicher nutzt oder niemals weitere Zugriffe versucht. Die wirksame Endpoint-Allowlist wird vielmehr durch den Core zur Laufzeit **bei jedem Aufruf** kontrolliert. Das Signaturmodell verhindert lediglich eine unbemerkte nachträgliche Änderung der **angeforderten** Endpunkte.
+
+Der Installationsdialog unterscheidet zwingend **zwei unabhängige Freigaben**: (1) Genehmigung aller verlangten Core-API-Endpunkte mit konkret beschriebenen Sicherheitsrisiken und (2) bei Selbstsignatur zusätzlich die gesonderte Publisher-/Herkunftsrisikoannahme. Die zweite Entscheidung ersetzt die erste niemals. Details: [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
 
 ## 4. Zertifikats- und Schlüsselmodell
 
@@ -391,6 +401,12 @@ Parsing, ZIP-Dekompression und Sicherheitsprüfung erfolgen vor Aktivierung ohne
 | `app_verification_runs` | `id`, `package_digest`, `status`, `errors`, `timestamp`, `trace_id` |
 
 Vorgeschlagene Owner-Schemas: `applications` für Paket- und Signaturmetadaten, `permissions` für lokale Freigaben, `audit` für nachvollziehbare Entscheidungen. Der Trust Service besitzt die Vertrauensbeurteilung, der App Installer setzt sie durch; keine Duplikation von Root-Listen in einzelnen App-Runtimes.
+
+### 12.1 Integrität der API-Grant-Bindung
+
+Die unveränderliche Signaturprüfung erzeugt einen belastbaren `api_declaration_digest`. Dieser wird in Installationsvorschau, genehmigter Endpoint-Liste, App-Registry und Launch-Policy referenziert. Die explizite administrative Genehmigung wird **außerhalb** des App-Archivs gespeichert und darf weder den signierten Paketinhalt überschreiben noch den Vertrauensstatus des Herausgeberzertifikats erhöhen.
+
+Vor jedem Update wird die neue signierte API-Datei geprüft und die vollständige Endpoint-Liste inklusive Änderungen angezeigt. **Jedes** selbstsignierte Update benötigt zusätzlich eine neue gesonderte Risikofreigabe. Widerruf eines Zertifikats und Widerruf einzelner Endpoint-Grants sind voneinander unabhängige Sperrgründe.
 
 ## 13. Ereignisse, Audit und Betriebsstatus
 

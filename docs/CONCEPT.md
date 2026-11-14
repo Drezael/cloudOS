@@ -1,7 +1,7 @@
 # cloudOS – Technisches Gesamtkonzept
 
 > **Dokument:** `CONCEPT.md`  
-> **Version:** 0.3 (App-first, Zwei-Volume-VFS und Nextcloud-inspiriertes App-Signing)  
+> **Version:** 0.4 (App-first, VFS, Signing und strikt deklarierte App-API-Allowlist)  
 > **Stand:** 15.11.2026  
 > **Projektname:** cloudOS  
 > **Architekturvariante:** B – serverbasiert, API-first  
@@ -15,7 +15,7 @@ Anders als eine überwiegend clientseitige Browser-Desktop-Simulation übernimmt
 
 Die Plattform ist **App-first und API-first**: Der Go-Core stellt Systemfunktionen bereit. Alle regulär gestarteten Desktop-Anwendungen (einschließlich der mitgelieferten Systemoberflächen) werden als registrierte und installierte `.cloudApp`-Pakete ausgeführt. Ihre APIs stehen unabhängig von der Benutzeroberfläche zur Verfügung.
 
-Die Plattform wird **API-first** entwickelt: Systemfunktionen sind über versionierte, dokumentierte Schnittstellen verfügbar. Die mitgelieferten Anwendungen verwenden grundsätzlich dieselben öffentlichen APIs wie spätere Drittanbieter-Clients.
+Die Plattform wird **API-first** entwickelt: Systemfunktionen sind über versionierte, dokumentierte Schnittstellen verfügbar. Die mitgelieferten Anwendungen verwenden grundsätzlich dieselben öffentlichen APIs wie spätere Drittanbieter-Clients. **Jede App muss alle benötigten Core-API-Endpunkte in `permissions/api-access.json` deklarieren.** Der Go-Core verweigert nicht deklarierte oder nicht genehmigte Aufrufe und zeigt Administratoren vor Installation immer den vollständigen API-/Risikokatalog an.
 
 Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux oder Windows. Es ist eine servergestützte Web-Desktop-Plattform mit einer eigenen, kontrollierten Betriebssystemabstraktion.
 
@@ -62,6 +62,10 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 - **Verbindliche App-Architektur:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) ist fuer Paketformat, Baseline, App-Installation und -Lebenszyklus fachlich fuehrend.
 - **App-Signing:** Jede `.cloudApp` muss eine kryptografisch gueltige, X.509-gebundene Signatur ueber einen SHA-512-Dateiindex besitzen. Selbstsignierte Pakete bleiben installierbar, aber nur nach deutlicher Sicherheitswarnung, Administratorberechtigung und expliziter Freigabe des konkreten Digests. Unsignierte oder manipulierbare Pakete sind immer gesperrt.
 - **Fachlich fuehrendes Signing-Dokument:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) definiert Zertifikate, Trust, Self-signed-Ausnahmen, Updates und Widerruf.
+- **Signierte API-Zugriffsdatei:** Jede `.cloudApp` enthält `permissions/api-access.json` mit einer vollständigen Liste von Core-API-Operationen, Methoden, Routen und Ressourcenscopes, auch wenn die Liste leer ist. Der SHA-512-Paketindex muss diese Datei einschließen.
+- **Serverseitige Endpoint-Allowlist:** Jeder App-Aufruf benötigt eine aktiv installierte und zugewiesene App, eine deklarierte und genehmigte API-Operation sowie Benutzer-/Ressourcenrechte. Nicht aufgeführte Endpunkte sind immer gesperrt; Adminrolle und gültige Signatur umgehen das nicht.
+- **Pflichtdialog bei jeder Installation und jedem Update:** Sämtliche API-Endpunkte mit Sicherheitsauswirkung sind vor der Bestätigung vollständig sichtbar. Änderungen an API-Rechten erfordern neue Freigabe, selbstsignierte Pakete zusätzlich eine eigene Herausgeberwarnung.
+- **Fachlich führendes API-Policy-Dokument:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) beschreibt Schema, Core-API-Registry, App-Bridge, Endpoint-Enforcement, Installation und Tests.
 
 ## 3. Technologieentscheidungen
 
@@ -71,6 +75,7 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 | Browseroberfläche | Vue 3, TypeScript, HTML, CSS | Desktop und grafische Anwendungen |
 | Frontend-Build | Vite | Entwicklung und Build der Weboberfläche |
 | Öffentliche Schnittstellen | REST/JSON, OpenAPI 3.1 | Browser, CLI und Drittanbieter-Clients |
+| App-API-Berechtigungen | Signierte `permissions/api-access.json` + Core Operation Registry | Strikte Endpoint-Allowlist, kontrollierte Scopes, Risikodialog |
 | Interne Dienstkommunikation | gRPC, Protocol Buffers | Typisierte Go-Service-Schnittstellen |
 | Ereignissystem | NATS JetStream | Zuverlässige asynchrone Benachrichtigungen |
 | Echtzeitkommunikation | WebSocket über HTTPS/WSS | Zustandsänderungen an verbundene Clients |
@@ -385,6 +390,14 @@ Analog zum Nextcloud-Code-Signing-Modell besitzt cloudOS eine eigene X.509-Code-
 **Gueltig selbstsignierte Apps** koennen durch Administratoren ueber Rechtsklick -> `App installieren` nach einer hervorgehobenen Warnung und ausdruecklicher, paketgebundener Risikobestaetigung installiert werden. Eine Selbstsignatur ist kein Identitaets- oder Sicherheitsnachweis. Bei ungueltigen Hashes, fehlenden Dateien, falscher App-ID, fehlender Signatur oder widerrufenem Zertifikat wird die Installation **immer** abgelehnt. Core-Apps sind von lokalen Self-signed-Ausnahmen ausgenommen.
 
 Pro neuer selbstsignierter Version bzw. neuem Digest ist eine neue Adminbestaetigung erforderlich; stille Updates sind untersagt. Die technische Detailarchitektur, die Error-Codes und die Abnahmetests werden in [`docs/APP_SIGNING.md`](APP_SIGNING.md) festgelegt.
+
+### 10.4 Verpflichtende API-Deklaration und Installationsfreigabe
+
+Jede installierbare `.cloudApp` besitzt eine signierte Datei `permissions/api-access.json`. Sie gibt **alle cloudOS-Core-API-Endpunkte** an, die eine Anwendung verwenden will, mit stabiler Operation-ID, HTTP-Methode, kanonischem Pfad und höchstens zulässigem Ressourcenscope. Eine fehlende oder manipulierte Datei macht das Paket nicht installierbar.
+
+Der Administrator erhält **bei jeder Installation und jedem Update** eine vollständige Endpoint-Vorschau mit Zweck, Datenkategorien und konkreten Sicherheitsrisiken aus dem vertrauenswürdigen Core-API-Katalog. Die API-Liste ist gesondert zu bestätigen; bei Selbstsignatur folgt zusätzlich die bisherige Herausgeberwarnung. Der Go-Core prüft jeden konkreten App-Aufruf gegen die signierte und genehmigte Allowlist sowie gegen Benutzerrechte und Ressourcen-ACLs. Auch Core-Apps besitzen signierte, releasegebundene Minimalfreigaben. Ein direkter HTTP-Aufruf darf die Prüfung nicht umgehen.
+
+Die vollständige Spezifikation steht in [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md).
 
 ## 11. Shell, Prozesse und Hintergrundaufträge
 

@@ -2,15 +2,18 @@
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/SYSTEM_ARCHITECTURE.md`  
-> **Dokumentversion:** 0.5 (X.509-Code-Signing und Self-signed-Installationspolicy, Phase 0)  
+> **Dokumentversion:** 0.6 (App-first, Signing, Zwei-Volume-VFS und strikte App-API-Allowlist)  
 > **Stand:** 15.11.2026  
-> **Ausgangsbasis:** `main`, Commit `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
+> **Ausgangsbasis:** `main`, Commit `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
 > **Übergeordnetes Dokument:** [`docs/CONCEPT.md`](CONCEPT.md)  
+
+> **API-Enforcement:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (signierter App-Endpoint-Contract, Installer-Dialog und serverseitige Allowlist)
 > **Projekt:** cloudOS – serverbasiertes, API-getriebenes Browser-Betriebssystem  
 > **Änderung 0.2:** Einheitlicher cloudOS Core aus kooperierenden Diensten; Rust-Apps über Browser-WASM, WASI und optional native Isolation
 > **Änderung 0.3:** Durchgängig themefähige UI, zentraler Theme Service, Design-Tokens, erweiterbare Komponenten und Theme-Bridge für Rust-/WASM-Apps  
 > **Änderung 0.4:** Alle regulaer gestarteten Oberflaechen als installierte `.cloudApp`; geschuetzte Core-App-Baseline und Installation durch Admins per File Explorer  
-> **Änderung 0.5:** Nextcloud-inspiriertes X.509-App-Signing; lokal selbstsignierte Pakete nach Admin-Sicherheitswarnung und Digest-Freigabe
+> **Änderung 0.5:** Nextcloud-inspiriertes X.509-App-Signing; lokal selbstsignierte Pakete nach Admin-Sicherheitswarnung und Digest-Freigabe  
+> **Änderung 0.6:** Signierte `permissions/api-access.json`, Endpoint-Allowlist, App-Bridge-Enforcement und verpflichtender Risiko-Dialog für manuelle Installationen
 
 ## 1. Zweck und Geltungsbereich
 
@@ -18,9 +21,11 @@ Dieses Dokument konkretisiert die technische Zielarchitektur aus `docs/CONCEPT.m
 
 cloudOS ist **kein eigener Betriebssystemkernel**, sondern eine über den Browser bedienbare **App-first-Desktop-Plattform**. Der Go-Core stellt ausschließlich Systemdienste, APIs und das App-Framework bereit. Alle regulär gestarteten sichtbaren Anwendungen – einschließlich Desktop und File Explorer – sind installierte `.cloudApp`-Pakete. Go implementiert den **cloudOS Core** mit allen Betriebssystemfunktionen; dieser kann aus mehreren eigenständig kommunizierenden Diensten bestehen. Das Web-Frontend stellt Desktop und Fenster dar; installierte Anwendungen laufen je nach Laufzeitprofil als Web-App, Rust/WebAssembly im Browser oder isolierte Serverkomponente. Standardisierte APIs verbinden beide Ebenen und ermöglichen eigenständige Clients und Erweiterungen.
 
-**Fachlich fuehrendes Signing-Konzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.1).  
+**Fachlich fuehrendes Signing-Konzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.2).  
 
 **Fachlich führendes App-Konzept:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Der Installer, die Pakete, die zwingend mitgelieferten Core-Apps und der Startablauf werden dort vollständig spezifiziert.
+
+**Neu in Architektur 0.6:** Reguläre App-Oberflächen liegen als signierte Pakete auf dem Server und laufen clientseitig im Browser; isolierte WASI-/Native-Jobs bleiben eine gesonderte optionale Erweiterung. Alle `.cloudApp`-Pakete enthalten zwingend eine signierte Datei `permissions/api-access.json`. Der Core prüft jede App-API-Operation anhand ihrer installierten und genehmigten Endpoint-Allowlist und verweigert unaufgeführte Operationen unabhängig von Signaturstatus und Benutzerrolle. Die Installer-Core-App zeigt **sämtliche Endpunkte und Sicherheitsauswirkungen** vor jedem Installations- und Updatecommit.
 
 **Status von Aussagen:**
 
@@ -529,6 +534,24 @@ Neue öffentliche API-Ressourcen, welche den Core als einheitliche System-API vo
 
 `entrypoint_ref` ist nur eine symbolische Referenz im Entwurf. Der Core stellt daraus einen zugelassenen Assetpfad bereit. Tokens dürfen nicht ungeschützt in dauerhaften URLs, History oder Logs landen.
 
+### 7.7 App-API-Operationen als eigener Berechtigungsvertrag
+
+In der Core-API-Registry erhält jeder geschützte Endpoint eine stabile `operation_id`, exakte HTTP-Methode, kanonische Route, zulässige Ressourcenscopes und eine vertrauenswürdige Risikobeschreibung. Die App deklariert die Operationen in `permissions/api-access.json`, der signierte Paketindex schützt die Datei. Eine App-API-Operation ist nur erlaubt, wenn sie (a) deklariert, (b) in der administrativ freigegebenen Installation enthalten, (c) mit aktivem App-Kontext aufgerufen und (d) durch Benutzerrechte, App-Capabilities und Ressourcenscopes autorisiert ist.
+
+**API-Gateway/BFF dürfen keinen unbeschränkten App-Aufruf mit normalem Browser-Sessioncookie akzeptieren.** App und privilegierter Desktop-Kontext werden über Origins und einen vom Core gebundenen App-Bridge-/Instanzkontext getrennt. Für REST, WebSocket-Subscriptions, WASI-Hostfunktionen und interne Adapter gelten dieselben Default-Deny-Regeln. Der Dateimanager, Desktop und App Installer als Core-Apps haben **signierte Baseline-Deklarationen**, aber keine unbeschränkten Core-API-Rechte.
+
+Neue administrative Entwurfsendpunkte:
+
+| Methode | Route | Zweck |
+|---|---|---|
+| `GET` | `/api/v1/app-installation-previews/{id}/api-access` | Sämtliche signierten App-Endpoints mit Risiko aus Core-Katalog anzeigen |
+| `POST` | `/api/v1/app-installation-previews/{id}/api-approvals` | Vollständige Endpoint-Liste gesondert bestätigen |
+| `GET` | `/api/v1/app-installations/{id}/api-access` | Genehmigte Endpoint-Liste einer Installation prüfen |
+| `GET` | `/api/v1/app-instances/{id}/api-access` | Effektive Instanzzugriffe anzeigen |
+| `POST` | `/api/v1/app-installations/{id}/api-access/revocations` | Einzelne erlaubte API-Zugriffe widerrufen |
+
+**Fachlich führendes Detailkonzept:** [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ## 8. Interne gRPC-Verträge
 
 Jeder Fachkontext veröffentlicht nur sein erforderliches Serviceinterface unter `contracts/protobuf/cloudos/<domain>/v1/`.
@@ -713,6 +736,12 @@ Das System verwendet **deny by default**. Ein App-Manifest definiert nur angefor
 
 Die App-Bridge ist eine **Kommunikationsgrenze**, aber der eigentliche Datenzugriff wird vom Owner-Dienst beziehungsweise dem Permission-Service beim konkreten Request erneut autorisiert. Insbesondere darf ein altes `handle_id` nicht als unbegrenzt gültiger Besitznachweis behandelt werden.
 
+### 10.5 Strikte App-Endpoint-Allowlist
+
+Für jede durch eine `.cloudApp` ausgelöste Operation erweitert sich die bestehende Rechteprüfung um: signierte API-Deklaration → genehmigter Installationsplan → aktiver App-Instanzkontext → gültiger Ressourcenscope. Fehlt ein Bestandteil, wird die Anfrage **serverseitig verweigert**. Der Core ermittelt die Operation-ID aus der tatsächlich gematchten Methode/Route, niemals aus einem allein vom App-Client gelieferten Header.
+
+Auch ein Administrator kann mit einer eingeschränkten App nicht automatisch administrative APIs erreichen. Eingebaute Core-Apps müssen ihre benötigten Endpunkte ebenfalls in ihrer signierten Baseline deklarieren. Externe Rust-/WASM-Apps bekommen keine allgemeine BFF-Session oder freie Service-Credentials; sie verwenden eine kontrollierte App-Bridge. Details, Proof-of-Concept und Negativtests: [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ## 11. Persistenz und Datenhoheit
 
 ### 11.1 PostgreSQL-Aufteilung
@@ -765,6 +794,9 @@ Ein Dienst darf fremde Tabellen nicht lesen oder schreiben. Fachübergreifende I
 | `applications.installations` | Installation Service | Benutzer/Mandant, Version, Status, Policy-Revision |
 | `applications.instances` | Lifecycle Service | `app_instance_id`, User, Session, Runtime, Status, Window-Referenz |
 | `permissions.app_grants` | Permission Service | App-Instanz, Ressource, Operation, Ablauf, Widerruf |
+| `applications.app_api_declarations` | App Package Service | Signierter Deklarationsdigest, API-Contract, Operation-IDs, Methoden und Scopes |
+| `applications.app_api_installation_approvals` | Installer / Permission Service | Paket-/Deklarationsdigest, Adminfreigabe, Plan-Hash, Katalogrevision |
+| `permissions.app_api_grants` | Permission Service | Installation, Operation-ID, Scope, Policy-Revision, Revocation |
 | `files.file_handles` | File Service / Broker | Handle, File-ID, gebundene Instanz, Operationsscope, Revision, Expiry |
 | `jobs.processes` | Process Registry | Prozess-ID, Owner, Runtime, Status, Exit-Reason |
 | `jobs.executions` | Job Service | Job-ID, Worker-Lease, Start/Ende, Limits, Ergebnisreferenz |
@@ -1425,6 +1457,16 @@ Alle von cloudOS gerenderten Warnungen sind themefaehig, bleiben jedoch als vert
 
 Die vollstaendige Spezifikation inklusive Paketformat, Revocation, Risk-Confirmation-Flow, signierter Indexstruktur, Fehlercodes und Signaturtestmatrix ist in [`APP_SIGNING.md`](APP_SIGNING.md) dokumentiert.
 
+### 14.19 Signierte API-Berechtigungsdatei und obligatorische Endpoint-Freigabe
+
+Jede `.cloudApp` enthält zusätzlich zum `cloudos.app.json` die Datei **`permissions/api-access.json`**, die durch `api_access.file` referenziert und im SHA-512-Paketindex signiert ist. Die Datei führt **jede** benötigte cloudOS-Core-API-Operation mit stabiler `operation_id`, HTTP-Methode, kanonischem Pfad und maximalem Ressourcenscope auf. Auch eine leere Liste muss vorhanden sein.
+
+Der App Package Service validiert die Datei, der Core API Contract Registry/Permission Service bewertet die Route und der App Installer erstellt eine gebundene Vorschau aller Endpunkte samt verständlicher Sicherheitsrisiken. Ein Administrator muss diese Endpoint-Liste vor **jeder** Installation oder Aktualisierung vollständig sehen und genehmigen. Bei gültiger Selbstsignatur ist **zusätzlich** die eigenständige Signaturwarnung zu bestätigen. Neu verlangte oder erweiterte Rechte dürfen nie stillschweigend hinzugefügt werden.
+
+**Sicherheitsregel:** Die laufende App nutzt ausschließlich die wirksam genehmigten Endpunkte. Ein nicht deklarierter App-Aufruf wird am Go-Core serverseitig mit `403` verweigert; von der App veranlasste Zugriffe dürfen nicht über privilegierte Core-Apps oder eine gemeinsame Browser-Cookie-Session eskalieren. Dasselbe gilt für Rust-Browser-WASM, WASI und spätere native Runner. Für WebSockets wird jede Subscription separat geprüft. Die Unterscheidung zwischen API-Freigabe und Ressourcen-ACL bleibt bestehen.
+
+Das vollständige Modell mit Schema, Bridge-Architektur, Risk-Preview, API-Diffs, Events, Audit und 41 Tests steht in [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ## 15. Ausführung: virtuelle Prozesse, Browser-WASM, Server-WASI und native Rust-Sandboxes
 
 ### 15.1 Einheitliches Prozess- und Ausführungsmodell
@@ -1907,6 +1949,10 @@ Jeder Dienst muss Timeouts, Backpressure, begrenzte Retry-Zahlen und definierte 
 
 **Theme-Fehlerfaelle:** Bei fehlendem Token, inkompatiblem Schema oder fehlerhaftem Asset wird ein validiertes Fallback-Theme geladen. Theme-Paketwiderrufe können per Event zu erneutem API-Abruf und sicherem Wechsel fuehren. Fehlschlagende Theme-Anfragen blockieren weder Anmeldung noch System-API-Aufrufe.
 
+### 19.2 API-Policy-Ausfälle und Pflichtverweigerung
+
+Bei nicht erreichbarem API-Katalog, fehlender signierter API-Deklaration, ungültiger App-Kontextbindung oder nicht sicher prüfbarer Policy wird jeder neue geschützte App-Aufruf **verweigert**. Ein Cache darf keine dauerhaft ungültigen Freigaben weiterreichen. Bereits laufende Instanzen werden nach einem Widerruf neu bewertet oder isoliert beendet. Eine defekte Core-App erhält keine unbeschränkten Ersatzrechte; die signierte Release-Baseline und die minimale Recovery-Funktion bleiben maßgeblich.
+
 ## 20. Sicherheitsarchitektur und Bedrohungsmodell
 
 | Bedrohung | Entwurfsmaßnahme |
@@ -2015,6 +2061,10 @@ Die CI prüft die **Theme-Konformitaet jedes cloudOS-eigenen UI-Elements**. Dazu
 | TH-012 | Theme-Event doppelt / veraltet | Idempotenter, revisionsgeprüfter Zustand ohne Flackern |
 
 Visual-Regression-Baselines werden versioniert und bewusst reviewed; ein geaenderter Screenshot allein bedeutet nicht automatisch eine Fehlfunktion oder eine erwuenschte Designaenderung.
+
+### 21.7 API-Allowlist-/App-Bridge-Abnahmetests
+
+Zusätzlich zu den bestehenden Tests sind verpflichtend: Ablehnung einer fehlenden/manipulierten `api-access.json`, unbekannte Operation-IDs, verbotene Methoden, nicht deklarierte Aufrufe, Umgehung durch Raw HTTP/Sessioncookie, Rust-WASM-/WASI-Aufrufe, Admin-Rolle ohne App-Grant, vollständige Endpoint-Risikoanzeige, selbstsignierte Doppelbestätigung, Update-Rechte-Diff, Widerruf und Core-App-Baseline-Verifikation. Die fachlich führende Matrix `API-001` bis `API-041` steht in [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
 
 ## 22. Vorgesehene Repository-Struktur und Core-Grenzen
 
@@ -2145,7 +2195,7 @@ cloudOS/
 └── Makefile
 ```
 
-Dies ist eine **Zielstruktur, kein Ist-Inventar**. Der am 15.11.2026 geprüfte Branch `main` enthält `README.md`, `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` und `docs/VIRTUAL_FILESYSTEM.md` (Commit `efa3c237`). Die neuen Dokumentversionen einschließlich `docs/APPLICATION_SYSTEM.md` sind noch nicht auf GitHub committed. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
+Dies ist eine **Zielstruktur, kein Ist-Inventar**. Im am 15.11.2026 geprüften Branch `main` (Commit `3846c80a`) liegen `README.md`, `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`, `docs/APPLICATION_SYSTEM.md` und `docs/APP_SIGNING.md`. Das neu spezifizierte `docs/APP_API_ACCESS.md` und die hier bereitgestellten neuen Dokumentversionen sind noch nicht auf GitHub committed. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
 
 **Go-Packageregel:** In `core/internal/<fachkontext>` liegen die Implementierungen hinter Ports/Interfaces. Nur ausdrücklich freigegebene, versionierte Contract-/Client-Pakete dürfen von anderen Fachkontexten importiert werden. Eine Umstrukturierung in einzelne Deployments erfordert dadurch keinen Wechsel der öffentlichen API.
 
@@ -2317,6 +2367,16 @@ Die Phasen 0–9 müssen ihre Aufgaben so ordnen, dass Baseline, minimale Regist
 
 **ADR-Format:** Kontext, Entscheidungsstatus, Entscheidung, Alternativen, Konsequenzen, Sicherheitsauswirkung, Kompatibilität/Migration, Testplan, Datum und Verantwortliche. Nicht akzeptierte ADRs sind ausdrücklich **offen**, selbst wenn ein Implementierungsentwurf eine bevorzugte Richtung nennt.
 
+### 24.1 Weitere ADRs: App-API-Scopes und Installationsrisiken
+
+- **ADR-037:** Signierter `permissions/api-access.json`-Contract, Core-API-Katalog und Operation-ID-Versionierung.
+- **ADR-038:** Default-Deny-Enforcement an App-Bridge, REST, gRPC, WebSocket und WASI-Grenzen.
+- **ADR-039:** Risikomodell und vollständiger Sicherheitsdialog für alle Endpoint-Zugriffe.
+- **ADR-040:** Freigabe-/Widerrufs-/Update-Diff-Modell und Policy-Caches.
+- **ADR-041:** Separates App-Egress-/externes Netzwerkberechtigungsmodell.
+
+Diese Punkte müssen vor der produktiven Freigabe beliebiger Drittanbieter-Apps entschieden und getestet werden.
+
 ## 25. Definition eines belastbaren Architekturstands
 
 Phase 0 ist erst abgeschlossen, wenn mindestens folgende Ergebnisse vorliegen:
@@ -2448,7 +2508,7 @@ Eine Rust-Testanwendung mit Theme-Adapter wird zweimal gestartet (Light und Dark
 
 ## Anhang C – Quellen und Dokumentbezüge
 
-**Verbindliche Projektgrundlage:** `docs/CONCEPT.md` aus [`Drezael/cloudOS`](https://github.com/Drezael/cloudOS). Diese Architekturversion 0.4 baut auf dem mit `efa3c237d07f6acf0b0358f999e3bfe76b21b116` verifizierten Stand auf. Sie wird als **vollständige neue Version** von `docs/SYSTEM_ARCHITECTURE.md` bereitgestellt und ändert das GitHub-Repository nicht automatisch.
+**Verbindliche Projektgrundlage:** `docs/CONCEPT.md` aus [`Drezael/cloudOS`](https://github.com/Drezael/cloudOS). Diese Architekturversion 0.6 baut auf dem mit `3846c80af27a8dcf4b9029dec8fee4f3859a769c` verifizierten Stand auf. Sie wird als **vollständige neue Version** von `docs/SYSTEM_ARCHITECTURE.md` bereitgestellt und ändert das GitHub-Repository nicht automatisch. Der Endpoint-Contract ist ergänzend in [`APP_API_ACCESS.md`](APP_API_ACCESS.md) fachlich führend.
 
 **Ergaenzung 0.3:** Die Theme-Architektur ist eine neue Projektvorgabe auf Basis des Nutzerwunsches; externe Quellen zu React/Vue-Styling sind für diese verbindliche Entwurfsentscheidung nicht erforderlich. Grundlagendokumente werden beim nächsten Abgleich synchronisiert.
 

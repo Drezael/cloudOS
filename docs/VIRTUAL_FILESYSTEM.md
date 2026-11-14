@@ -2,10 +2,12 @@
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/VIRTUAL_FILESYSTEM.md`  
-> **Dokumentversion:** 0.3 (X.509-Signing und Self-signed-Freigabe fuer App-Installationen)  
+> **Dokumentversion:** 0.4 (App-Signing und signierte Endpoint-Allowlist bei VFS-Zugriffen)  
 > **Stand:** 15.11.2026  
-> **Geprüfte Grundlage:** `main`, Commit `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
-> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.5) und `docs/APPLICATION_SYSTEM.md` (v0.2) und `docs/APP_SIGNING.md` (v0.1)  
+> **Geprüfte Grundlage:** `main`, Commit `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
+> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.6), `docs/APPLICATION_SYSTEM.md` (v0.3), `docs/APP_SIGNING.md` (v0.2) und `docs/APP_API_ACCESS.md` (v0.1)  
+
+> **App-API-Zugriffsmodell:** [`APP_API_ACCESS.md`](APP_API_ACCESS.md); jede VFS-API-Nutzung aus Apps benötigt eine signierte und genehmigte Operation
 > **Status:** Neue Anforderungen verbindlich; genaue Implementierungsdetails werden in Phase 0/6 entschieden.
 
 ## 1. Zweck und Zielbild
@@ -298,6 +300,9 @@ Dateizugriff erfordert die Schnittmenge aus:
 3. **Ressourcen-ACL:** Rechte am konkreten Node und ggf. seinen Vorfahren.
 4. **Operation:** Lesen, Auflisten, Schreiben, Erstellen, Löschen, Verschieben, Administration.
 5. **App-Capability:** Für Drittanbieter-Anwendungen der ausdrücklich zugewiesene, zeitlich begrenzte Umfang.
+6. **Endpoint-Allowlist:** Die zugehörige Methode/Operation-ID ist in der signierten `permissions/api-access.json` der App-Version deklariert **und** administrativ für diese Installation genehmigt.
+
+Eine reine Datei-ACL oder ein gültiger Dateihandle genügt nicht, wenn die App die verwendete File-Service-API selbst gar nicht anfordern durfte. Nicht deklarierte VFS-APIs werden **serverseitig** verweigert, auch bei Administratorbenutzern und Core-Apps.
 
 Weder ein vom Client übermittelter `owner_id` noch die Kenntnis einer Node-ID ersetzt diese Prüfungen.
 
@@ -531,6 +536,14 @@ Das Beispiel demonstriert **zwei Volumes plus einen Home-Alias**. Es bedeutet ni
 
 Für API-Fehler wird das im Gesamtkonzept festgelegte Problem-Details-Format verwendet. Statuscodes für Unsichtbarkeit und Zugriffsverweigerung werden vertraglich vereinheitlicht, um Informationslecks zu vermeiden.
 
+### 9.4 App-spezifische VFS-API-Allowlist
+
+Die bestehenden File-/Volume-APIs sind zugleich registrierte **Core-API-Operationen**. Jede aufrufende `.cloudApp` benötigt für die konkrete HTTP-Methode und Route einen passenden Eintrag in ihrer signierten `permissions/api-access.json` sowie eine gebundene Installationsfreigabe. Beispielsweise kann eine Texteditor-App ausschließlich `files.dialogs.open` und `files.contents.read` für **durch Benutzerwahl freigegebene Dateien** deklarieren; das ist nicht gleichbedeutend mit einer Berechtigung auf alle `users:/homes/` oder `system:/`-Knoten.
+
+**Prüfreihenfolge:** aktive App-Instanz → signierte Endpoint-Deklaration → genehmigte Operation/Scope → konkreter Benutzer/Handle/ACL → VFS-Mount-Sicht → Ausführung. Ein gültiger Handle allein darf keine fehlende Endpoint-Genehmigung ersetzen. Direkte App-Aufrufe mit der allgemeinen BFF-Session oder fremden App-Identitäten sind verboten. Der File Service wiederholt die fachliche Ressourcenprüfung auch bei bereits geprüftem Gateway.
+
+Adminrechte und Core-App-Release-Status sind keine impliziten Endpoint-Bypässe. Die vollständige spezifizierte Sicherheitsarchitektur steht in [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+
 ## 10. Interne gRPC- und Event-Verträge
 
 ### 10.1 Interne gRPC-Kommandos (Zielentwurf)
@@ -750,9 +763,17 @@ Vor dem Uebergang aus dem `users`-Volume nach `system:/applications/packages/` p
 
 Die fachlich fuehrende Spezifikation steht in [`APP_SIGNING.md`](APP_SIGNING.md), Paket- und Installervertraege in [`APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
 
+### 13.7 App-API-Deklaration als Pflicht für Dateioperationen
+
+Der File Explorer ist selbst eine signierte, vorinstallierte `.cloudApp` und besitzt eine releasegebundene API-Allowlist. Zum Anzeigen von Ordnern muss `FileExplorer.cloudApp` die entsprechenden VFS-Leseoperationen deklarieren; zum Verwalten von Dateien die Schreib-, Lösch- und Verschiebeoperationen. Sie erhält dennoch keine Rechte zum Lesen fremder Homes oder zum Verändern von `system:/` ohne zusätzliche Serverberechtigung.
+
+Jede weitere Web-/Rust-App deklariert ihre notwendigen Datei-APIs in `permissions/api-access.json`. Der Installer zeigt die jeweilige Methode, Route, den maximalen Ressourcenscope und das Risiko von Datei-Lese-, Schreib- oder Löschzugriffen **vor** der administrativen Installation an. `APP_SIGNING.md` bindet die Datei kryptografisch; [`APP_API_ACCESS.md`](APP_API_ACCESS.md) definiert die Laufzeitdurchsetzung.
+
 ## 14. Rust-/WASM- und weitere Anwendungsruntimes
 
 ### 14.1 Rust-WebAssembly im Browser
+
+**API-Allowlist:** Rust-WASM-Dateizugriffe sind ausschließlich über die App-Bridge auf zuvor signiert deklarierte und genehmigte Core-Operationen zulässig. Eine manuell ausgewählte Datei verleiht nur einen gebundenen Dateihandle; fehlt `files.contents.read` oder die passende Schreiboperation in der API-Freigabe, lehnt der Go-Core selbst bei gültigem Handle ab.
 
 Browser-Rust-Anwendungen, zum Beispiel Bildbearbeitungsprogramme aus der ArtCraft-Familie, greifen auf cloudOS-Dateien über das App-SDK und den File Capability Broker zu.
 
@@ -839,6 +860,19 @@ Ein freigegebener Ordner wird **nicht** dadurch öffentlich, dass sein Pfad inne
 | VFS-024 | System-Restore | Benutzerdateien bleiben unberührt. |
 | VFS-025 | Benutzerumbenennung | Home-Zuordnung und IDs bleiben stabil. |
 | VFS-026 | Benutzerdeaktivierung | Alte Sessions/Handles verlieren Rechte. |
+
+### 16.1a Zusätzliche App-Endpoint-Sicherheitstests
+
+| ID | Test | Erwartung |
+|---|---|---|
+| VFS-API-001 | App besitzt Dateihandle, aber deklariert keine Lese-API | `403`, keine Bytes ausgeliefert |
+| VFS-API-002 | App deklariert `GET`, versucht `DELETE` | Ablehnung durch Core und File Service |
+| VFS-API-003 | Rust-WASM-App nutzt direkte REST-URL ohne App-Kontext | Kein Bypass über Benutzer-Cookies |
+| VFS-API-004 | Core-FileExplorer versucht undeklarierte Admin-VFS-API | Serverseitige Ablehnung trotz Core-App-Signatur |
+| VFS-API-005 | Update erweitert Zugriff auf Home-Ordner | Neuer vollständiger API-Risikodialog vor Aktivierung |
+| VFS-API-006 | App-API-Grant widerrufen, Datei-ACL bleibt | Weitere App-Aufrufe trotzdem blockiert |
+
+Ergänzend gelten die übergreifenden Tests `API-001` bis `API-041` aus [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
 
 ### 16.2 Definition of Done für die VFS-MVP-Stufe
 
