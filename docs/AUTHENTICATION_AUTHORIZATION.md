@@ -1,12 +1,12 @@
 # cloudOS – Authentifizierung, Benutzer, Gruppen und Autorisierung
 
 > **Pfad im Repository:** `docs/AUTHENTICATION_AUTHORIZATION.md`  
-> **Dokumentversion:** 0.1 – Architektur- und Implementierungskonzept  
+> **Dokumentversion:** 0.2 - externe LDAP-/IdP-Optionen, interne Shares und Spaces
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
-> **Verifizierte Ausgangsbasis:** `main`, Commit `8a3d592f37e75ae17e16bad448d119de634667e1`  
+> **Verifizierte Ausgangsbasis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
 > **Status:** Neue fachliche Anforderungen sind verbindlich; technisch offene Detailentscheidungen sind ausdrücklich gekennzeichnet.  
-> **Verwandte Dokumente:** [CONCEPT.md](CONCEPT.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [APP_API_ACCESS.md](APP_API_ACCESS.md).
+> **Verwandte Dokumente:** [CONCEPT.md](CONCEPT.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [APP_API_ACCESS.md](APP_API_ACCESS.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [SHARING_SPACES.md](SHARING_SPACES.md).
 
 ## 1. Ziel und Grundsatzentscheidung
 
@@ -1096,3 +1096,33 @@ Normative und technische Referenzen (für den späteren Implementierungsnachweis
 10. **Sicherheit und Audit sind Voraussetzung für Funktionalität**, nicht nachträgliche Erweiterung.
 
 **Nächster technischer Schritt:** Die zugehörigen IAM-ADRs (insbesondere Auth-Adapter, LDAPv3-Subset und POSIX-DAC) konkretisieren und anschließend die sechs bestehenden cloudOS-Dokumente an diesen neuen Architekturstand angleichen.
+
+
+---
+
+## 25. Externe LDAP-Verzeichnisse und optionale IdPs
+
+Der lokale Go Directory Service bleibt die **verbindliche MVP-Quelle fuer Benutzer, Gruppen, UID/GID, Home-IDs und POSIX-Rechte**. Spaeter kann ein Administrator optional einen externen LDAP-Server anbinden; ein externer OIDC-IdP kann unabhaengig davon als alternative Authentifizierung konfiguriert werden. LDAP-Synchronisierung ist **nicht automatisch** LDAP- oder OIDC-Login.
+
+- Externe Objekte werden ueber stabile LDAP-Object-IDs mit vorhandenen lokalen `user_id`/`group_id` verknuepft; Benutzername, E-Mail und DN sind keine alleinigen Merge-Schluessel.
+- Lokale UUID/UID/GID und VFS-Home-Bindings bleiben nach Umbenennung, Import, IdP-Wechsel und LDAP-Reorganisation stabil.
+- Externe Gruppenmitgliedschaften behalten ihre Quellenherkunft; ihr Entzug entzieht gruppenbasierte Dateifreigaben und Space-Zugriffe.
+- Externe LDAP-Synchronisation ist zunaechst **read-only, einseitig extern -> cloudOS**. Geheimnisse und Passwoerter werden nicht in den lokalen LDAP-Adapter importiert.
+- OIDC-Anmeldung validiert `(issuer, sub)` und bindet dieses Paar sicher an eine bestehende lokale Identitaet. IdP-Gruppenclaims uebertragen keine Systemrollen.
+- Bei LDAP-Teilfehlern darf kein Massen-Disable erfolgen; bei IdP-Ausfall darf kein stiller unsicherer Passwort-Fallback entstehen.
+- Ein geschuetzter lokaler Recovery-Administrator bleibt fuer Notfaelle vorgesehen.
+
+Die **vollstaendigen** Connector-, Sync-, Konflikt-, OIDC-, Secret- und Testregeln stehen in [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md). Die bisher beschriebenen lokalen Directory-, Passwort- und POSIX-Regeln bleiben unveraendert gueltig.
+
+## 26. Interne Freigaben und Spaces als zusaetzliche Autorisierungskontexte
+
+Share Grants geben bewusst ausgewaehlten internen Benutzern/Gruppen Zugriff auf bestehende Datei-/Ordner-Nodes. Spaces sind unabhaengige Team-/Projektbereiche mit eigener `space_id`, Datei-Root, Member-Rollen und Quota. Der Space-Root liegt auf dem zweiten Volume unter `users:/shared/spaces/<space_id>`. Fuer jeden Benutzer bleibt `/` sein eigenes Home. `/Shared with me` und `/Spaces` sind **autorisierte virtuelle Mount-Sichten**, keine weiteren Festplatten.
+
+- Share-Rollen: `can_view`, `can_upload` (Ordner), `can_edit`.
+- Space-Rollen: `can_view`, `can_edit`, `can_manage`; globale `spaces.admin`-Rolle berechtigt nur zur Meta-Verwaltung, nicht pauschal zum Lesen der Inhalte.
+- Eigene Home-Dateien nutzen POSIX-DAC. Share- und Space-Mounts verwenden **explizit autorisierte Grant-Kontexte**. Auch eine Datei mit Mode `0600` kann im engen Share-Kontext lesbar werden, ohne `chmod` auszufuehren.
+- Session, Konto-/Gruppenstatus, App-Endpoint-Allowlist, korrekter Mount-Handle, konkrete Share-/Space-Rechte und harte Policies sind bei **jedem** Zugriff zu pruefen.
+- Die Teamspeicherdaten werden nicht geloescht, nur weil ein Space-Ersteller oder externes LDAP-Konto entfaellt.
+- `Sharing.cloudApp` und `Spaces.cloudApp` werden als eigene signierte, installierte Core-Apps zum jeweiligen Feature ausgeliefert; ihre UI verwendet das cloudOS-Designsystem.
+
+Die verbindliche Fach-/API-/VFS- und Testarchitektur steht in [SHARING_SPACES.md](SHARING_SPACES.md). Eine neue LDAP-Gruppe kann darin nur ueber die stabile lokale Gruppen-UUID referenziert werden, nicht ueber ihren DN.

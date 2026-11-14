@@ -1,13 +1,13 @@
 # cloudOS – Anwendungsarchitektur und `.cloudApp`-Paketformat
 
 > **Dokument:** `docs/APPLICATION_SYSTEM.md`  
-> **Version:** 0.3 – App-first, X.509-Signing und verpflichtende API-Endpoint-Allowlist  
+> **Version:** 0.4 - App-first, Signing, API-Allowlist, Shares, Spaces und IAM-Apps
 > **Stand:** 15.11.2026  
-> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
+> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
 > **Übergeordnete Dokumente:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`  
 > **Signatur- und Vertrauenskonzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.2; für kryptografische Details fachlich führend)  
 
-> **Verbindliche API-Endpoint-Policy:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (v0.1; für Deklaration, Freigaben, Installationsvorschau und API-Enforcement führend)
+> **Verbindliche API-Endpoint-Policy:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (v0.2; fuer Deklaration, Freigaben, Installationsvorschau und API-Enforcement fuehrend)
 > **Geltungsbereich:** CloudOS-Core, Core-Apps, installierbare Apps, Paketformat, Installation, Laufzeit, Berechtigungen, UI-Integration und Wartung
 
 ## 1. Ziel und verbindliche Produktentscheidung
@@ -166,6 +166,10 @@ Dateisystem, Authentifizierung, ACLs, Suche, Shell-Befehle und Theme-Auflösung 
 | `io.cloudos.app-installer` | App Installer | Installationsvorschau, Bestätigung, Fortschritt und Ergebnis | **Pflicht / vorinstalliert** |
 | `io.cloudos.system-dialogs` | System Dialogs | Datei-Picker, Bestätigungen, Berechtigungen und Fehlerdialoge | **Pflicht / vorinstalliert** |
 | `io.cloudos.notifications` | Notification Center | System- und App-Meldungen anzeigen | **Pflicht / vorinstalliert** |
+| `io.cloudos.sharing` | Sharing | Interne Datei-/Ordnerfreigaben | **Core-App mit Sharing-Feature / vorinstalliert** |
+| `io.cloudos.spaces` | Spaces | Arbeitsbereiche, Mitglieder, Rollen und Quotas | **Core-App mit Spaces-Feature / vorinstalliert** |
+| `io.cloudos.settings.users` | User Management | Lokale Benutzer und Profile | **Core-App der Identity-Baseline** |
+| `io.cloudos.settings.groups` | Group Management | Gruppen und Mitgliedschaften | **Core-App der Identity-Baseline** |
 
 Die Namen/IDs sind **Entwürfe**, die in einem eigenen Contract festgeschrieben werden. Zusätzliche notwendige Core-Apps können auf dieselbe Weise Bestandteil der Baseline werden. **Nicht jede Core-App wird bei Login automatisch als sichtbares Fenster geöffnet**: Desktop startet als Shell-App; File Explorer, Settings und Installer starten bei Bedarf. System Dialogs und Notification Center dürfen von der Desktop-App als kontrollierte, registrierte Komponenten gestartet oder eingebettet werden.
 
@@ -1135,3 +1139,18 @@ Dieses Dokument ist für den **App-Lebenszyklus** fachlich führend; `SYSTEM_ARC
 - **Recovery und Rollback schützen den Systemstart vor fehlerhaften App-Updates.**
 
 **Implementierungsstatus:** Architekturentwurf. Noch keine der beschriebenen cloudOS-App-APIs, Pakete oder Runtimes ist im geprüften Repository implementiert.
+
+
+---
+
+## 27. App-First-Integration von Sharing, Spaces und externer Identity
+
+`Sharing.cloudApp` und `Spaces.cloudApp` werden mit der jeweiligen cloudOS-Funktion als **signierte, automatisch vorinstallierte Pflicht-Core-Apps** ausgeliefert. Sie bleiben gegen unbeabsichtigtes Deinstallieren geschuetzt. Der File Explorer nutzt die Sharing-App fuer `Rechtsklick -> Teilen` und zeigt unter seinem eigenen Home die virtuellen Einbindungen `Shared with me` und `Spaces` an.
+
+Die lokale Benutzer- und Gruppenverwaltung erfolgt weiterhin in **eigenstaendigen** `UserManagement.cloudApp`- und `GroupManagement.cloudApp`-Instanzen, die durch `Settings.cloudApp` erreichbar sind. Bei spaeterer LDAP-/IdP-Integration kommen `DirectoryConnectors.cloudApp` und `AuthenticationProviders.cloudApp` als getrennte geschuetzte Admin-Core-Apps hinzu.
+
+**Wichtige Sicherheitsregel:** Jede eigenstaendige App benoetigt ihre eigene signierte `permissions/api-access.json`. Eine eingebettete Sharing-App erbt keine FileExplorer-Rechte; Settings erbt keine Verwaltungsrechte ihrer untergeordneten Apps. Kritische Endpunkte wie LDAP-Sync, Provider-Wechsel und Space-Mitgliedschaftsverwaltung stehen ausschliesslich der passend signierten Core-Baseline und ausdruecklich autorisierten Benutzern zur Verfuegung. Eine externe Rust/WASM-App erhaelt keine automatisch erweiterten Shares- oder Spaces-Rechte.
+
+Sowohl Share-/Space-Dialoge als auch LDAP-/IdP-Administrationsoberflaechen sind vollstaendig ueber zentrale Theme-Tokens, Zustandsvarianten und austauschbare UI-Komponenten zu gestalten. Kein Theme kann die eigentliche Berechtigungspruefung aendern.
+
+Fachliche Architektur: [SHARING_SPACES.md](SHARING_SPACES.md) und [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md). Der API-Contract wird in [APP_API_ACCESS.md](APP_API_ACCESS.md) spezifiziert.

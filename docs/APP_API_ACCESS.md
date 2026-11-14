@@ -1,12 +1,12 @@
 # cloudOS – App-API-Berechtigungen, Endpoint-Allowlist und Installationsfreigaben
 
 > **Pfad:** `docs/APP_API_ACCESS.md`  
-> **Dokumentversion:** 0.1 (verbindliches Sicherheits- und Architekturziel)  
+> **Dokumentversion:** 0.2 (Sharing-, Spaces- und IAM-API-Familien)
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
-> **Ausgangsbasis:** `main`, Commit `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
+> **Ausgangsbasis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
 > **Fachlich führend für:** deklarierte cloudOS-API-Zugriffe aus `.cloudApp`-Paketen, Installationsfreigabe, API-Enforcement, Updates und Audit  
-> **Abhängige Dokumente:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [CONCEPT.md](CONCEPT.md)
+> **Abhängige Dokumente:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [SHARING_SPACES.md](SHARING_SPACES.md), [CONCEPT.md](CONCEPT.md)
 
 ## 1. Zweck und verbindliche Anforderungen
 
@@ -650,3 +650,39 @@ Das bereits bestehende `APP_SIGNING.md` bleibt **fachlich führend für Kryptogr
 Bei Widersprüchen sind die jeweiligen Fachgrenzen und ein ADR maßgeblich. Bis zu ihrer Umsetzung sind die Beispiel-APIs und -Schemas **Architekturentwürfe, keine implementierten Funktionen**. Die bestehenden 19 Entwicklungsphasen bleiben erhalten, werden aber um die oben genannten Sicherheitsvoraussetzungen ergänzt.
 
 **Ergebnis:** Jede installierbare `.cloudApp` besitzt einen signierten API-Anforderungskatalog. Jede Core-API-Operation wird im App-Kontext mit einer **Default-Deny-Allowlist** geprüft. Administratoren sehen bei Installation und Update **alle** beantragten Endpunkte mit konkreten Sicherheitsauswirkungen und müssen deren Zugriff gesondert freigeben.
+
+
+---
+
+## 22. Sharing-, Spaces- und Identity-Connector-Endpunkte
+
+Die deklarierte API-Allowlist ist auch fuer Freigaben, Spaces und Directory-/IdP-Konfiguration **zwingend**. Share- und Space-Rechte sind keine globalen API-Rechte und ersetzen keine App-Installation. Der Core-API-Katalog erhaelt vor Implementierung insbesondere folgende **vorgeschlagene** Operationen:
+
+| Operation-ID | HTTP-Route (Entwurf) | Sicherheitsauswirkung | Exposure |
+|---|---|---|---|
+| `shares.received.list` | `GET /api/v1/shares/received` | Gibt empfangene Freigaben und Metadaten bekannt | `app_allowed`, begrenzt |
+| `shares.create` | `POST /api/v1/shares` | Kann persoenliche Inhalte anderen internen Principals zugaenglich machen | `app_allowed`, begrenzt |
+| `shares.revoke` | `DELETE /api/v1/shares/{share_id}` | Entzieht Empfaengern den Zugriff | `app_allowed`, begrenzt |
+| `spaces.list` | `GET /api/v1/spaces` | Gibt Projektnamen und Mitgliedschaften bekannt | `app_allowed`, begrenzt |
+| `spaces.root.read` | `GET /api/v1/spaces/{space_id}/root` | Ermoeglicht Lesen eines autorisierten Teamroots | `app_allowed`, begrenzt |
+| `spaces.members.set` | `PUT /api/v1/spaces/{space_id}/members/{principal_id}` | Weitet Team-/Dateirechte aus | `core_only`, geschuetzte Core-Baseline |
+| `spaces.delete` | `DELETE /api/v1/spaces/{space_id}` | Hochrisiko: langfristiger Datenverlust moeglich | `core_only`, geschuetzte Core-Baseline |
+| `identity.sources.sync` | `POST /api/v1/admin/directory-sources/{id}/sync-runs` | Aendert Gruppen-/Kontenrechte ueber externen Sync | `core_only`, geschuetzte Core-Baseline |
+| `auth.providers.manage` | `PATCH /api/v1/admin/identity-providers/{id}` | Beeinflusst Login- und Identitaetsbindung | `core_only`, geschuetzte Core-Baseline |
+
+Die Core-Registry definiert die genauen `resource_scope`-Werte, z. B. `user_selected`, `own_home`, `received_share`, `space_member`, `space_manager`, `admin_reviewed`. Ihre Verwendbarkeit haengt von der **Operation selbst** ab. Ein App-Manifest kann keine eigenen privilegierten Scopes erfinden und keinen `core_only`-Endpoint durch Self-Signing freischalten.
+
+### 22.1 Verpflichtender Installationsdialog
+
+Bei jeder manuellen `.cloudApp`-Installation werden alle angeforderten Endpunkte einschliesslich HTTP-Methode, Route, Scope und **vertrauenswuerdiger Risikoerklaerung aus der Core-Registry** angezeigt. Shares-Aktionen warnen vor moeglicher Dateioffenlegung, Spaces-Management vor Rechteausweitung oder Datenverlust, Provider-Konfiguration vor Login-/Identitaetsrisiken. Bei selbstsignierten Paketen erscheint unabhaengig davon die zusaetzliche Herausgeberwarnung.
+
+### 22.2 Ergaenzte Negativtests
+
+1. App ohne `shares.create` kann trotz Dateieigentum keinen Share erzeugen.
+2. App ohne `spaces.members.set` kann auch mit einer Space-Manager-Session keine Rollen aendern.
+3. App ohne `identity.sources.sync` kann keinen LDAP-Sync ausloesen.
+4. Ein gesperrtes Gruppenmitglied darf trotz frueherem Share- oder Space-Grant keine Inhalte lesen.
+5. Ein Update mit neuen Endpunkten benoetigt die neue Risikovorschau und administrative Freigabe.
+6. Eine selbstsignierte App kann `core_only` weder durch eigenen API-Katalog noch durch freie Pfadpattern beanspruchen.
+
+Die neue Facharchitektur ist in [SHARING_SPACES.md](SHARING_SPACES.md) sowie [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md) definiert.

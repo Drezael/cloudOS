@@ -1,7 +1,7 @@
 # cloudOS – Technisches Gesamtkonzept
 
 > **Dokument:** `CONCEPT.md`  
-> **Version:** 0.4 (App-first, VFS, Signing und strikt deklarierte App-API-Allowlist)  
+> **Version:** 0.5 (lokale Identity, optionales LDAP/OIDC, interne Datei-Shares und Spaces)
 > **Stand:** 15.11.2026  
 > **Projektname:** cloudOS  
 > **Architekturvariante:** B – serverbasiert, API-first  
@@ -81,12 +81,14 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 | Echtzeitkommunikation | WebSocket über HTTPS/WSS | Zustandsänderungen an verbundene Clients |
 | Relationale Daten | PostgreSQL | Benutzer, Metadaten, Berechtigungen, Einstellungen |
 | Dateiinhalte | Lokaler persistenter Speicher, später S3-kompatibel | Binärdaten unabhängig von Metadaten |
-| Authentifizierung | OpenID Connect (OIDC) | Einbindung eines Identity Providers |
+| Authentifizierung (MVP) | Lokaler Go Directory-/Authentication Service | Lokale Benutzer/Gruppen, sichere Anmeldung und Sessions |
+| Optionale Identity-Integration | Externer LDAP-Sync und OIDC-BFF | Spaeter getrennt konfigurierbare Verzeichnisse und IdPs |
+| Zusammenarbeit | Share Service und Space Service | Interne Freigaben, gemeinsame Team-/Projekt-Spaces |
 | Reverse Proxy | Nginx | TLS-Terminierung, öffentliche Weiterleitung |
 | Deployment | Docker Compose | Reproduzierbarer Entwicklungs- und Serverbetrieb |
 | Telemetrie | Strukturierte Logs, OpenTelemetry, Prometheus-kompatible Metriken | Betrieb und Fehleranalyse |
 
-**Status:** Servervariante B, Go-Backend und API-first sind festgelegt. Die konkrete Wahl von Vue, NATS, OIDC-Provider, Storage-Implementierung und einzelnen Bibliotheken gilt als technische Empfehlung und wird in Phase 0 verbindlich geprüft.
+**Status:** Servervariante B, Go-Backend, App-first, API-first und lokales Identity-/Session-MVP sind festgelegt. Vue, NATS, konkrete Storage-Implementierung und Bibliotheken sind in Phase 0 zu pruefen; LDAP-Sync und externer OIDC IdP sind spaetere, optionale Adapter.
 
 Go/WebAssembly ist für Variante B **nicht erforderlich**. Für besondere Clientmodule kann es später ergänzend eingesetzt werden.
 
@@ -98,7 +100,7 @@ flowchart TB
     Other["CLI / Mobile / Drittanbieter"]
     Edge["Nginx: TLS, Routing"]
     Gateway["Go API-Gateway / BFF"]
-    OIDC["OIDC Identity Provider"]
+    OIDC["Optionaler externer OIDC IdP"]
 
     subgraph Backend["Interne Go-Systemdienste"]
         Core["Identity, Permissions, Desktop, Settings"]
@@ -116,7 +118,7 @@ flowchart TB
     Browser -->|HTTPS / WSS| Edge
     Other -->|HTTPS| Edge
     Edge --> Gateway
-    Gateway <-->|OIDC-Flow| OIDC
+    Gateway -.->|OIDC nur wenn konfiguriert| OIDC
     Gateway -->|gRPC| Core
     Gateway -->|gRPC| Files
     Gateway -->|gRPC| Apps
@@ -262,36 +264,26 @@ JetStream kann Nachrichten erneut zustellen; Verbraucher müssen deshalb **idemp
 
 ## 7. Authentifizierung und Autorisierung
 
-### 7.1 Anmeldung
+### 7.1 Lokaler Login als MVP-Standard
 
-Primärer Standard ist OpenID Connect. Ein OIDC-Provider, beispielsweise Keycloak, stellt die Benutzeridentität bereit. Für den Browser wird ein Backend-for-Frontend-Ansatz mit serverseitig verwalteten Sitzungen und sicheren Cookies bevorzugt.
+Die erste cloudOS-Version verwendet den **eigenen Go Directory-/Authentication Service** fuer Benutzer, Gruppen und Passwortlogin. Ein kleiner LDAPv3-Adapter stellt die lokale Directory-Sicht bereit. Der Browser nutzt weiterhin ein BFF-Modell mit serverseitigen Sitzungen und sicheren `HttpOnly`-, `Secure`- und `SameSite`-Cookies; CSRF-Schutz, WebSocket-Origin-Pruefung, Rate-Limits und Audit sind Pflicht. Credentials werden als sichere, anpassbare Passwort-Verifier gespeichert und niemals als lesbare LDAP-Hashes exportiert.
 
-- `HttpOnly`, `Secure` und angemessenes `SameSite` für Session-Cookies.
-- Keine langlebigen Zugangstokens im Browser-`localStorage`.
-- CSRF-Schutz für cookie-authentifizierte Schreibzugriffe.
-- Explizite Authentifizierung und Origin-Prüfung für WebSockets.
-- Trennung zwischen Authentifizierung, Rollen und Ressourcenberechtigungen.
+### 7.2 Optionale externe LDAP-/IdP-Anbindung
 
-### 7.2 Berechtigungsmodell
+Administratoren sollen spaeter einen externen LDAP-Server als **read-only Synchronisationsquelle** anbinden koennen; der Import verwaltet stabile lokale Benutzer-/Gruppen-IDs und Mitgliedschaften. Ein **externer OIDC-IdP** kann unabhaengig davon als weiterer Login-Anbieter konfiguriert werden. `(issuer, sub)` und unveraenderliche externe LDAP-Object-IDs werden kontrolliert an lokale Principals gebunden; Namen, E-Mail und LDAP-DN reichen fuer eine automatische Identitaetsfusion nicht aus. Lokales Home, UID/GID, Shares und Spaces bleiben stabil. Details: [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
 
-Drei Ebenen:
+### 7.3 Berechtigungsmodell
 
-1. **Systemrechte:** Administration, Benutzerverwaltung, App-Installation.
-2. **Ressourcenrechte:** Lesen, Schreiben, Löschen, Teilen von Dateien und Ordnern.
-3. **Anwendungsrechte:** Ausgewählte Dateien, Benachrichtigungen oder andere Fähigkeiten nutzen.
+Die verbindliche Zugriffskontrolle trennt (1) lokale Systemrollen, (2) POSIX-UID/GID-/Dateirechte, (3) interne Datei-Share-Grants, (4) Space-Mitgliedschaften/Rollen und (5) signierte, genehmigte App-Endpoint-Allowlists. Alle Checks erfolgen serverseitig; ein Administrator hat keinen pauschalen Inhaltseinblick in fremde Homes oder Spaces. Interne Datei-Shares haben die Rollen `can_view`, `can_upload` und `can_edit`, Spaces `can_view`, `can_edit`, `can_manage`. Details: [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md) und [SHARING_SPACES.md](SHARING_SPACES.md).
 
-Serverseitige Prüfungen sind maßgeblich; ausgeblendete UI-Schaltflächen bieten keine Sicherheitsgarantie. Neu installierte Anwendungen erhalten standardmäßig keine weitreichenden Berechtigungen.
+### 7.4 Sicherheitsgrenzen
 
-### 7.3 Sicherheitsgrenzen
-
-- Nur Nginx/API-Gateway wird extern veröffentlicht.
-- PostgreSQL, NATS, Storage und interne Dienste bleiben in privaten Netzwerken.
-- Interne Dienstkommunikation wird authentifiziert; in produktiven Multi-Host-Umgebungen verschlüsselt.
-- App-Pakete und Updates unterliegen Integritäts- und Herkunftsprüfungen.
-- Web-Apps laufen nicht mit den Privilegien der Desktop-Shell.
-- Serverjobs dürfen weder den Docker-Socket noch beliebige Hostpfade erhalten.
-- Uploads, Pfade, MIME-Angaben und Eingabedaten werden sicherheitsbewusst behandelt.
-- Security-Audits zeichnen Änderungen an Rechten, Sitzungen und administrativen Aktionen auf.
+- Nur Nginx/Gateway exponiert autorisierte HTTP-/WebSocket-Routen.
+- PostgreSQL, interne Go-Dienste und Storage bleiben isoliert; App-Code erhaelt keine direkten DB-/Hostrechte.
+- Drittanbieter-Apps benoetigen eine gueltige Signatur, installative Freigaben und eine unveraenderliche `permissions/api-access.json`.
+- Lokale oder externe Gruppenmitgliedschaft ist keine automatische Systemadministratorrolle.
+- Externe LDAP-/OIDC-Adapter sind standardmaessig **ausgeschaltet**, besitzen sichere TLS-/Secret-Konfiguration und ein Recovery-Konzept.
+- Neue Freigaben und Space-Zuweisungen duerfen die Ressourcengrenzen anderer Benutzer nicht ungeprueft erweitern.
 
 ## 8. Virtuelles Dateisystem
 
@@ -447,7 +439,7 @@ Die Datenbank des zuständigen Dienstes bleibt die maßgebliche Datenquelle. Cac
 - `files`: separat betreibbarer File Service.
 - `postgres`: Metadatenbank.
 - `nats`: Event-Bus mit persistenten JetStream-Daten.
-- `identity-provider`: OIDC-Anmeldung, in Entwicklung beispielsweise Keycloak.
+- `identity-provider`: Optionaler externer OIDC-Provider in einer spaeteren Integrationsphase, nicht fuer lokale MVP-Anmeldung erforderlich.
 
 Weitere Dienste werden erst bei Bedarf in eigene Container ausgelagert. Container und Netzwerke werden so getrennt, dass interne Komponenten nicht ungeschützt von außen erreichbar sind.
 
@@ -547,7 +539,7 @@ Die Entwicklung besteht aus **19 Phasen (0–18)**. Jede Phase besitzt dokumenti
 | **0** | Architektur und Standards | Service-Katalog, Datenhoheit, Bedrohungsmodell, ADRs, Technologieentscheidungen und Repository-Grundstruktur dokumentiert |
 | **1** | API-Verträge und Codegenerierung | Erste OpenAPI-/Protobuf-/Event-Verträge; Go- und TypeScript-Clients automatisch generierbar; Contract-Tests in CI |
 | **2** | Basisinfrastruktur | Nginx, Gateway, PostgreSQL, NATS und erste Go-Laufzeit starten per Compose; Health Checks und Migrationen funktionieren |
-| **3** | Authentifizierung und Sitzungen | OIDC-Login/Logout, sichere Sessions, geschützte API-Aufrufe, CSRF- und WebSocket-Schutz getestet |
+| **3** | Authentifizierung und Sitzungen | Lokaler Login/Logout, sichere Sessions, geschuetzte API-Aufrufe, CSRF- und WebSocket-Schutz getestet |
 | **4** | Identitäten und Berechtigungen | Benutzer, Gruppen, Rollen und Ressourcenrechte; Zugriffstrennung zwischen Testbenutzern nachgewiesen |
 
 ### Abschnitt B – Funktionierender Desktop
@@ -610,7 +602,7 @@ Eine Phase gilt erst als abgeschlossen, wenn:
 Vor dem Bau eines umfangreichen Desktops wird folgender vertikaler Durchstich umgesetzt:
 
 1. Benutzer öffnet die Weboberfläche.
-2. Anmeldung erfolgt über OIDC.
+2. Anmeldung erfolgt lokal ueber den Go Authentication Service; optionaler OIDC folgt spaeter.
 3. Minimaler Bootstrap ruft die installierte, freigegebene `Desktop.cloudApp` aus der App Registry ab.
 4. Der Core prüft Paketbaseline, Launch-Berechtigung und Runtime und stellt der Sitzung ein sicheres App-Startticket aus.
 5. `Desktop.cloudApp` startet als Shell-App, ruft `GET /api/v1/desktops/current` auf und lädt den autoritativen Zustand vom Go Desktop State Service.
@@ -691,7 +683,7 @@ cloudOS wird als **serverbasierte, App-first- und API-getriebene Web-Desktop-Pla
 - **gRPC/Protobuf** verbindet interne Go-Dienste über stabile Verträge.
 - **NATS JetStream** unterstützt asynchrone Änderungen und Echtzeitfunktionen.
 - **PostgreSQL** verwaltet strukturierte Daten; Dateiinhalte liegen in austauschbaren Storage-Backends.
-- **OIDC und feingranulare Rechte** schützen Benutzer und Ressourcen.
+- **Lokale Anmeldung, spaeter optionales OIDC und feingranulare Rechte** schuetzen Benutzer und Ressourcen.
 - **App Registry, SDK und isolierte Ausführung** schaffen die Grundlage für spätere Erweiterungen.
 - **Docker Compose** dient als erste Betriebsplattform.
 - **19 Phasen** führen vom Architekturfundament über das MVP bis zur ausbaubaren Produktplattform.
@@ -702,3 +694,18 @@ cloudOS wird als **serverbasierte, App-first- und API-getriebene Web-Desktop-Pla
 ---
 
 **Dokumentabgleich 0.2 (15.11.2026):** Ergänzt wurden die zwingende `.cloudApp`-Installation, Pflicht-Core-Apps, Admininstallation per File-Explorer-Kontextmenü, das getrennte Core/App-Modell sowie das Zwei-Volume-VFS. Die Fachkonzepte `docs/APPLICATION_SYSTEM.md`, `docs/VIRTUAL_FILESYSTEM.md` und `docs/SYSTEM_ARCHITECTURE.md` konkretisieren diese Regeln.
+
+
+---
+
+## 21. Erweiterung: interne Freigaben, Spaces und Identity-Quellen
+
+**Freigaben:** Benutzer teilen Dateien/Ordner gezielt mit anderen internen Benutzern oder Gruppen. Dateien bleiben im Original-Home; Empfaenger bekommen einen streng autorisierten, widerrufbaren Mount. Zunaechst keine Public Links, Gaeste oder Federation.
+
+**Spaces:** Gemeinsame Projekt-/Teambereiche mit eigener UUID, Root-Node, Quota, Mitgliedschaften und Rollen, deren Lebenszyklus vom persoenlichen Benutzerkonto unabhaengig ist. Der Space-Datenroot liegt im zweiten bereits existierenden Volume unter `users:/shared/spaces/<space_id>`. Normales `/` bleibt **immer das eigene Home**; `Shared with me` und `Spaces` sind virtuelle Mount-Sichten, keine neuen Festplatten.
+
+**Core-Apps:** `Sharing.cloudApp` und `Spaces.cloudApp` werden mit dem jeweiligen Feature als signierte, vorinstallierte Core-Apps bereitgestellt. Fuer externe LDAP-/OIDC-Einstellungen sind spaeter gesonderte, geschuetzte `DirectoryConnectors.cloudApp` und `AuthenticationProviders.cloudApp` vorgesehen. Alle benutzen den zentralen Theme Service und ihre eigene signierte API-Allowlist.
+
+**Sicherheitsregel:** Direkter Home-Zugriff unterliegt POSIX-Rechten; ein expliziter Share-/Space-Mount unterliegt seinem Grant-/Rollenmodell. In allen Faellen bleiben die signierte App-Endpoint-Allowlist, Benutzerautorisierung, Mount-Sicht und Systempolicies unverzichtbar. Externe Verzeichnisse duerfen diese Grenzen nicht durch Namensgleichheit aufheben.
+
+**Fachlich fuehrend:** [SHARING_SPACES.md](SHARING_SPACES.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md). Interne Shares und einfache Spaces folgen nach dem sicheren VFS; optionale LDAP- und IdP-Adapter werden spaeter integriert. Die Phasen und APIs bleiben bis zu einer konkreten Implementierung Entwuerfe.

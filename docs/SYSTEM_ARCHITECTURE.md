@@ -2,9 +2,9 @@
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/SYSTEM_ARCHITECTURE.md`  
-> **Dokumentversion:** 0.6 (App-first, Signing, Zwei-Volume-VFS und strikte App-API-Allowlist)  
+> **Dokumentversion:** 0.7 (lokale Identity, optionale LDAP-/OIDC-Integration und Sharing/Spaces)
 > **Stand:** 15.11.2026  
-> **Ausgangsbasis:** `main`, Commit `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
+> **Ausgangsbasis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
 > **Übergeordnetes Dokument:** [`docs/CONCEPT.md`](CONCEPT.md)  
 
 > **API-Enforcement:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (signierter App-Endpoint-Contract, Installer-Dialog und serverseitige Allowlist)
@@ -13,7 +13,8 @@
 > **Änderung 0.3:** Durchgängig themefähige UI, zentraler Theme Service, Design-Tokens, erweiterbare Komponenten und Theme-Bridge für Rust-/WASM-Apps  
 > **Änderung 0.4:** Alle regulaer gestarteten Oberflaechen als installierte `.cloudApp`; geschuetzte Core-App-Baseline und Installation durch Admins per File Explorer  
 > **Änderung 0.5:** Nextcloud-inspiriertes X.509-App-Signing; lokal selbstsignierte Pakete nach Admin-Sicherheitswarnung und Digest-Freigabe  
-> **Änderung 0.6:** Signierte `permissions/api-access.json`, Endpoint-Allowlist, App-Bridge-Enforcement und verpflichtender Risiko-Dialog für manuelle Installationen
+> **Änderung 0.6:** Signierte `permissions/api-access.json`, Endpoint-Allowlist, App-Bridge-Enforcement und verpflichtender Risiko-Dialog für manuelle Installationen  
+> **Aenderung 0.7:** Lokaler Identity-Login als MVP, spaeter optionale LDAP-Synchronisierung/IdP-Anbindung sowie interne Shares und Spaces
 
 ## 1. Zweck und Geltungsbereich
 
@@ -160,7 +161,7 @@ flowchart TB
         DB[("PostgreSQL: Core-Schemas")]
         Store[("Blob-Storage")]
         NATS["NATS JetStream"]
-        IdP["OIDC Provider"]
+        IdP["Optional external OIDC IdP"]
     end
 
     User --> Edge
@@ -221,7 +222,7 @@ Die Zugehörigkeit zum Core ist **fachlich**, nicht über einen Containernamen d
 | `nats` | JetStream und persistente Events | Nein |
 | `web` | Desktop-Bundles und vertrauenswürdige statische Assets | Nein |
 | `app-assets` | Signiert/validiert verteilte, isoliert gehostete App-Artefakte | Keine Core-API; nur über Edge/gesonderte Origin |
-| `identity-provider` | Externer OIDC-Provider | Kontrollierter Loginpfad |
+| `identity-provider` | Optionaler externer OIDC-Provider | Nur bei konfigurierter IdP-Integration |
 
 `core` ist in dieser Tabelle **nur die erste Laufzeitbündelung mehrerer Core-Dienste**. Fachlich enthält `cloudOS Core` auch `gateway` und `files`.
 
@@ -260,7 +261,10 @@ Der Begriff "alle Funktionen im Core" bedeutet:
 |---|---|---|---|
 | **System Service** | Systemversion, Fähigkeiten, Host-/Mandantenkonfiguration, Wartungszustand | System REST / gRPC | MVP |
 | **API Gateway / BFF** | Öffentliche REST-Fassade, API-Versionierung, Sessions, CSRF, Zugriffssteuerung | REST, WebSocket, interne gRPC-Clients | MVP |
-| **Identity Service** | Benutzer, Profile, Gruppen, OIDC-Zuordnung, Identitätsstatus | Users / Groups | MVP |
+| **Identity Service** | Lokale Identitaeten, UUID/UID/GID, Profile und Gruppen | Users / Groups | MVP |
+| **LDAP/IdP Adapter** | Optionales Directory-Sync und externe Authentifizierung | Identity Connectors | Spaeter |
+| **Share Service** | Datei-/Ordner-Grants an interne Benutzer/Gruppen | Shares | Nach VFS |
+| **Space Service** | Team-Spaces, Rollen, Mitglieder, Quotas, Lebenszyklus | Spaces | Nach VFS |
 | **Session Service** | Sitzungsmetadaten, Geräte, Logout/Widerruf, App-Session-Bindung | Sessions | MVP |
 | **Permission Service** | Systemrollen, ACLs, App-Grants, Capability-Entscheidungen | Authorize / Grant / Revoke | MVP |
 | **Desktop Service** | Desktops, Icons, Layout, aktive Arbeitsbereiche, persistenter Desktop-State | Desktops | MVP |
@@ -634,53 +638,52 @@ message AppInstance {
 
 **Authentifizierung:** Der tatsächliche Nutzer-/App-Kontext wird **nicht** aus beliebigen Caller-Feldern vertraut; das Gateway und die Dienstidentität stellen einen authentifizierten, prüfbaren Request-Kontext bereit. Das konkrete Format ist Bestandteil des gRPC-Sicherheits-ADRs.
 
-## 9. Identität, Anmeldung und Sitzung
+## 9. Identitaet, Anmeldung und Sitzung
 
-### 9.1 OIDC-BFF-Architektur
+### 9.1 Lokaler Go-Login fuer das MVP
 
-Der Browser spricht ausschließlich mit dem cloudOS-Gateway. Das Gateway führt den OIDC-Flow als vertraulicher OAuth-Client aus, verwaltet Tokens serverseitig und bindet den Browser über eine sichere Sitzung an den lokalen Benutzer.
+**Verbindliche Korrektur der bisherigen OIDC-Pflicht:** cloudOS beginnt mit lokalem Directory-, Authentication- und Session-Service im Go-Core. Ein begrenzter LDAPv3-Adapter bietet eine standardisierte Ansicht auf lokale Benutzer und Gruppen. Er ist kein externer Identity Provider und kein vollstaendiger Active-Directory-Domain-Controller. Der Browser meldet sich lokal ueber den geschuetzten Login-Bootstrap an und erhaelt ein sicheres BFF-Session-Cookie.
 
 ```mermaid
 sequenceDiagram
-    actor U as Benutzer
-    participant B as Browser
+    actor U as User
+    participant B as Browser Login Bootstrap
     participant G as Gateway / BFF
-    participant I as OIDC Provider
-    participant ID as Identity Service
-    U->>B: cloudOS aufrufen
-    B->>G: GET /api/v1/users/me
-    G-->>B: Nicht angemeldet
-    B->>G: Login starten
-    G-->>B: Redirect mit State / PKCE
-    B->>I: Anmeldung
-    I-->>B: Authorization Code
-    B->>G: Callback mit Code
-    G->>I: Code gegen Tokens tauschen
-    I-->>G: Validierte Identität
-    G->>ID: issuer + sub zuordnen
-    ID-->>G: Interne user_id und Status
-    G-->>B: Sichere HttpOnly-Session-Cookie
-    B->>G: GET /api/v1/users/me
-    G-->>B: Autorisiertes Benutzerprofil
+    participant A as Local Authentication
+    participant D as Directory
+    participant P as App Registry / Policy
+    U->>B: cloudOS open
+    B->>G: POST /api/v1/auth/local/login
+    G->>A: Verify credential + rate limits
+    A->>D: Resolve local user_id, UID/GID and state
+    D-->>A: Stable principal + group revision
+    A-->>G: Authenticated local principal
+    G->>G: Secure server-side session
+    G-->>B: HttpOnly cookie
+    B->>G: Launch installed Desktop.cloudApp
+    G->>P: Validate signed app + API policy
+    P-->>B: Allowed launch context
 ```
 
-### 9.2 Sitzungsregeln
+Passwoerter werden mit sicheren Verifiern (Argon2id als Ziel) gespeichert, Sessions mit kryptografisch zufaelligen Kennungen. Das Login-Bootstrap ist eine begrenzte Ausnahme der App-first-Regel, keine zweite Desktop-App.
 
-- Browser-Cookies mindestens mit `Secure`, `HttpOnly` und passender `SameSite`-Richtlinie.
-- Session-IDs sind kryptografisch zufällig und werden serverseitig verwaltet; Speicherung in der Datenbank nach einem Schutzkonzept (z. B. Hash des Session-Secrets).
-- OIDC Access-/Refresh-Tokens werden **nicht** dauerhaft im Browser gespeichert.
-- Logouts und Benutzersperren beenden oder entwerten aktive Sitzungen.
-- State-, Nonce- und PKCE-Prüfungen schützen den Authentifizierungsablauf.
-- Cookie-basierte Schreibaktionen benötigen CSRF-Schutz. WebSockets benötigen zusätzlich Origin-Prüfung und Authentifizierung beim Upgrade.
-- Session-Lebensdauer, Inaktivitätslimit, parallele Sitzungen und Geräteverwaltung werden als Konfiguration festgelegt.
+### 9.2 Optionaler externer LDAP-Connector
 
-### 9.3 Interne Dienstidentität
+Spaeter kann ein Administrator LDAP-Benutzer und -Gruppen ueber read-only LDAPS-/StartTLS-Connectoren **nach cloudOS synchronisieren**. Object-IDs werden gegen stabile lokale `user_id`/`group_id` gebunden; UID/GID, Home-Roots, Shares und Space-Referenzen bleiben stabil. LDAP-Synchronisierung ist **nicht automatisch** LDAP-Login. Dry-Run, Konflikterkennung, Quarantaene, idempotente Deltas und Schutz vor Massenloeschung sind Pflicht.
 
-- Das Gateway authentifiziert sich gegenüber dem Zielservice als **Gateway-Dienst** und übermittelt einen verifizierten, signierten oder anderweitig abgesicherten Benutzerkontext.
-- Fachservices prüfen Dienstidentität **und** Benutzerberechtigung für die konkrete Operation.
-- Keine Weitergabe unvalidierter `X-User-ID`-Header vom öffentlichen Client.
-- Eine interne Netzwerkposition allein begründet keine Vertrauenswürdigkeit.
-- Schlüsselrotation, mTLS/Workload-Identity und die dafür nötige Zertifikatsverwaltung werden vor Produktivbetrieb spezifiziert.
+### 9.3 Optionaler externer IdP
+
+OIDC im BFF (Authorization Code + PKCE) kann unabhaengig von externem LDAP konfiguriert werden. `(issuer, sub)` wird eindeutig auf einen lokalen Principal gebunden. Kein automatisches Merging aufgrund von E-Mail/Benutzername, kein ungeprueftes IdP-Gruppenclaim zu Admin-Rollen und kein unsicherer Login-Fallback bei IdP-Ausfall. Ein lokales Recovery-Konto ist vorgesehen.
+
+### 9.4 Sitzungs- und Dienstsicherheit
+
+- BFF-Cookies `Secure`, `HttpOnly`, geeignete `SameSite`; CSRF-Schutz und WebSocket-Origin-Check.
+- Rate-Limits, Session-Rotation/Widerruf und lokale Policy-Revisionen bei Gruppen-/Share-/Space-Aenderung.
+- LDAP- und OIDC-Secrets ausschliesslich im sicheren serverseitigen Secret Store.
+- Workload-Identitaet fuer interne gRPC-/Core-Aufrufe, Timeouts, spaeter mTLS.
+- Externe Provider sind im MVP **deaktiviert und nicht erforderlich**.
+
+**Fachlich fuehrend:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md) und [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
 
 ## 10. Autorisierung und Berechtigungsmodell
 
@@ -1846,7 +1849,7 @@ Pflichten:
 | `files` | File/VFS mit Storage-Adapter | privilegierter Core | File-Metadaten + Blob-Store |
 | `postgres` | Metadaten und persistente Zustände | Daten | DB-Volume, WAL/Backup |
 | `nats` | asynchrone Core-Events | Daten | JetStream-Volume |
-| `identity-provider` | OIDC-Anmeldung | externer Vertrauensanker | separater IdP-Speicher |
+| `identity-provider` | Optionale spaetere OIDC-Anmeldung | externer Vertrauensanker | separater IdP-Speicher |
 | `runtime-controller` | Launch-/Runtime-Policy, später separat | privilegierter Core | Prozess-/Job-Status in Core-DB |
 | `wasi-worker` | Untrusted Rust-WASI-Code | isolierte Ausführung | nur temporäre, autorisierte Dateien |
 | `native-runner` | Native Rust-CLI, spätere Option | isolierte Ausführung | ausschließlich Sandbox-Scratch |
@@ -2534,3 +2537,28 @@ Eine Rust-Testanwendung mit Theme-Adapter wird zweimal gestartet (Light und Dark
 ---
 
 **Änderungsvermerk 0.4 (15.11.2026):** Das bisherige App-Konzept wurde durch eine zwingende `.cloudApp`-Paket-/Installationsarchitektur ergänzt. Desktop und sämtliche weiteren sichtbaren Systemfunktionen sind installierte Core-Apps. Details zu Paketformat, Admin-Rechtsklick, Pflicht-Core-Apps, Zuweisung, Installer-Transaktionen, Rust-Laufzeiten und Recovery stehen verbindlich in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Das VFS verwendet nach [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md) genau zwei virtuelle Volumes.
+
+
+---
+
+## 27. Erweiterung: internes Sharing, Spaces und Identity-Foederation
+
+### 27.1 Neue Fachkontexte im Go-Core
+
+`Share Service` ist fachlicher Owner der internen Datei-/Ordnerfreigaben und ihrer Empfaenger, Rollen und Widerrufe. `Space Service` ist Owner gemeinsamer Arbeitsbereiche mit eigener Root-Node, Membership, Rollen, Quotas und Lifecycle. Beide kommunizieren mit Directory, Permission und File Service ueber definierte Ports/gRPC und Transactional-Outbox-Ereignisse. Sie schreiben niemals direkt in fremde Owner-Schemas.
+
+### 27.2 VFS- und Rechtevertraege
+
+Die zwei virtuellen Festplatten bleiben: `system` fuer administrativ sichtbare Systemressourcen, `users` fuer Homes und `users:/shared/spaces/<id>` als Space-Datenbereich. Das sichtbare `/` ist weiterhin das Home des angemeldeten Benutzers. Empfangene Datei-Shares und Space-Memberships werden als streng autorisierte virtuelle Mounts unter `/Shared with me` und `/Spaces` projiziert.
+
+Bei direktem Home-Zugriff gelten POSIX-UID/GID- und `rwx`-Rechte; bei einem Share gelten die expliziten Empfaengerrechte (`can_view`, `can_upload`, `can_edit`), bei einem Space die Mitgliedsrollen (`can_view`, `can_edit`, `can_manage`). Jeder Zugriff muss zusaetzlich die signierte `.cloudApp`-Endpoint-Allowlist, die aktuellen Benutzer-/Gruppenrechte und systemweite Sperren bestehen. Ein Admin darf Space-Metadaten ohne automatische Inhalteberechtigung verwalten.
+
+### 27.3 Identitaetskontinuitaet
+
+Lokaler Directory-/Session-Betrieb ist der MVP-Standard. Externe LDAP-Synchronisation und externe OIDC-IdPs sind spaetere, **unabhaengige optionale** Adapter. Alle externen Bindings referenzieren stabile lokale UUIDs, sodass Datei-Owner, Shares und Spaces auch bei Umbenennungen und Provider-Wechseln stabil bleiben. Gruppenaenderungen aus externen LDAP-Quellen muessen beim Share-/Space-Policy-Enforcer wirksam werden.
+
+### 27.4 UI, App-API-Policy und Release-Abnahme
+
+Sharing und Spaces werden ueber eigene, signierte `Sharing.cloudApp`/`Spaces.cloudApp` bereitgestellt. Settings kann separate Administrator-Apps fuer externe LDAP-Connectoren und OIDC-Provider starten. Kein eingebetteter Dialog erbt automatisch die Endpoint-Allowlist des Aufrufers. Alle neuen Apps sind themefaehig. Ihre neuen Operationen benoetigen eine im Core-Release definierte Risikoklassifikation, ausdrueckliche administrative Freigabe und passende Benutzer-/Space-Rolle.
+
+Fachliche Spezifikationen und Abnahmematrizen: [SHARING_SPACES.md](SHARING_SPACES.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [APP_API_ACCESS.md](APP_API_ACCESS.md). Interne Shares und ein funktionierender Basis-Space folgen auf den sicheren VFS; externe Verzeichnis-/Login-Adapter koennen spaeter kommen. **Diese Version ist ein Entwurf und beschreibt keine bereits implementierten Go-Endpunkte oder .cloudApp-Pakete.**

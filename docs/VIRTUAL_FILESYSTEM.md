@@ -2,10 +2,10 @@
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/VIRTUAL_FILESYSTEM.md`  
-> **Dokumentversion:** 0.4 (App-Signing und signierte Endpoint-Allowlist bei VFS-Zugriffen)  
+> **Dokumentversion:** 0.5 (Shares, Spaces und virtuelle Mount-Sichten)
 > **Stand:** 15.11.2026  
-> **Geprüfte Grundlage:** `main`, Commit `3846c80af27a8dcf4b9029dec8fee4f3859a769c`  
-> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.6), `docs/APPLICATION_SYSTEM.md` (v0.3), `docs/APP_SIGNING.md` (v0.2) und `docs/APP_API_ACCESS.md` (v0.1)  
+> **Geprüfte Grundlage:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
+> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.7), `docs/APPLICATION_SYSTEM.md` (v0.4), `docs/APP_SIGNING.md` (v0.2), `docs/APP_API_ACCESS.md` (v0.2), `docs/SHARING_SPACES.md` (v0.1) und `docs/IDENTITY_INTEGRATION.md` (v0.1)  
 
 > **App-API-Zugriffsmodell:** [`APP_API_ACCESS.md`](APP_API_ACCESS.md); jede VFS-API-Nutzung aus Apps benötigt eine signierte und genehmigte Operation
 > **Status:** Neue Anforderungen verbindlich; genaue Implementierungsdetails werden in Phase 0/6 entschieden.
@@ -166,7 +166,8 @@ users:/
 |       |-- Desktop/
 |       |-- Documents/
 |       `-- ...
-`-- shared/                       # Reservierter gemeinsamer Bereich, spaeter optional
+`-- shared/                       # Reservierter Bereich der zweiten Festplatte
+    `-- spaces/                    # Gemeinsame Team-Roots, nur autorisiert
 ```
 
 Für Benutzer A wird aus der internen Struktur ausschließlich Folgendes sichtbar:
@@ -189,7 +190,7 @@ Für Benutzer B sieht `/` ebenfalls genauso aus, bezeichnet jedoch **einen ander
 
 `.config/` und `.local/` sind **normale Benutzerdaten innerhalb des eigenen Home-Verzeichnisses**, keine weitere virtuelle Festplatte. Versteckte Dateien sind über die UI-Einstellung ein- oder ausblendbar, unterliegen aber unverändert derselben Rechteprüfung.
 
-Der Bereich `users:/shared/` ist nur ein reservierter Bestandteil **derselben zweiten Festplatte**, kein drittes Volume. Er wird im MVP nicht automatisch sichtbar oder global lesbar gemacht. Eine spätere Freigabe benötigt definierte ACLs und eine explizite Einbindung in das Home des jeweiligen berechtigten Benutzers.
+Der Bereich `users:/shared/` ist Bestandteil **derselben zweiten Festplatte**, kein drittes Volume. Darin liegen zukuenftig Space-Roots unter `users:/shared/spaces/<space_id>`. Die normalen Benutzer sehen nur autorisierte virtuelle Einbindungen. Shares auf Dateien im Home verbleiben am Originalort. Er wird im MVP nicht automatisch sichtbar oder global lesbar gemacht. Eine spätere Freigabe benötigt definierte ACLs und eine explizite Einbindung in das Home des jeweiligen berechtigten Benutzers.
 
 ### 4.3 Erzeugung eines Home-Verzeichnisses
 
@@ -967,3 +968,31 @@ Der Dateisystementwurf wird nicht stillschweigend als bereits implementiert betr
 ---
 
 **Änderungsvermerk 0.2 (15.11.2026):** Die Zwei-Volume-/Home-Root-Architektur bleibt vollständig erhalten. Ergänzt wurden der unveränderliche `.cloudApp`-Paketstore auf `system:/`, die Admininstallation über `FileExplorer.cloudApp` und `AppInstaller.cloudApp`, der Schutz vor direkter Ausführung aus dem Home sowie private App-Daten unter dem persönlichen `/`. Der Core stellt die APIs bereit; die sichtbare Bedienung erfolgt ausschließlich über installierte Core-Apps und weitere zugewiesene Anwendungen.
+
+
+---
+
+## 21. Gemeinsame Inhalte auf dem zweiten Volume
+
+Das Zwei-Laufwerke-Modell wird beibehalten: `system:/` ist fuer Administratoren sichtbar, `users:/` beinhaltet persoenliche Homes und `users:/shared/spaces/<space_id>`. Kein Share und kein Space wird als dritte virtuelle Festplatte umgesetzt. Die Benutzerwurzel `/` ist weiterhin **das persoenliche Home**.
+
+```text
+/                           # Das eigene Home
+|-- Documents/
+|-- Shared with me/          # Virtuelle, gebundene Share-Mounts
+`-- Spaces/                  # Virtuelle, gebundene Space-Mounts
+```
+
+Die Eintraege `Shared with me` und `Spaces` sind **serverseitig gemountete Ansichten**. Ihre `mount_id` und Revision sind authentifiziert, die Navigation darf weder durch `..` noch durch Node-ID-Raten einen fremden Root erschliessen. Dateifreigaben sind Referenzen auf die Originaldateien, keine Kopien und keine doppelte Quota-Buchung. Space-Roots besitzen dedizierte Quotas und bleiben bei Benutzerloeschung bestehen.
+
+Ein direkter Home-Zugriff verwendet POSIX-DAC (`uid`, `gid`, `rwx`, ACL). Ein Share-Mount verwendet die explizite Freigabe; ein Space-Mount die aktive Space-Mitgliedsrolle. **Alle Zugriffe** verlangen zusaetzlich die signierte und genehmigte App-API-Operation, gueltigen Akteur, Mount-Kontext und harte Systempolicies. Ein gezielter Share einer `0600`-Datei aendert ihre POSIX-Rechte nicht.
+
+Share Service und Space Service verwalten die Grants/Metadaten, File Service bleibt Owner aller Nodes/Bytes. LDAP-synchronisierte Benutzer/Gruppen werden stets ueber lokale stabile IDs referenziert. Vollstaendige Regeln und Tests: [SHARING_SPACES.md](SHARING_SPACES.md); Identity-Sync: [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
+
+## 22. Ergaenzte VFS-Abnahmekriterien
+
+- Genau zwei virtuelle Volumes, Benutzer-Root `/` bleibt eigenes Home.
+- Keine globale Sichtbarkeit von `users:/shared` und fremden Home-Pfaden.
+- Share- und Space-Mounts lassen nur ihren Unterbaum und ihre eigene Rolle zu.
+- Widerruf, Gruppenentzug, Space-Deaktivierung und Konto-/App-Sperre wirken serverseitig.
+- Backup/Restore rekonstruiert Nodes, Share-Referenzen und Space-Roots konsistent.
