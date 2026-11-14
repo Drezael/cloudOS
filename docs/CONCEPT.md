@@ -1,17 +1,19 @@
-# Go Browser OS – Technisches Gesamtkonzept
+# cloudOS – Technisches Gesamtkonzept
 
 > **Dokument:** `CONCEPT.md`  
-> **Version:** 0.1 (Konzeptentwurf)  
-> **Stand:** 14.11.2026  
-> **Projektname:** Go Browser OS (Arbeitstitel)  
+> **Version:** 0.3 (App-first, Zwei-Volume-VFS und Nextcloud-inspiriertes App-Signing)  
+> **Stand:** 15.11.2026  
+> **Projektname:** cloudOS  
 > **Architekturvariante:** B – serverbasiert, API-first  
 > **Referenzen:** daedalOS (Funktionsumfang und Desktop-Idee), OpenCloud (API- und Service-Architektur)
 
 ## 1. Projektvision
 
-Das Go Browser OS ist eine eigenständige, zentral betriebene Desktop-Plattform, die vollständig über einen Webbrowser bedient wird. Die grafische Oberfläche orientiert sich an einem klassischen Desktop-Betriebssystem mit Fenstern, Taskleiste, Startmenü, Dateimanager, Terminal und installierbaren Anwendungen.
+cloudOS ist eine eigenständige, zentral betriebene Desktop-Plattform, die vollständig über einen Webbrowser bedient wird. Die grafische Oberfläche orientiert sich an einem klassischen Desktop-Betriebssystem mit Fenstern, Taskleiste, Startmenü, Dateimanager, Terminal und installierbaren Anwendungen.
 
 Anders als eine überwiegend clientseitige Browser-Desktop-Simulation übernimmt ein **Go-Backend** die dauerhafte Verwaltung der Benutzer, Dateien, Anwendungen, Berechtigungen und Systemdienste. Der Browser übernimmt Darstellung und unmittelbare Interaktionen.
+
+Die Plattform ist **App-first und API-first**: Der Go-Core stellt Systemfunktionen bereit. Alle regulär gestarteten Desktop-Anwendungen (einschließlich der mitgelieferten Systemoberflächen) werden als registrierte und installierte `.cloudApp`-Pakete ausgeführt. Ihre APIs stehen unabhängig von der Benutzeroberfläche zur Verfügung.
 
 Die Plattform wird **API-first** entwickelt: Systemfunktionen sind über versionierte, dokumentierte Schnittstellen verfügbar. Die mitgelieferten Anwendungen verwenden grundsätzlich dieselben öffentlichen APIs wie spätere Drittanbieter-Clients.
 
@@ -52,6 +54,14 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 - **Sicherer Standard:** Minimale Rechte, explizite Freigaben, nachvollziehbare Aktionen.
 - **Schrittweiser Ausbau:** Zunächst logisch getrennte Module; separate Prozesse nur dort, wo sinnvoll.
 - **Keine technische Abhängigkeit von daedalOS oder OpenCloud:** Beide dienen als konzeptionelle Referenz.
+- **App-first:** Der Go-Core enthält keine fest eingebaute reguläre Anwendungsoberfläche; Desktop, File Explorer, Settings und Installer sind installierte `.cloudApp`-Core-Apps.
+- **Installation vor Ausführung:** Keine Benutzeranwendung startet aus einer beliebigen Datei; der Go-Core prüft Installation, Zuweisung, Benutzeridentität, App-Instanz und Berechtigungen.
+- **Pflicht-Core-Apps:** Releasegebunden signiert, automatisch provisioniert und im normalen Betrieb nicht deinstallierbar; Recovery bleibt möglich.
+- **Zwei virtuelle Festplatten:** `system:/` für Systemressourcen und geprüfte App-Pakete, `users:/` für Homes; `/` ist für jeden Benutzer sein eigenes Home.
+- **Admininstallation:** Im MVP installieren nur Administratoren `.cloudApp`-Pakete; die Installation kann im File Explorer über das Kontextmenü angestoßen werden.
+- **Verbindliche App-Architektur:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) ist fuer Paketformat, Baseline, App-Installation und -Lebenszyklus fachlich fuehrend.
+- **App-Signing:** Jede `.cloudApp` muss eine kryptografisch gueltige, X.509-gebundene Signatur ueber einen SHA-512-Dateiindex besitzen. Selbstsignierte Pakete bleiben installierbar, aber nur nach deutlicher Sicherheitswarnung, Administratorberechtigung und expliziter Freigabe des konkreten Digests. Unsignierte oder manipulierbare Pakete sind immer gesperrt.
+- **Fachlich fuehrendes Signing-Dokument:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) definiert Zertifikate, Trust, Self-signed-Ausnahmen, Updates und Widerruf.
 
 ## 3. Technologieentscheidungen
 
@@ -280,101 +290,101 @@ Serverseitige Prüfungen sind maßgeblich; ausgeblendete UI-Schaltflächen biete
 
 ## 8. Virtuelles Dateisystem
 
-Das Virtual File System (VFS) stellt Dateien über eigene Ressourcen-IDs und einen logischen Verzeichnisbaum bereit. Virtuelle Pfade müssen nicht mit Hostpfaden übereinstimmen.
+Das VFS bietet **genau zwei virtuelle Festplatten**. Der Go File Service verwaltet beide als Ressourcen mit stabilen IDs und serverseitiger Pfadauflösung. Die tatsächlichen Hostpfade werden niemals aus einer Benutzereingabe abgeleitet.
 
-Vorgesehene virtuelle Struktur:
+- **`system:/` – cloudOS System:** Systemressourcen, Release-Metadaten, Themes und geprüfte `.cloudApp`-Paketartefakte. Die Festplatte erscheint ausschließlich bei Administratoren als Laufwerk. Freigegebene App-Assets werden für berechtigte Nutzer über dedizierte App-APIs bereitgestellt, nicht durch Browsing des Systemvolumes.
+- **`users:/` – Benutzerdaten:** enthält private Home-Verzeichnisse und optional getrennt freigegebene Daten. Der Pfad `/` in einer Benutzersitzung entspricht **immer dem eigenen Home-Root**; ein Nutzer kann nicht über `..`, andere Volume-IDs oder manipulierte Node-IDs in fremde Homes wechseln.
 
 ```text
-/
-├── home/
-│   ├── alice/
-│   │   ├── Desktop/
-│   │   ├── Documents/
-│   │   ├── Downloads/
-│   │   └── Pictures/
-│   └── bob/
-├── shared/
+system:/
+├── core/
 ├── applications/
-└── system/
+│   ├── packages/         # geprüfte, unveränderliche installierte .cloudApp-Versionen
+│   ├── manifests/
+│   └── assets/
+└── themes/
+
+users:/
+└── homes/
+    ├── <user-uuid-A>/   # bei Benutzer A als / sichtbar
+    └── <user-uuid-B>/   # bei Benutzer B als / sichtbar
 ```
+
+Eine `.cloudApp`-Quelldatei kann im eigenen `~/Downloads` liegen, ohne damit installiert oder ausführbar zu sein. Nur ein autorisierter Installationsworkflow darf sie verifizieren und als unveränderliche Installation im `system`-Volume registrieren.
 
 ### 8.1 Speicherung
 
-- **PostgreSQL:** Datei-IDs, Ordnerbeziehungen, Besitzer, ACLs, Größen, MIME-Typen, Revisionen.
-- **Storage-Adapter:** eigentliche Dateiinhalte; initial lokaler persistenter Speicher.
-- **Spätere Adapter:** S3-kompatibler Objektspeicher und externe Speicherdienste.
+- **PostgreSQL:** Volume-/Node-IDs, Ordnerbeziehungen, Besitzer, ACLs, Quotas, Paketinstallations-Metadaten und Revisionen (dienstspezifische Datenhoheit).
+- **Storage-Adapter:** Dateiinhalte und geprüfte Paketartefakte, initial auf persistentem lokalem Speicher; spätere S3-Adapter möglich.
+- **Sicherheitsgrenze:** Systemvolume nur für Admins sichtbar, auch Admins ändern installierte Paketversionen nicht per normaler Dateioperation. Der App Installer / Core Release Manager besitzt den kontrollierten Schreibpfad.
 
 ### 8.2 Mindestfunktionen
 
-- Ordner erstellen, auflisten, umbenennen, verschieben und löschen.
-- Datei hochladen, herunterladen, kopieren, verschieben und löschen.
-- Konflikterkennung bei konkurrierenden Änderungen.
-- Benutzer- und Gruppenrechte, Quotas, Papierkorb.
-- Zugriff über Dateimanager, Shell und App-SDK mit denselben Prüfregeln.
+- Ordner und Dateien erstellen, auflisten, kopieren, verschieben, löschen, hoch- und herunterladen.
+- Home-Provisionierung, ACLs, Quotas, Papierkorb und konsistente Serverauflösung von `/`.
+- Administrativer Mount-Wähler für `system:/` und `users:/`, getrennte Rechte für die Inhalte anderer Homes.
+- Kontrollierte Paketauslieferung für installierte Apps ohne VFS-Freigabe des Systemvolumes.
+- Gemeinsamer File-Service-Zugriff über Dateimanager-App, virtuelle Shell und App-SDK.
 
 ### 8.3 Spätere Erweiterungen
 
-Dateiversionen, Freigaben, Vorschauen, Volltextindizierung, große/resumierbare Uploads, externe Laufwerke und gemeinschaftliches Arbeiten.
+Versionen, Freigaben, Vorschauen, Volltextsuche, große/resumierbare Uploads, externe Laufwerke und kollaborative Bearbeitung. Das vollständige Design steht in [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md).
 
 ## 9. Desktop und Frontend
 
-Die grafische Oberfläche besteht aus separat wartbaren Modulen:
+Der Browser lädt zunächst lediglich einen **minimalen authentifizierten Bootstrap-/App-Host**. Der eigentliche Desktop einschließlich Fensterrahmen, Taskleiste, Startmenü und Kontextmenüs wird von der **vorinstallierten `Desktop.cloudApp`** gerendert. Die Go-Core-Dienste verwalten Installation, Sitzungs- und Fensterzustände, Berechtigungen und Laufzeitsteuerung.
 
-- Desktop Renderer (Hintergrund, Icons, Auswahl)
-- Window Manager (Fenster, Z-Reihenfolge, Minimieren/Maximieren)
-- Taskbar und Startmenü
-- Systemdialoge und Benachrichtigungen
-- Dateimanager
-- App Host für installierte Anwendungen
-- API Client und WebSocket-Client
-- Clientseitiger UI-State mit serverseitiger Persistenz
+- Desktop Shell: `io.cloudos.desktop` – **Pflicht-Core-App, Autostart nach Login**.
+- Dateimanager: `io.cloudos.file-explorer` – **eigene Pflicht-Core-App**.
+- Settings, App Installer, System Dialogs und Notification Center – **weitere Pflicht-Core-Apps**.
+- Anwendungen starten ausschließlich aus der App Registry als instanziierte, installierte und dem Benutzer zugewiesene `.cloudApp`.
+- UI-Komponenten innerhalb einer App sind keine separaten Apps, solange sie nicht eigenständig gestartet werden.
+- Alle cloudOS-eigenen sichtbaren Elemente sind über Theme Service, Design-Tokens, Varianten und App-Theme-Bridge modifizierbar.
 
-**Performance-Regel:** Während ein Fenster gezogen wird, aktualisiert der Browser dessen Position unmittelbar. Das Speichern auf dem Server erfolgt gebündelt oder am Ende der Interaktion. Nicht jede Mausbewegung verursacht eine API-Anfrage.
+**Performance-Regel:** Fensterbewegungen laufen sofort lokal im Browser, während persistente Änderungen gebündelt über die Core-API gespeichert werden. Nach einem Login startet der Browser die autorisierte Desktop-Core-App aus dem App-Register; Änderungen gelangen über REST-/WebSocket-Resynchronisierung an die Oberfläche.
 
-Nach einem Login lädt der Client den Desktop-Zustand per REST. WebSocket-Ereignisse signalisieren Änderungen; nach einer Unterbrechung erfolgt ein neuer Zustandsabgleich.
+Eine minimale Login- und Recovery-Oberfläche ist als eng definierte Bootstrap-Ausnahme möglich. Sie ersetzt keine reguläre Core-App.
 
-## 10. Anwendungssystem
+## 10. Anwendungssystem – `.cloudApp` und Core-Apps
 
-### 10.1 Anwendungskategorien
+**Verbindliches Einzelkonzept:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Dieses Dokument ist für Package-Format, Installationsablauf, Zuweisung, App-Lebenszyklus und Core-App-Baseline fachlich führend.
 
-| Kategorie | Ausführung | Beispiele |
-|---|---|---|
-| System-Web-App | Browser-UI mit Go-APIs | Dateimanager, Einstellungen |
-| Isolierte Web-App | Eigener Browser-Kontext | Texteditor, Bildbearbeitung |
-| Server-App/Job | Gesicherte, separate Serverlaufzeit | Medienkonvertierung, Stapelverarbeitung |
+### 10.1 Alle regulären Anwendungen sind Pakete
 
-### 10.2 App-Manifest
+Jede sichtbare, regulär gestartete Funktion ist eine registrierte `.cloudApp`. Das Paketformat v1 ist ein signiertes, geprüftes ZIP-basiertes Archiv mit `cloudos.app.json`, Paketindex, Signatur und den Runtime-Artefakten. Eine umbenannte ZIP-Datei oder ein hochgeladenes Paket gilt ohne Prüfung **nicht** als installierte App.
 
-```json
-{
-  "id": "org.browseros.texteditor",
-  "name": "Text Editor",
-  "version": "1.0.0",
-  "api_version": "1",
-  "runtime": "web",
-  "entrypoint": "index.html",
-  "permissions": [
-    "files.read:selected",
-    "files.write:selected"
-  ],
-  "file_associations": [
-    "text/plain",
-    "text/markdown"
-  ]
-}
-```
+- `web`: isolierte Web-App im Browser.
+- `web-wasm`: Browserfähige Rust-/WebAssembly-App (z. B. kompatibler ArtCraft-Build).
+- `wasi-component`: isolierte serverseitige Komponente; UI nur über zusätzliches Browser-Frontend.
+- `native-isolated`: späteres, gesondert abgesichertes Runner-Profil.
 
-Das Manifest beschreibt zunächst **angeforderte** Rechte; es erteilt sie nicht automatisch.
+### 10.2 Mitgelieferte Core-Apps
 
-### 10.3 App-SDK und Isolation
+Pflicht-Core-Apps werden durch eine signierte cloudOS-Release-Baseline automatisch installiert. Der normale Administrator kann sie nicht deaktivieren oder deinstallieren. Mindestens Desktop, File Explorer, Settings, App Installer, System Dialogs und Notification Center gehören zur Baseline. Zusätzliche Anwendungen wie Terminal, Texteditor und Mediaplayer können als optional vorinstallierte Apps ausgeliefert werden.
 
-Ein TypeScript-SDK kapselt die öffentlichen APIs und stellt Funktionen für Dateiauswahl, Benachrichtigungen, Einstellungen und App-Lebenszyklus bereit. Ein Go-SDK folgt für serverseitige Integrationen.
+Der Core stellt alle zugehörigen APIs bereit, enthält aber **keinen hardcodierten Dateimanager oder Desktop**. Auch Core-Apps nutzen dokumentierte System-APIs und erhalten keine ungeprüften Host-/Datenbankrechte.
 
-Fremde Web-Apps werden über isolierte Origins und geeignete Sandbox-Mechanismen eingebunden. Kommunikation mit dem Desktop erfolgt über eine kontrollierte Bridge mit Nachrichtenvalidierung; die Server-API prüft alle Aktionen zusätzlich.
+### 10.3 Installation per Rechtsklick
 
-Erweiterungspunkte sind Dateizuordnungen, Kontextmenüs, Startmenüeinträge, Vorschauen und Einstellungsseiten.
+Ein Administrator kann im File Explorer auf eine gültige `.cloudApp` im Home rechtsklicken und **App installieren** auswählen. Der vorinstallierte App Installer zeigt Herkunft, Signatur, Version, Kompatibilität, Capabilities, Abhängigkeiten und geplante Zuweisungen; erst nach ausdrücklicher Bestätigung installiert der Go-Core das Paket. Installation, Benutzer-/Gruppenzuweisung, Capability Grants und Start sind **separate Schritte**. Im MVP ist die systemweite Installation ausschließlich Administratoren vorbehalten.
 
-Ein öffentlicher App Store wird erst eingeführt, wenn Paketformat, Signaturen, Update-Richtlinien, Berechtigungsdialoge und Sicherheitsprüfung definiert sind.
+Der File Explorer registriert/zeigt die Aktion über einen zentralen Dateityp- und Kontextaktionskatalog; ein direkter API-Aufruf ohne `apps.install` wird unabhängig von der UI verweigert. Doppelklick auf ein nicht installiertes Paket startet **keinen** Code.
+
+### 10.4 App-Lebenszyklus und UI-Isolation
+
+Der Go-Core verantwortet geprüfte Installation, Registry, Abhängigkeiten, Versionen, Update/Rollback, Zuweisungen, Prozess- und Fensterinstanzen sowie Sicherheitsprüfung. App-Oberflächen laufen in geeigneter isolierter Browser-Origin; serverseitige Runtimes sind separat abgesichert. Core-Apps und Drittanbieter-Apps verwenden ein versioniertes SDK / eine kontrollierte App-Bridge.
+
+Alle cloudOS-eigenen Core-Apps müssen vollständig themefähig sein. Externe Apps können ihre interne Oberfläche nur dann dem Theme anpassen, wenn sie passende Adapter unterstützen; der Desktop-Fensterrahmen bleibt immer themefähig.
+
+Ein öffentlicher App Store wird erst nach Prüfung von Signaturen, Publisher-Vertrauen, Update-Sicherheit und App-Isolation eingeführt.
+
+### 10.4 Signierung und bewusste Installation selbstsignierter `.cloudApp`-Pakete
+
+Analog zum Nextcloud-Code-Signing-Modell besitzt cloudOS eine eigene X.509-Code-Signing-Vertrauenskette mit pro App-ID gebundenen Herausgeberzertifikaten. Ein signierter, kanonischer Paketindex beinhaltet die SHA-512-Hashes aller relevanten `.cloudApp`-Dateien. Die Signaturbelege liegen innerhalb des Pakets unter `META-INF/signature.json`.
+
+**Gueltig selbstsignierte Apps** koennen durch Administratoren ueber Rechtsklick -> `App installieren` nach einer hervorgehobenen Warnung und ausdruecklicher, paketgebundener Risikobestaetigung installiert werden. Eine Selbstsignatur ist kein Identitaets- oder Sicherheitsnachweis. Bei ungueltigen Hashes, fehlenden Dateien, falscher App-ID, fehlender Signatur oder widerrufenem Zertifikat wird die Installation **immer** abgelehnt. Core-Apps sind von lokalen Self-signed-Ausnahmen ausgenommen.
+
+Pro neuer selbstsignierter Version bzw. neuem Digest ist eine neue Adminbestaetigung erforderlich; stille Updates sind untersagt. Die technische Detailarchitektur, die Error-Codes und die Abnahmetests werden in [`docs/APP_SIGNING.md`](APP_SIGNING.md) festgelegt.
 
 ## 11. Shell, Prozesse und Hintergrundaufträge
 
@@ -441,67 +451,73 @@ Weitere Dienste werden erst bei Bedarf in eigene Container ausgelagert. Containe
 
 ## 14. Repository-Struktur
 
+Die Zielstruktur muss Core-Dienste und installierbare App-Quellen trennen; die verbindlichen Paket-/Baselinespezifikationen liegen in `docs/APPLICATION_SYSTEM.md`. Die folgenden Pfade sind Vorschläge, keine bereits erzeugten Verzeichnisse.
+
 Vorgeschlagene Monorepo-Struktur:
 
 ```text
-browseros/
-├── CONCEPT.md
+cloudOS/
 ├── README.md
+├── docs/
+│   ├── CONCEPT.md
+│   ├── SYSTEM_ARCHITECTURE.md
+│   ├── VIRTUAL_FILESYSTEM.md
+│   ├── APPLICATION_SYSTEM.md
+│   ├── decisions/
+│   ├── api/
+│   ├── development/
+│   └── operations/
 ├── contracts/
 │   ├── openapi/v1/
-│   ├── protobuf/
-│   └── events/v1/
-├── services/
-│   ├── gateway/
-│   ├── identity/
-│   ├── permissions/
-│   ├── desktop/
-│   ├── files/
-│   ├── applications/
-│   ├── settings/
-│   ├── realtime/
-│   ├── shell/
-│   ├── jobs/
-│   ├── search/
-│   ├── notifications/
-│   └── audit/
-├── platform/
-│   ├── configuration/
-│   ├── logging/
-│   ├── telemetry/
-│   ├── database/
-│   ├── events/
-│   └── security/
-├── clients/
-│   ├── go/
-│   └── typescript/
+│   ├── protobuf/cloudos/
+│   ├── events/v1/
+│   └── apps/
+│       ├── package/v1/
+│       ├── bridge/v1/
+│       └── runtime/v1/
+├── core/
+│   ├── cmd/
+│   └── internal/
+│       ├── identity/
+│       ├── permissions/
+│       ├── files/
+│       ├── applications/
+│       ├── packages/
+│       ├── runtimes/
+│       ├── desktop/
+│       ├── themes/
+│       └── realtime/
 ├── web/
-│   ├── desktop/
-│   ├── components/
-│   ├── api/
-│   └── state/
+│   ├── bootstrap/
+│   ├── app-host/
+│   └── design-system/
 ├── applications/
-│   ├── file-explorer/
-│   ├── text-editor/
-│   ├── media-player/
-│   ├── terminal/
-│   └── settings/
+│   ├── core/
+│   │   ├── desktop/
+│   │   ├── file-explorer/
+│   │   ├── settings/
+│   │   ├── app-installer/
+│   │   ├── system-dialogs/
+│   │   └── notifications/
+│   └── bundled/
+├── sdk/
+│   ├── typescript/
+│   ├── rust-browser/
+│   └── rust-wasi/
+├── tools/
+│   ├── cloudapp-packager/
+│   └── cloudapp-validator/
+├── runtimes/
+│   ├── browser-wasm/
+│   └── wasi-worker/
 ├── deploy/
 │   ├── compose/
-│   ├── nginx/
-│   └── configuration/
+│   └── core-app-baselines/
 ├── tests/
 │   ├── contract/
 │   ├── integration/
 │   ├── end-to-end/
 │   └── security/
-├── docs/
-│   ├── architecture/
-│   ├── api/
-│   ├── development/
-│   ├── operations/
-│   └── decisions/
-├── scripts/
 └── Makefile
 ```
 
@@ -525,20 +541,20 @@ Die Entwicklung besteht aus **19 Phasen (0–18)**. Jede Phase besitzt dokumenti
 
 | Phase | Arbeitspaket | Ergebnis / Abnahmekriterium |
 |---|---|---|
-| **5** | Desktop und Fensterverwaltung | Fenster, Taskleiste, Startmenü, Kontextmenüs; Layout über API dauerhaft speicherbar |
+| **5** | Desktop-Core-App und Fensterverwaltung | Signierte `Desktop.cloudApp` aus Baseline startet nach Login; Fenster und Layout über Core-APIs |
 | **6** | Virtual File System | Ordner und Dateien per API erstell-, les-, verschieb- und löschbar; Zugriffsrechte und Persistenz getestet |
-| **7** | Dateimanager | Browser-UI für Navigation, Upload, Download, Drag-and-drop, Vorschau und grundlegende Dateioperationen |
+| **7** | File Explorer Core-App | Registrierte `FileExplorer.cloudApp` nutzt File API; Admin-Kontextmenü für `.cloudApp`-Installationsvorschau |
 | **8** | Echtzeitkommunikation | Datei- und Desktop-Änderungen gelangen via Events/WebSocket an berechtigte Sitzungen; Resync funktioniert |
-| **9** | App-System und SDK | Erste eigenständige Web-App installierbar, startbar und mit kontrollierten Dateirechten nutzbar |
+| **9** | App-System, Installer und SDK | `.cloudApp`-Paketprüfung, Admininstallation per Rechtsklick, Zuweisung, Launch und Web-/Rust-WASM-App getestet |
 
-**Meilenstein MVP:** Nach Phase 9 existiert ein mehrbenutzerfähiger Browser-Desktop mit Go-Backend, zentralem Dateisystem, Dateimanager, API-Gateway und installierbaren Webanwendungen.
+**Meilenstein MVP:** Nach Phase 9 existiert cloudOS mit funktionsfähigem Go-Core, zwei VFS-Volumes, signierten Pflicht-Core-Apps, `.cloudApp`-Installation durch Administratoren, Zuweisungen und einem kontrollierten App-Start.
 
 ### Abschnitt C – Systemfunktionen und Anwendungen
 
 | Phase | Arbeitspaket | Ergebnis / Abnahmekriterium |
 |---|---|---|
 | **10** | Shell und Terminal | Virtuelle Shell mit Basisbefehlen, Pipes und Dateisystemzugriffen; Resultate stimmen mit File API überein |
-| **11** | Systemanwendungen | Texteditor, Bildbetrachter, Mediaplayer und Einstellungen nutzen dokumentierte APIs |
+| **11** | Zusätzliche `.cloudApp`-Anwendungen | Texteditor, Bildbetrachter, Mediaplayer und weitere Apps nutzen nur dokumentierte Core-APIs |
 | **12** | Suche und Indizierung | Dateinamen und Apps durchsuchbar; Index wird aus Änderungsereignissen aktualisiert |
 | **13** | Hintergrundaufträge und Laufzeitisolation | Jobs start-, beobacht- und abbrechbar; definierte Limits und Fehlerbehandlung vorhanden |
 | **14** | Externe Integrationen | Mindestens ein zusätzlicher Storage-Adapter ohne Umbau der File-API nutzbar |
@@ -576,14 +592,16 @@ Eine Phase gilt erst als abgeschlossen, wenn:
 
 ## 16. Erster technischer End-to-End-Meilenstein
 
+**Aktualisierung App-first:** Nach Anmeldung wird der minimale Bootstrap ausgeführt, die signierte `Desktop.cloudApp` aus dem Core App Register aufgelöst und als Instanz gestartet. Erst anschließend laufen Desktop- und Dateimanager-UI. Ein vollständiger zweiter Vertikalschnitt umfasst die Admininstallation eines `.cloudApp`-Pakets per Rechtsklick und den anschließenden, zugewiesenen App-Start.
+
 Vor dem Bau eines umfangreichen Desktops wird folgender vertikaler Durchstich umgesetzt:
 
 1. Benutzer öffnet die Weboberfläche.
 2. Anmeldung erfolgt über OIDC.
-3. Browser ruft `GET /api/v1/desktops/current` auf.
-4. Gateway authentifiziert die Sitzung und ruft die Desktop-Service-API auf.
-5. Desktop Service lädt den Zustand aus PostgreSQL.
-6. Browser zeichnet den Desktop.
+3. Minimaler Bootstrap ruft die installierte, freigegebene `Desktop.cloudApp` aus der App Registry ab.
+4. Der Core prüft Paketbaseline, Launch-Berechtigung und Runtime und stellt der Sitzung ein sicheres App-Startticket aus.
+5. `Desktop.cloudApp` startet als Shell-App, ruft `GET /api/v1/desktops/current` auf und lädt den autoritativen Zustand vom Go Desktop State Service.
+6. Die installierte Desktop-App zeichnet Oberfläche und Fenster-Chrome; ein separat registrierter File Explorer kann von dort gestartet werden.
 7. Eine Änderung wird gespeichert und als Ereignis veröffentlicht.
 8. NATS und Realtime Service melden die Änderung an berechtigte Browser-Sitzungen.
 9. Nach Verbindungsabbruch lädt der Browser den aktuellen Zustand erneut.
@@ -633,12 +651,12 @@ Dieser Ablauf validiert Authentifizierung, REST, gRPC, Datenbank, Events, WebSoc
 
 ## 19. Arbeitsweise im GitHub-Repository
 
-Dieses Dokument wird als `CONCEPT.md` im Repository-Stamm abgelegt und ist die konzeptionelle Ausgangsbasis.
+Dieses Dokument liegt als `docs/CONCEPT.md` im Repository und ist die konzeptionelle Ausgangsbasis.
 
 Vorgeschlagener Workflow:
 
-1. Repository erstellen und `CONCEPT.md` als erste Grundlage committen.
-2. Phase 0 beginnen und die Architektur in `docs/architecture/` detaillieren.
+1. Den bestehenden GitHub-Stand als Grundlage verwenden und neue Architekturdateien vollständig unter `docs/` einpflegen.
+2. Phase 0 fortsetzen und die Architektur in `docs/SYSTEM_ARCHITECTURE.md`, das VFS in `docs/VIRTUAL_FILESYSTEM.md` und die App-Plattform in `docs/APPLICATION_SYSTEM.md` konsolidieren.
 3. Wichtige Entscheidungen als Architecture Decision Records (ADR) ablegen.
 4. Jede Entwicklungsphase in prüfbare, kleine Implementierungsschritte zerlegen.
 5. API-Verträge vor den betroffenen Implementierungen verändern.
@@ -652,7 +670,7 @@ Vorgeschlagener Workflow:
 
 ## 20. Zusammenfassung des vereinbarten Zielbilds
 
-Das Go Browser OS wird als **serverbasierte, API-getriebene Web-Desktop-Plattform** entwickelt.
+cloudOS wird als **serverbasierte, App-first- und API-getriebene Web-Desktop-Plattform** entwickelt.
 
 - **Go** bildet den zentralen Systemkern.
 - **Browser-Frontend** stellt Desktop und Apps dar.
@@ -665,4 +683,9 @@ Das Go Browser OS wird als **serverbasierte, API-getriebene Web-Desktop-Plattfor
 - **Docker Compose** dient als erste Betriebsplattform.
 - **19 Phasen** führen vom Architekturfundament über das MVP bis zur ausbaubaren Produktplattform.
 
-**Nächster Schritt:** GitHub-Repository erstellen, `CONCEPT.md` übernehmen und anschließend **Phase 0 – Architektur und Entwicklungsstandards** anhand des echten Repository-Stands ausarbeiten.
+**Nächster Schritt:** Die aktualisierten Fachkonzepte in `docs/` gemeinsam verifizieren und die App-/Core-/VFS-ADRs in Phase 0 abschließen.
+
+
+---
+
+**Dokumentabgleich 0.2 (15.11.2026):** Ergänzt wurden die zwingende `.cloudApp`-Installation, Pflicht-Core-Apps, Admininstallation per File-Explorer-Kontextmenü, das getrennte Core/App-Modell sowie das Zwei-Volume-VFS. Die Fachkonzepte `docs/APPLICATION_SYSTEM.md`, `docs/VIRTUAL_FILESYSTEM.md` und `docs/SYSTEM_ARCHITECTURE.md` konkretisieren diese Regeln.

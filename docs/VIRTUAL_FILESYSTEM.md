@@ -2,10 +2,10 @@
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/VIRTUAL_FILESYSTEM.md`  
-> **Dokumentversion:** 0.1 (Architekturentwurf)  
-> **Stand:** 14.11.2026  
-> **Gepruefte Grundlage:** `main`, Commit `121aee889b9bad60d325ef65d5a0eee702dd5024`  
-> **Referenzen:** `docs/CONCEPT.md` und `docs/SYSTEM_ARCHITECTURE.md` (v0.3)  
+> **Dokumentversion:** 0.3 (X.509-Signing und Self-signed-Freigabe fuer App-Installationen)  
+> **Stand:** 15.11.2026  
+> **Geprüfte Grundlage:** `main`, Commit `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
+> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.5) und `docs/APPLICATION_SYSTEM.md` (v0.2) und `docs/APP_SIGNING.md` (v0.1)  
 > **Status:** Neue Anforderungen verbindlich; genaue Implementierungsdetails werden in Phase 0/6 entschieden.
 
 ## 1. Zweck und Zielbild
@@ -115,7 +115,7 @@ system:/
 |   |-- defaults/                # Systemweite Voreinstellungen
 |   `-- policies/                # Nicht geheime Policy-/Regelressourcen
 |-- applications/
-|   |-- packages/                # Signierte/gepruefte App-Pakete
+|   |-- packages/                # Unveraenderliche, signierte installierte .cloudApp-Versionen
 |   |-- manifests/               # Systemweite App-Manifeste
 |   `-- assets/                  # Gemeinsame App-Ressourcen
 |-- themes/
@@ -134,6 +134,8 @@ Die Struktur ist ein **logisches Zielbild**, keine zwingende Abbildung von Conta
 Das Systemvolume darf weder Benutzer-Home-Daten noch ungeprüfte temporäre Uploads enthalten. Geheimnisse, private Schlüssel und Zugangstokens werden **nicht als durch Admin-Dateibrowsing lesbare Systemdateien** gespeichert; dafür ist ein separater Secret-Mechanismus vorgesehen. Systemlogs und Audit-Trails liegen in ihren fachlichen Datenhaltungen und müssen nicht als normale Systemdateien verfügbar sein.
 
 Die aus Docker-Images geladenen Go-Binaries sind ebenfalls **nicht automatisch** Dateien im virtuellen Systemvolume. Das Volume enthält die durch das VFS verwalteten cloudOS-Ressourcen, nicht zwangsläufig jedes physische Deployment-Artefakt.
+
+**Verbindliche Ergänzung für Apps:** Alle regulären Benutzeranwendungen einschließlich `Desktop.cloudApp` und `FileExplorer.cloudApp` werden zuerst als `.cloudApp` installiert. Pflicht-Core-Apps werden durch eine signierte Release-Baseline automatisch provisioniert. **Normale VFS-Schreibrechte eines Administrators erlauben keine direkte Manipulation bereits installierter Paket-Artefakte.** Paketstaging, Paketpromotion, Versionsaktivierung und Removal erfolgen ausschließlich über den geprüften App Installer-/Release-Workflow. Die genaue Spezifikation steht in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
 
 **Wichtig für Themes und Apps:** Ein normaler Benutzer darf ein vom System freigegebenes Theme anwenden oder ein App-Bundle im Browser laden, ohne das Systemvolume durchsuchen zu können. Der Zugriff erfolgt über **gesonderte, explizit freigegebene Theme-/Asset-/App-APIs**, niemals durch ein allgemeines `list system:/`. Statisch an Browser ausgelieferte Assets sind naturgemäß für berechtigte Clients abrufbar und deshalb keine Geheimnisse.
 
@@ -180,6 +182,8 @@ Für Benutzer A wird aus der internen Struktur ausschließlich Folgendes sichtba
 ```
 
 Für Benutzer B sieht `/` ebenfalls genauso aus, bezeichnet jedoch **einen anderen Knoten**. Interne Benutzer-UUIDs müssen nicht Bestandteil des sichtbaren Pfads sein.
+
+`.config/` und `.local/` können beispielsweise `.config/cloudos/apps/<app-id>/` und `.local/share/cloudos/apps/<app-id>/` für private App-Einstellungen und Daten enthalten. Eine heruntergeladene `*.cloudApp` unter `/Downloads/` ist nur eine Quelldatei und wird durch das Vorhandensein im Home nicht installiert.
 
 `.config/` und `.local/` sind **normale Benutzerdaten innerhalb des eigenen Home-Verzeichnisses**, keine weitere virtuelle Festplatte. Versteckte Dateien sind über die UI-Einstellung ein- oder ausblendbar, unterliegen aber unverändert derselben Rechteprüfung.
 
@@ -718,6 +722,34 @@ Dies sind **geplante Shell-Semantiken**, keine bereits implementierten Befehle. 
 - Jede cloudOS-eigene UI-Komponente bleibt gemäß dem Architekturkonzept v0.3 themefähig; Dateimanager und Laufwerksdarstellungen verwenden dieselben Design-Tokens.
 - Themes dürfen Farben, Icons und Layout-Elemente modifizieren, **nicht** Rechte, Laufwerks-IDs oder Pfadauflösung.
 
+### 13.4 File Explorer und `.cloudApp`-Installationsworkflow
+
+Der File Explorer ist selbst eine verpflichtend installierte `FileExplorer.cloudApp` und **kein hartcodiertes Modul im Browser-Bootstrap**. Er nutzt VFS-APIs und den zentralen Dateityp-/Kontextaktionskatalog. Erkennt er ein valides `.cloudApp`-Paket im eigenen Home eines Administrators, bietet er **App installieren** an. Die Aktion startet `AppInstaller.cloudApp` mit einem opaken, kurzlebigen File-Handle.
+
+- **Paketquelle:** z. B. `/Downloads/ExampleEditor-1.0.0.cloudApp` im *eigenen* Home des angemeldeten Admins.
+- **Vorschau:** Der Go-Core liest einen unveränderlichen Snapshot, prüft Format, Signatur, Publisher-Vertrauen, Runtime, Abhängigkeiten und Paketdigest.
+- **Bestätigung:** Nur mit `apps.install` und digestgebundenem Preview-Plan.
+- **Ablage:** Der App Installer übernimmt die geprüften, unveränderlichen Paketdaten nach `system:/applications/packages/` und registriert die Version im fachlichen App-Register.
+- **Zuweisung:** Benutzer-/Gruppenfreigabe erfolgt getrennt von der Installation; ohne Zuweisung kein Nutzer-Launch.
+- **Nutzung:** Berechtigte Benutzer laden App-Assets über App-/Asset-APIs, ohne das Systemvolume als Laufwerk zu sehen.
+- **Schutz:** Dateioperationen im File Explorer dürfen installierte Paketdateien nicht unkontrolliert überschreiben, löschen oder umbenennen.
+
+Doppelklick auf ein noch nicht installiertes `.cloudApp`-Paket führt höchstens zur Paketinformation bzw. für Administratoren zum Installer, **niemals** zur direkten Code-Ausführung. Normale Benutzer können Pakete speichern, aber im MVP nicht installieren. Der volle Ablauf und die Paketformat-Verträge stehen in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+
+### 13.5 Core-App-Daten im Home
+
+Desktop-Layouts, Fensterzustände, Theme-Auswahl, App-Berechtigungen und Installationsmetadaten gehören fachlich zu den zuständigen Go-Core-Diensten. Private App-Dateien können innerhalb von `.config/cloudos/apps/<app-id>/` oder `.local/share/cloudos/apps/<app-id>/` im Home liegen; eine App erhält nur ihren freigegebenen Bereich und explizit ausgewählte Datei-Handles, **nicht** pauschal das Home-Root. Durch Benutzerauswahl erlaubte Dokumentzugriffe bleiben in der VFS-ACL-/Capability-Kette.
+
+### 13.6 Signaturgepruefte `.cloudApp`-Pakete im VFS
+
+Der `FileExplorer.cloudApp` darf beliebige noch **nicht installierte** `.cloudApp`-Pakete im jeweiligen Benutzer-Home anzeigen. Die Dateiendung oder ein Metadateneintrag im VFS bedeutet **keine** Installationserlaubnis. Admins koennen bei Rechtsklick einen signaturgeprueften Preview-Workflow starten.
+
+Vor dem Uebergang aus dem `users`-Volume nach `system:/applications/packages/` prueft der Go App Package Service einen unveraenderlichen Snapshot: SHA-512-Dateiliste, kryptografische X.509-Signatur, App-ID-Scope, Zertifikatsstatus und Paketdigest. **Gueltig selbstsignierte Pakete** erfordern eine deutliche Warnung und eine separate, digestgebundene Administratorbestaetigung; dies erteilt **keine** Schreibrechte auf andere Pfade und hebt die zwei-Volume-Isolation nicht auf.
+
+`INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE`, `INVALID_SIGNATURE`, falsche App-ID und Widerruf sind **harte Installationsfehler**. Eine Systemvolume-Berechtigung erlaubt keine manuelle Umgehung dieser Pruefung oder das Editieren aktivierter App-Artefakte. Der Paketstore bleibt unveraenderlich und wird bei Integritaetsfehlern quarantinisiert. Stille Updates selbstsignierter Pakete sind ausgeschlossen.
+
+Die fachlich fuehrende Spezifikation steht in [`APP_SIGNING.md`](APP_SIGNING.md), Paket- und Installervertraege in [`APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+
 ## 14. Rust-/WASM- und weitere Anwendungsruntimes
 
 ### 14.1 Rust-WebAssembly im Browser
@@ -843,7 +875,7 @@ Die VFS-MVP-Stufe gilt als fertig, wenn:
 
 **Einordnung in den Gesamtplan:** Die Festlegung von Volumes und Mount-Policies erfolgt in **Phase 0**; die VFS-Implementierung in **Phase 6**, der Dateimanager in **Phase 7**, die Realtime-Integration in **Phase 8** und App-/Rust-Dateizugriffe in **Phase 9 bzw. nachfolgende Runtime-Meilensteine**.
 
-## 18. Konflikte zu bestehenden Dokumenten
+## 18. Konflikte und Abgleich zu bestehenden Dokumenten
 
 Die aktuelle Datei `docs/CONCEPT.md` und Abschnitt 12 in `docs/SYSTEM_ARCHITECTURE.md` zeigen noch den bisherigen gemeinsamen Dateibaum:
 
@@ -896,3 +928,8 @@ Der Dateisystementwurf wird nicht stillschweigend als bereits implementiert betr
 10. **Logische Volumes, Datenbankmetadaten und physische Speichermedien sind getrennte Ebenen.**
 
 **Nächster Umsetzungsschritt:** Dieses Dokument im Repository als `docs/VIRTUAL_FILESYSTEM.md` aufnehmen. Danach die beiden übergeordneten Konzepte konsistent auf die neue Volume-/Root-Semantik umstellen und die ersten VFS-ADRs entscheiden.
+
+
+---
+
+**Änderungsvermerk 0.2 (15.11.2026):** Die Zwei-Volume-/Home-Root-Architektur bleibt vollständig erhalten. Ergänzt wurden der unveränderliche `.cloudApp`-Paketstore auf `system:/`, die Admininstallation über `FileExplorer.cloudApp` und `AppInstaller.cloudApp`, der Schutz vor direkter Ausführung aus dem Home sowie private App-Daten unter dem persönlichen `/`. Der Core stellt die APIs bereit; die sichtbare Bedienung erfolgt ausschließlich über installierte Core-Apps und weitere zugewiesene Anwendungen.

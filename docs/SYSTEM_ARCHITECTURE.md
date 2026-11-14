@@ -1,20 +1,26 @@
 # cloudOS – Technische Systemarchitektur
 
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
-> **Zielpfad:** `docs/architecture/SYSTEM_ARCHITECTURE.md`  
-> **Dokumentversion:** 0.3 (Core-, Rust- und Theming-Architektur, Phase 0)  
-> **Stand:** 14.11.2026  
-> **Ausgangsbasis:** `main`, Commit `be0bbf511f5faebc47689b3bd9e5f3dbb4a66d1e`  
-> **Übergeordnetes Dokument:** [`docs/CONCEPT.md`](../CONCEPT.md)  
+> **Zielpfad:** `docs/SYSTEM_ARCHITECTURE.md`  
+> **Dokumentversion:** 0.5 (X.509-Code-Signing und Self-signed-Installationspolicy, Phase 0)  
+> **Stand:** 15.11.2026  
+> **Ausgangsbasis:** `main`, Commit `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
+> **Übergeordnetes Dokument:** [`docs/CONCEPT.md`](CONCEPT.md)  
 > **Projekt:** cloudOS – serverbasiertes, API-getriebenes Browser-Betriebssystem  
 > **Änderung 0.2:** Einheitlicher cloudOS Core aus kooperierenden Diensten; Rust-Apps über Browser-WASM, WASI und optional native Isolation
-> **Änderung 0.3:** Durchgängig themefähige UI, zentraler Theme Service, Design-Tokens, erweiterbare Komponenten und Theme-Bridge für Rust-/WASM-Apps
+> **Änderung 0.3:** Durchgängig themefähige UI, zentraler Theme Service, Design-Tokens, erweiterbare Komponenten und Theme-Bridge für Rust-/WASM-Apps  
+> **Änderung 0.4:** Alle regulaer gestarteten Oberflaechen als installierte `.cloudApp`; geschuetzte Core-App-Baseline und Installation durch Admins per File Explorer  
+> **Änderung 0.5:** Nextcloud-inspiriertes X.509-App-Signing; lokal selbstsignierte Pakete nach Admin-Sicherheitswarnung und Digest-Freigabe
 
 ## 1. Zweck und Geltungsbereich
 
 Dieses Dokument konkretisiert die technische Zielarchitektur aus `docs/CONCEPT.md`. Es dient als verbindliche Arbeitsgrundlage für API-Verträge, Servicegrenzen, Datenmodelle, Sicherheitsentscheidungen und den Aufbau der ersten lauffähigen Plattform.
 
-cloudOS ist **kein eigener Betriebssystemkernel**, sondern eine über den Browser bedienbare Desktop-Plattform. Go implementiert den **cloudOS Core** mit allen Betriebssystemfunktionen; dieser kann aus mehreren eigenständig kommunizierenden Diensten bestehen. Das Web-Frontend stellt Desktop und Fenster dar; installierte Anwendungen laufen je nach Laufzeitprofil als Web-App, Rust/WebAssembly im Browser oder isolierte Serverkomponente. Standardisierte APIs verbinden beide Ebenen und ermöglichen eigenständige Clients und Erweiterungen.
+cloudOS ist **kein eigener Betriebssystemkernel**, sondern eine über den Browser bedienbare **App-first-Desktop-Plattform**. Der Go-Core stellt ausschließlich Systemdienste, APIs und das App-Framework bereit. Alle regulär gestarteten sichtbaren Anwendungen – einschließlich Desktop und File Explorer – sind installierte `.cloudApp`-Pakete. Go implementiert den **cloudOS Core** mit allen Betriebssystemfunktionen; dieser kann aus mehreren eigenständig kommunizierenden Diensten bestehen. Das Web-Frontend stellt Desktop und Fenster dar; installierte Anwendungen laufen je nach Laufzeitprofil als Web-App, Rust/WebAssembly im Browser oder isolierte Serverkomponente. Standardisierte APIs verbinden beide Ebenen und ermöglichen eigenständige Clients und Erweiterungen.
+
+**Fachlich fuehrendes Signing-Konzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.1).  
+
+**Fachlich führendes App-Konzept:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Der Installer, die Pakete, die zwingend mitgelieferten Core-Apps und der Startablauf werden dort vollständig spezifiziert.
 
 **Status von Aussagen:**
 
@@ -772,21 +778,28 @@ Installation, Instanziierung und Datei-Grants sind getrennte atomare Owner-Opera
 
 ## 12. Virtuelles Dateisystem (VFS)
 
-### 12.1 Logisches Modell
+### 12.1 Logisches Modell – genau zwei virtuelle Festplatten
+
+Das fachlich führende Dateisystemkonzept ist [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md). Die frühere gemeinsame Verzeichnisansicht `/home/alice`, `/home/bob`, `/system` ist **verworfen**. Stattdessen gilt:
 
 ```text
-/
-├── home/
-│   ├── alice/
-│   │   ├── Desktop/
-│   │   ├── Documents/
-│   │   ├── Downloads/
-│   │   └── Pictures/
-│   └── bob/
-├── shared/
+system:/                           # nur fuer Administratoren sichtbar
+├── core/
 ├── applications/
-└── system/
+│   ├── packages/                 # signierte, installierte .cloudApp-Versionen
+│   ├── manifests/
+│   └── assets/
+└── themes/
+
+users:/
+└── homes/
+    ├── <user-uuid-A>/            # fuer User A gleich /
+    └── <user-uuid-B>/            # fuer User B gleich /
 ```
+
+Der virtuelle Root-Pfad `/` einer angemeldeten Sitzung zeigt **ausschließlich das eigene Home**. Ein Administrator kann zusätzlich die beiden Volume-Ansichten öffnen; Sichtbarkeit eines Volumes ist nicht mit uneingeschränktem Lesen aller Benutzerdateien gleichzusetzen.
+
+`.cloudApp`-Pakete werden vom App Installer verifiziert und als **unveränderliche installierte Artefakte** im Systemvolume verwaltet. Der Dateimanager darf dort keine direkten manuellen Paketänderungen vornehmen. Ein vom Benutzer heruntergeladenes `.cloudApp` im eigenen Home ist ausschließlich eine normale Quelldatei, kein installierter Programmcode.
 
 Virtuelle Pfade sind eine **Sicht**, keine Host-Dateisystempfade. Alle Operationen arbeiten primär mit Ressourcen-IDs. Das Storage-Backend verwendet intern opake Objektschlüssel, niemals unvalidierte Dateinamen als direkte Hostpfade.
 
@@ -1153,6 +1166,12 @@ const unsubscribe = cloudos.theme.subscribe((nextTheme) => {
 
 **Entwicklungsreihenfolge:** Phase 0: Theme-ADR und Designsystem-Vertrag; Phase 1: Theme-/Appearance-API-Schemas; Phase 5: Theme Engine, Kernkomponenten und Live-Wechsel; Phase 9: App-/Rust-Theme-Bridge; Phase 11: Theme-Einstellungen/Preview; Phase 15/16: Sicherheits-, Accessibility- und Visual-Tests; Phase 18: Theme-Paket- und erweiterter Editor-Support. Ein visueller Theme-Editor ist ein Komfortwerkzeug, keine Voraussetzung für die deklarative Theme-Architektur.
 
+### 13.6 Desktop und Systemoberflächen als Core-Apps
+
+Der normale Desktop wird **nicht fest in den Browser-Bootstrap eingebaut**. Die signierte, geschützte `Desktop.cloudApp` liefert die Desktop-Shell mit Taskleiste, Startmenü, Kontextmenüs, Fenster-Chrome und App-Host. File Explorer, Settings, App Installer, System Dialogs und Notification Center sind jeweils eigenständige, vorinstallierte `.cloudApp`-Core-Apps. Der Go-Core besitzt nur ihre Systemfunktionen (Registry, File Service, Fensterzustand, Theme Service, Rechte und Runtime). Eine minimale Authentifizierungs-/Recovery-Oberfläche vor dem Start der Desktop-App ist die eng begrenzte Ausnahme.
+
+Die Core-Apps sind von Anfang an durchgängig themefähig und folgen den in Abschnitt 13.5 beschriebenen Designsystem-Kontrakten. Die Paket-/Baseline- und Core-App-Lifecycle-Regeln stehen in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+
 ## 14. Anwendungssystem: App-Plattform für Web, Rust/WASM und weitere Laufzeiten
 
 ### 14.1 Grundmodell und verbindliche Trennung
@@ -1194,7 +1213,7 @@ Der priorisierte Weg für interaktive Rust-Anwendungen ist die Auslieferung ihre
 
 ### 14.4 GUI-Integration in den Desktop
 
-Der Desktop Window Manager bleibt Eigentümer von Fensterposition, Größe, Minimieren, Z-Reihenfolge und persistiertem Layout. Die Rust-App ist Eigentümer **ihrer internen UI**.
+Die installierte `Desktop.cloudApp` verwaltet das visuelle Fenster-Chrome und die unmittelbaren Interaktionen (Position, Größe, Minimieren, Z-Reihenfolge). Der Go Desktop State Service bleibt Eigentümer der autoritativen, persistierten Fenster-/Sitzungsdaten; die Rust-App ist Eigentümer **ihrer internen UI**.
 
 ```text
 cloudOS Desktop (Vue/TypeScript)
@@ -1369,6 +1388,42 @@ Für das MVP genügen Dateizuordnungen, `OpenWith`, `ShareTo` und kontrollierte 
 Ein selbstgehosteter Browser-WASM-Build kann Bild-/Dokumentdaten lokal im Browser verarbeiten. Solange die App nur die cloudOS-Bridge verwendet, werden nur die vom Nutzer ausgewählten Daten und Ergebnisse an den Core übertragen. Der Core kontrolliert jedoch **nicht allein durch die WASM-Form**, ob eine App zusätzliche Netzwerkzugriffe versucht. Deshalb ist eine restriktive CSP / `connect-src`, App-Origin-Kontrolle und ein nachvollziehbarer Datenschutz-/Netzwerk-Grant erforderlich.
 
 **Datenhoheit:** Speichert eine ArtCraft-App die Arbeit nur im lokalen Browser, ist das kein cloudOS-VFS-Commit. Erst eine erfolgreiche Datei-API-Operation mit neuer Serverrevision bedeutet eine persistierte cloudOS-Datei. Die UI muss diesen Unterschied klar anzeigen.
+
+### 14.14 Verpflichtendes `.cloudApp`-Paket und Installationsgrenze
+
+**Verbindliche Ergänzung v0.4:** Jede reguläre, sichtbare Benutzeranwendung wird als `.cloudApp`-Paket ausgeliefert, vor Benutzung installiert und durch die App Registry zur Ausführung freigegeben. Das gilt gleichermaßen für Desktop, File Explorer, Settings, App Installer, System Dialogs, Notification Center und Drittanbieter-Apps. Ein bloßes `.cloudApp`-Archiv im VFS ist **nicht ausführbar**.
+
+Das ZIP-basierte Paketformat v1 enthält ein `cloudos.app.json`, einen signierten Paketindex, geprüfte Publisher-Informationen sowie Web-/Rust-WASM- oder optionale serverseitige Runtime-Artefakte. Alle Dateiinhalte werden vor Installation in einer isolierten Staging-Umgebung validiert; keine ZIP-Inhalte oder dynamischen Einstiegspunkte dürfen ohne Prüfung gestartet werden. Bestehende Manifest-Skizzen in Abschnitt 14.5 sind **Teilentwürfe** und werden durch das konkrete Paketformat in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) präzisiert.
+
+### 14.15 Core-Apps, Baseline und Recovery
+
+Pflicht-Core-Apps werden bei der Systeminitialisierung aus einer geschützten, signierten und versionsgebundenen cloudOS-Baseline automatisch installiert. Die Desktop-Core-App startet nach Login als Shell-App; andere Core-Apps werden bei Bedarf als eigene App-Instanzen gestartet. Die Kern-Dienste sind Infrastruktur, keine `.cloudApp`-Anwendungen. Normale Deinstallations-/Disable-Requests für Pflicht-Core-Apps werden auch für Administratoren verweigert; Änderungen erfolgen ausschließlich durch kontrollierte Release-/Recovery-Verfahren.
+
+### 14.16 Installieren per Rechtsklick und getrennte Berechtigungen
+
+Der `FileExplorer.cloudApp` zeigt Administratoren für valide `.cloudApp`-Pakete im Home die Aktion **App installieren**. Der `AppInstaller.cloudApp` zeigt Prüfergebnisse, Publisher, Version, Runtime, Abhängigkeiten, Capability-Anforderungen und Benutzer-/Gruppenzuweisungen. Nach Bestätigung verifiziert der Go-Core die Paketbytes erneut über einen digestgebundenen Installationsplan und legt die geprüfte Installation in `system:/applications` ab. Standardbenutzer dürfen im MVP keine Apps installieren.
+
+**Vier getrennte Gates:** Paket ist installiert; Benutzer/Gruppe ist zugewiesen; App-Instanz ist autorisiert und gestartet; konkrete Ressourcenoperation ist durch Capability Grant und ACL erlaubt. Das versteckte Systemvolume wird bei normalen Benutzern nicht über die VFS-Laufwerksliste sichtbar, obwohl zugewiesene Apps ihre freigegebenen Assets laden dürfen.
+
+### 14.17 Runtime- und Theme-Vertrag für `.cloudApp`
+
+Web-, Rust-WASM-, spätere Server-WASI- und `native-isolated`-Apps nutzen **dasselbe Paket-/Installer-/Launch-Modell**, aber runtime-spezifische Build-Artefakte und Capability-Grenzen. CloudOS-eigene Core-Apps müssen alle Design-Tokens und Theme-Slots unterstützen. Drittanbieter-Apps können ihre intern gerenderte UI nur mit einem passenden Theme-Adapter anpassen; ihr cloudOS-Fensterrahmen bleibt systemweit themebar. Ein ArtCraft-Webbuild wird daher erst nach Paketierung und Prüfung zur cloudOS-App.
+
+### 14.18 X.509-Signierung, vertrauenswuerdige Publisher und Self-signed-Ausnahmen
+
+Der Go-Core implementiert einen fachlich eigenen **App Signing / Trust Service**. Analog zu Nextcloud werden Herausgeberzertifikate per X.509 an eine bestimmte technische App-ID gebunden. `.cloudApp`-Pakete enthalten einen SHA-512-Index aller Nutzdateien (`META-INF/package-index.json`) und einen abgekoppelten kryptografischen Beleg in `META-INF/signature.json`. Der Index wird nach einem verbindlich festgelegten kanonischen JSON-Format signiert. Das vorgesehenen v1-Profil ist RSA-PSS/SHA-512 mit appgebundenem Code-Signing-Zertifikat.
+
+Der Package Service prueft Integritaet und Kryptografie; der Trust Service beurteilt Kette, App-ID-Scope, Gueltigkeit, lokale Ausnahmen und Widerruf. Der Installer haelt die **drei** Urteile getrennt: `signature_valid`, `trust_class` und `install_allowed`.
+
+- **Core-App-Releases:** Nur dedizierte signierte cloudOS-Release-Baseline. Kein Self-signed-Paket darf bekannte Core-App-IDs ersetzen oder Core-Rechte erhalten.
+- **Publisher-verifiziert:** CA-Kette gueltig und App-ID korrekt. Normale administrative Installation moeglich.
+- **Gueltig selbstsigniert:** Kryptografie, Hashes und App-ID korrekt; Herausgeberidentitaet nicht unabhaengig bestaetigt. Installation **nur** nach deutlicher Warnung, `apps.install.self_signed` und einmaliger, an App, Version, Zertifikatsfingerprint und Paketdigest gebundener Admin-Risikoannahme.
+- **Unsigniert, manipuliert, abgelaufen, widerrufen oder falsche App-ID:** Installation hart abgelehnt; kein Admin-Bypass.
+- **Updates:** Jede neue selbstsignierte Paketversion/Digest benoetigt erneute bewusste Zustimmung. Kein stilles Auto-Update oder implizite Aufnahme des Self-signed-Zertifikats als CA-Root.
+
+Alle von cloudOS gerenderten Warnungen sind themefaehig, bleiben jedoch als vertrauenswuerdige AppInstaller-/SystemDialog-UI klar von der fremden App getrennt. Nutzer-/Dateirechte werden trotz Signatur nur im Permission Service erteilt.
+
+Die vollstaendige Spezifikation inklusive Paketformat, Revocation, Risk-Confirmation-Flow, signierter Indexstruktur, Fehlercodes und Signaturtestmatrix ist in [`APP_SIGNING.md`](APP_SIGNING.md) dokumentiert.
 
 ## 15. Ausführung: virtuelle Prozesse, Browser-WASM, Server-WASI und native Rust-Sandboxes
 
@@ -1970,8 +2025,9 @@ cloudOS/
 ├── README.md
 ├── docs/
 │   ├── CONCEPT.md
-│   ├── architecture/
-│   │   └── SYSTEM_ARCHITECTURE.md
+│   ├── SYSTEM_ARCHITECTURE.md
+│   ├── VIRTUAL_FILESYSTEM.md
+│   ├── APPLICATION_SYSTEM.md
 │   ├── decisions/
 │   ├── api/
 │   ├── applications/
@@ -2043,7 +2099,7 @@ cloudOS/
 │   ├── rust-wasi/
 │   └── go/
 ├── web/
-│   ├── desktop/
+│   ├── bootstrap/
 │   ├── window-manager/
 │   ├── app-host/
 │   ├── app-bridge/
@@ -2055,9 +2111,14 @@ cloudOS/
 │   ├── default/
 │   └── examples/
 ├── applications/
-│   ├── system/
+│   ├── core/
+│   │   ├── desktop/
 │   │   ├── file-explorer/
 │   │   ├── settings/
+│   │   ├── app-installer/
+│   │   ├── system-dialogs/
+│   │   └── notifications/
+│   ├── bundled/
 │   │   └── terminal/
 │   └── examples/
 │       ├── rust-wasm-hello/
@@ -2077,11 +2138,14 @@ cloudOS/
 │   ├── isolation/
 │   ├── performance/
 │   └── security/
+├── tools/
+│   ├── cloudapp-packager/
+│   └── cloudapp-validator/
 ├── scripts/
 └── Makefile
 ```
 
-Dies ist eine **Zielstruktur, kein Ist-Inventar**. Gemäß dem auf GitHub geprüften Ausgangsstand enthält `main` lediglich `README.md` und `docs/CONCEPT.md`. Das hier überarbeitete Architektur-Dokument ist eine **separat bereitgestellte Datei**, noch kein GitHub-Commit. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
+Dies ist eine **Zielstruktur, kein Ist-Inventar**. Der am 15.11.2026 geprüfte Branch `main` enthält `README.md`, `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` und `docs/VIRTUAL_FILESYSTEM.md` (Commit `efa3c237`). Die neuen Dokumentversionen einschließlich `docs/APPLICATION_SYSTEM.md` sind noch nicht auf GitHub committed. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
 
 **Go-Packageregel:** In `core/internal/<fachkontext>` liegen die Implementierungen hinter Ports/Interfaces. Nur ausdrücklich freigegebene, versionierte Contract-/Client-Pakete dürfen von anderen Fachkontexten importiert werden. Eine Umstrukturierung in einzelne Deployments erfordert dadurch keinen Wechsel der öffentlichen API.
 
@@ -2197,6 +2261,19 @@ Die Theming-Arbeit ist ein fester Bestandteil der bestehenden 19 Entwicklungspha
 | **15-17** | Accessibility, Visual Regression, Integritaet, Deployment/Restore | Release-Testmatrix mit dokumentiertem Fallback bestanden |
 | **18** | Theme-Pakete/Registry, erweiterter Theme-Editor, Kompatibilitaetsregeln | Ein externes Theme ist ohne Core-Codeaenderung installierbar |
 
+### 23.7 Verbindlicher App-first-Vertikalschnitt (Ergänzung v0.4)
+
+1. Der Go-Core initialisiert das Systemvolume und gleicht die signierte Baseline der Pflicht-Core-Apps ab.
+2. Der Browser authentifiziert den Benutzer und fragt den erlaubten Desktop-Launch über die Core Registry ab.
+3. `Desktop.cloudApp` startet als autorisierte Shell-App; `FileExplorer.cloudApp` startet separat aus der App Registry.
+4. Der Administrator rechtsklickt auf ein `.cloudApp`-Paket im eigenen Home und öffnet `AppInstaller.cloudApp`.
+5. Der Core validiert Archiv, Publisher, Signatur, Abhängigkeiten und beantragte Capabilities; der Administrator bestätigt den Installationsplan.
+6. Das Paket wird unveränderlich auf `system:/` installiert und ausgewählten Benutzern/Gruppen zugewiesen.
+7. Der zugewiesene Nutzer kann es aus dem Desktop starten; nicht zugewiesene Nutzer können es weder auflisten noch starten.
+8. Ein Update, eine fehlende Core-App oder ein defektes Paket führt zu sicherem Rollback bzw. Recovery ohne Core-Kompromittierung.
+
+Die Phasen 0–9 müssen ihre Aufgaben so ordnen, dass Baseline, minimale Registry und Launcher **vor** dem interaktiven Desktop verfügbar sind. Das Paketformat und die vollständigen Abnahmekriterien stehen in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+
 ## 24. Offene Architekturentscheidungen (aktualisierter ADR-Backlog)
 
 | Kennung | Entscheidung | Priorität / Termin |
@@ -2225,6 +2302,18 @@ Die Theming-Arbeit ist ein fester Bestandteil der bestehenden 19 Entwicklungspha
 | ADR-022 | Service-Discovery, horizontale Skalierung und Runtime-Leases | Vor Cluster-/HA-Betrieb |
 | ADR-023 | **Designsystem und Theme-Resolver:** Token-Schema, Komponenten-Slots, Vererbungsmodell, Accessibility und Live-Switching | P0 / Phase 0-1 |
 | ADR-024 | **Theme-Pakete und Sicherheitsmodell:** Assets, Lizenzen, CSP, Signaturen, App-Theme-Bridge, Rust-Adapter | P0 / Phase 0; Integration vor Phase 9 |
+| ADR-025 | **App-first:** Core-/Core-App-Grenzen und Pflicht zur installierten `.cloudApp` | P0 / Phase 0 |
+| ADR-026 | `.cloudApp` v1: Paketstruktur, Signaturdateien und Manifest-Schema | P0 / Phase 0–1 |
+| ADR-027 | X.509-Publisher-Vertrauen, signierte SHA-512-Dateiindizes und Schluesselrotation | P0 / vor Installer-MVP |
+| ADR-028 | Geschützte Core-App-Baseline und Recovery ohne vollständigen Desktop | P0 / vor Phase 5 |
+| ADR-029 | Admin-Installation aus File Explorer über Preview/Confirm | Vor Phase 7–9 |
+| ADR-030 | Installation, Freigabe, App-Grant und Launch als getrennte Schritte | P0 / Phase 1–4 |
+| ADR-031 | App-Sandbox/Origin/Bridge und authentifizierter App Host | P0 / vor Phase 5/9 |
+| ADR-032 | Unveränderliche Paketversionen, Update und Rollback | Vor Phase 9 |
+| ADR-033 | Core-App-Theming, UI-Vertrauen und Systemdialoge | Vor Phase 5 |
+| ADR-034 | Rust-/WASM-/WASI-Paketvarianten und Kompatibilitätsmatrix | Vor Rust-MVP |
+| ADR-035 | Selbstsignierte Apps, Warnungsdialog, Risk-Acceptance und Updatefreigabe | P0 / vor Installer-MVP |
+| ADR-036 | Code-Signing-Format: X.509, JCS, SHA-512, RSA-PSS, App-ID-Scope | P0 / vor Installer-MVP |
 
 **ADR-Format:** Kontext, Entscheidungsstatus, Entscheidung, Alternativen, Konsequenzen, Sicherheitsauswirkung, Kompatibilität/Migration, Testplan, Datum und Verantwortliche. Nicht akzeptierte ADRs sind ausdrücklich **offen**, selbst wenn ein Implementierungsentwurf eine bevorzugte Richtung nennt.
 
@@ -2269,7 +2358,9 @@ Phase 0 ist erst abgeschlossen, wenn mindestens folgende Ergebnisse vorliegen:
 
 ### 26.1 Interne Referenzen
 
-- [`docs/CONCEPT.md`](../CONCEPT.md) – Projektvision und Entwicklungsphasen 0–18.
+- [`docs/CONCEPT.md`](CONCEPT.md) – Projektvision und Entwicklungsphasen 0–18.
+- [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md) – Zwei-Volume-VFS.
+- [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) – `.cloudApp`, Core-Apps und Installer.
 - [`Drezael/cloudOS`](https://github.com/Drezael/cloudOS) – verbindliches Quellrepository.
 
 ### 26.2 Technische Referenzen
@@ -2357,7 +2448,7 @@ Eine Rust-Testanwendung mit Theme-Adapter wird zweimal gestartet (Light und Dark
 
 ## Anhang C – Quellen und Dokumentbezüge
 
-**Verbindliche Projektgrundlage:** `docs/CONCEPT.md` aus [`Drezael/cloudOS`](https://github.com/Drezael/cloudOS). Diese Architekturversion baut auf dem mit `be0bbf511f5faebc47689b3bd9e5f3dbb4a66d1e` verifizierten Stand auf. Sie wird als **vollständige neue Version** von `docs/architecture/SYSTEM_ARCHITECTURE.md` bereitgestellt und ändert das GitHub-Repository nicht automatisch.
+**Verbindliche Projektgrundlage:** `docs/CONCEPT.md` aus [`Drezael/cloudOS`](https://github.com/Drezael/cloudOS). Diese Architekturversion 0.4 baut auf dem mit `efa3c237d07f6acf0b0358f999e3bfe76b21b116` verifizierten Stand auf. Sie wird als **vollständige neue Version** von `docs/SYSTEM_ARCHITECTURE.md` bereitgestellt und ändert das GitHub-Repository nicht automatisch.
 
 **Ergaenzung 0.3:** Die Theme-Architektur ist eine neue Projektvorgabe auf Basis des Nutzerwunsches; externe Quellen zu React/Vue-Styling sind für diese verbindliche Entwurfsentscheidung nicht erforderlich. Grundlagendokumente werden beim nächsten Abgleich synchronisiert.
 
@@ -2378,3 +2469,8 @@ Eine Rust-Testanwendung mit Theme-Adapter wird zweimal gestartet (Light und Dark
 - [NATS JetStream](https://docs.nats.io/concepts/jetstream) – asynchroner Eventtransport.
 
 **Dokumentationsregel:** Technische Beispiele sind Designentwürfe, keine Behauptung eines funktionierenden cloudOS-Core. Verbindliche Toolchain-, Browser-, ABI- und Sicherheitsentscheidungen werden erst durch akzeptierte ADRs und reproduzierbare Tests fixiert.
+
+
+---
+
+**Änderungsvermerk 0.4 (15.11.2026):** Das bisherige App-Konzept wurde durch eine zwingende `.cloudApp`-Paket-/Installationsarchitektur ergänzt. Desktop und sämtliche weiteren sichtbaren Systemfunktionen sind installierte Core-Apps. Details zu Paketformat, Admin-Rechtsklick, Pflicht-Core-Apps, Zuweisung, Installer-Transaktionen, Rust-Laufzeiten und Recovery stehen verbindlich in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Das VFS verwendet nach [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md) genau zwei virtuelle Volumes.

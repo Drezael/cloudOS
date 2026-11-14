@@ -1,10 +1,11 @@
 # cloudOS – Anwendungsarchitektur und `.cloudApp`-Paketformat
 
 > **Dokument:** `docs/APPLICATION_SYSTEM.md`  
-> **Version:** 0.1 – Architekturentwurf / verbindliches App-first-Zielbild  
+> **Version:** 0.2 – Architekturentwurf / verbindliches App-first-Zielbild  
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `efa3c237d07f6acf0b0358f999e3bfe76b21b116`  
 > **Übergeordnete Dokumente:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`  
+> **Signatur- und Vertrauenskonzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.1; fuer kryptografische Details fachlich fuehrend)  
 > **Geltungsbereich:** CloudOS-Core, Core-Apps, installierbare Apps, Paketformat, Installation, Laufzeit, Berechtigungen, UI-Integration und Wartung
 
 ## 1. Ziel und verbindliche Produktentscheidung
@@ -23,7 +24,7 @@ Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstütz
 2. **Jede Benutzeranwendung ist zuerst installiert.** Eine einzelne `.cloudApp`-Datei im Dateisystem ist kein ausführbares Programm und kein automatisch registriertes App-Modul.
 3. **Gleiches Paketformat für Core- und Drittanbieter-Apps.** Core-App-Status entsteht nur aus einer geschützten, signierten cloudOS-Release-Zuordnung – nie aus einem beliebigen Manifestfeld einer fremden App.
 4. **Core-Apps sind verpflichtend.** Kritische Core-Apps können im normalen Administrationsbetrieb nicht deinstalliert oder deaktiviert werden.
-5. **Keine ungeprüfte Installation.** Die Installation prüft Paketformat, Signatur, Publisher-Vertrauen, Kompatibilität, Capabilities, Abhängigkeiten und Ressourcenlimits.
+5. **Keine ungeprüfte Installation.** Die Installation prüft Paketformat, Signatur, Publisher-Vertrauen, Kompatibilität, Capabilities, Abhängigkeiten und Ressourcenlimits. **Gültig selbstsignierte Apps** sind nur nach gesonderter Administratorwarnung und expliziter Digest-gebundener Risikofreigabe installierbar; ungültige oder unsignierte Pakete bleiben gesperrt.
 6. **Admins installieren im MVP.** Das Kontextmenü macht die Installation bequem; der Go-Core erzwingt die Adminberechtigung serverseitig. Das spätere Delegieren einer Nutzerinstallation ist eine gesonderte Entscheidung.
 7. **Installation ist nicht Freigabe.** Ein zusätzliches Paket kann global installiert sein, ohne für alle Benutzer startbar zu sein. Zugriff wird separat per Rollen-/Gruppen-/Benutzerzuordnung erteilt.
 8. **Installieren ist nicht Starten.** Installation kopiert und registriert unveränderliche Artefakte. Eine Instanz startet erst nach einer autorisierten Launch-Anfrage.
@@ -50,7 +51,7 @@ Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstütz
 | **Core Service** | Logischer Go-Systemdienst mit stabiler API und eigener fachlicher Verantwortung |
 | **Core App** | Von cloudOS ausgeliefertes und zwingend installiertes `.cloudApp`-Paket für eine benötigte sichtbare Systemfunktion |
 | **Optional mitgelieferte App** | Vorinstalliertes, aber nicht zwingend laufendes `.cloudApp`-Paket (z. B. Terminal) |
-| **Drittanbieter-App** | Extern signiertes, nach Prüfung vom Administrator installiertes `.cloudApp`-Paket |
+| **Drittanbieter-App** | CA-signiertes oder ausnahmsweise kryptografisch gueltig selbstsigniertes `.cloudApp`-Paket; stets Installation durch Admin |
 | **App-Paket** | Unveränderliches, geprüftes Archiv mit exakter Endung `.cloudApp` und definiertem Inhalt |
 | **App-Version** | Eine konkrete Kombination aus App-ID, Versionskennung und Paketdigest |
 | **Installation** | Serverseitige Registrierung einer App-Version samt geprüften Artefakten |
@@ -173,8 +174,8 @@ Auch eine vertrauenswürdige Core-App darf keine Sicherheitsprüfung im Go-Core 
 - **Vorgeschlagener MIME-Typ:** `application/vnd.cloudos.app+zip` (projektinterner Typ; keine Behauptung einer registrierten IANA-Zuordnung).
 - **Containerformat v1:** ZIP-Archiv mit unveränderlicher, dokumentierter Verzeichnisstruktur.
 - **Manifest:** `cloudos.app.json` im Archivstamm.
-- **Inhaltsverifikation:** kryptografische Digest-Liste jedes relevanten Archiveintrags.
-- **Authentizität:** signierter Paketindex, Prüfung gegen eine freigegebene Publisher-Identität.
+- **Inhaltsverifikation:** SHA-512-Digest-Liste jedes relevanten Archiveintrags (Nextcloud-inspiriertes Modell).
+- **Authentizität:** X.509-Code-Signing-Zertifikat mit App-ID-Scope, signierter kanonischer Paketindex und differenziertes Vertrauensmodell (CA-verifiziert oder explizit genehmigte Selbstsignatur).
 - **Spezifikation:** eigenständige `package_format_version`, unabhängig von `app_version` und `core_api_version`.
 
 Das Archivformat ist eine **Architekturvorgabe**, keine bereits implementierte Dateiendung. Ein Archiv darf nicht als einfaches `.zip` umbenannt und ohne Integritäts-/Signaturprüfung installiert werden.
@@ -186,7 +187,7 @@ ExampleEditor-1.0.0.cloudApp
 ├── cloudos.app.json
 ├── META-INF/
 │   ├── package-index.json
-│   ├── package-index.sig
+│   ├── signature.json
 │   └── publisher.json
 ├── web/
 │   ├── index.html
@@ -266,19 +267,23 @@ Die gleichen Manifestregeln gelten für die Desktop-App:
 
 **Wichtig:** Das Manifest enthält kein vom Installer vertrautes `is_core: true`. Ob eine App verpflichtend ist, ergibt sich ausschließlich aus der geschützten Release-Baseline, Publisher-Prüfung und Policy.
 
-### 6.5 Paketindex und Signaturmodell
+### 6.5 Paketindex, X.509-Zertifikat und Signaturmodell
 
-Der Paketindex listet kanonische relative Pfade, Dateigrößen, SHA-256-Digests, Paketformat und eindeutige Paketidentität. Der signierte Anteil enthält **alle** sicherheitsrelevanten Felder. Die Signatur (vorgesehen: Ed25519) wird über eine genau festgelegte kanonische Bytefolge geprüft, nicht über uneinheitlich serialisierte JSON-Objekte.
+cloudOS orientiert sich bewusst am **Nextcloud-Code-Signing-Prinzip**: appgebundene X.509-Herausgeberzertifikate, eine vollstaendige SHA-512-Dateihashliste und eine kryptografisch pruefbare Signatur. Die Implementierung ist jedoch cloudOS-spezifisch und **nicht binaerkompatibel mit Nextcloud**.
 
-Regeln:
+Der Paketindex `META-INF/package-index.json` enthaelt alle Payload-Dateien mit ihren SHA-512-Digests und die gebundenen Felder App-ID, Version, Herausgeber und Paketformat. Ein streng kanonisches JSON-Format (RFC 8785 JCS, Entwurf) stellt sicher, dass dieselben Bytes signiert und geprueft werden. `META-INF/signature.json` enthaelt die X.509-Zertifikate und eine abgekoppelte digitale Signatur **ueber die kanonischen Indexbytes**. Index und Signaturdatei bilden eine definierte selbstreferenzfreie Ausnahme aus der Dateiliste; der **gesamte restliche Payload** muss abgedeckt sein.
 
-1. Die Signatur schützt sämtliche Payload-Dateien, Manifest, Publisher-Bindung und Versionsinformationen.
-2. Die Hash-/Signaturdateien sind nach einer festgeschriebenen, selbstreferenzfreien Regel aus dem signierten Index ausgeschlossen; diese Ausnahme wird im Schema exakt spezifiziert.
-3. Vor der Installation werden die **dekomprimierten** Bytes einzeln und gegen den Paketindex geprüft. Die Archivkompression ist keine Sicherheitsfunktion.
-4. Ein gültiger SHA-256-Wert ohne vertrauenswürdige Signatur reicht für eine Drittanbieterinstallation nicht aus.
-5. Publisher-Schlüssel sind mit Vertrauensstatus, Gültigkeits-/Widerrufsregeln und Auditspur verwaltet.
-6. Release-gebundene Core-Apps verwenden die von cloudOS ausdrücklich akzeptierten Schlüssel und Paketdigests.
-7. Dynamische Code-Nachladungen aus nicht freigegebenen fremden Quellen sind für App-Pakete standardmäßig gesperrt.
+| Pruefschritt | Ergebnis |
+|---|---|
+| Exakter Inhalt + Index stimmen, Signatur gueltig, CA-Kette gueltig | `publisher_verified` (regulaere Admininstallation) |
+| Exakter Inhalt + Signatur gueltig, Zertifikat ist selbstsigniert und App-Scope stimmt | `self_signed_local` (**sichtbare Warnung**, gesonderte Adminbestaetigung) |
+| App hat keine Signatur | `unsigned` (Installation blockiert) |
+| Hash, Signatur, Scope, Zertifikat oder Widerruf ungueltig | `invalid` (Installation blockiert, **nicht** durch Adminwarning ueberstimmbar) |
+| Dedizierte Core-App-Release-Signatur und geschuetzte Baseline | `core_release_trusted` (nur Release-/Recovery-Pfad) |
+
+**Vorgeschlagenes Crypto-Profil v1:** X.509 mit fuer die App-ID gebundenem Code-Signing-Zertifikat, SHA-512-Payload-Hashes, RSA-PSS/SHA-512 ueber den JCS-kanonischen Paketindex, fuer v1 RSA-4096 bevorzugt. Exakte Profile und Testvektoren werden vor Implementierung per ADR-027/ADR-036 festgelegt. Selbstsignierte Zertifikate erhalten **keine automatische CA-Vertrauensstellung**. Eine Gueltigkeit der Kryptografie ist **kein Code-Audit und kein Sicherheitsversprechen**.
+
+Die **komplette Spezifikation** von Zertifikaten, Privatschluesselverwaltung, Warnungen, Trust-Klassen, Widerruf, Updatepruefung und Testfaellen steht unter [`docs/APP_SIGNING.md`](APP_SIGNING.md). Sie ist fuer Signing-Vertraege fachlich fuehrend.
 
 ### 6.6 Sichere Archivverarbeitung
 
@@ -334,7 +339,7 @@ sequenceDiagram
 
 Ein Administrator lädt `ExampleEditor-1.0.0.cloudApp` beispielsweise nach `/Downloads/` hoch. Der File Explorer erkennt Dateiendung, validen Dateityp und die Installer-Verfügbarkeit. Im Kontextmenü erscheint **App installieren**. Die Aktion öffnet den vorinstallierten App Installer über den Core App-Lifecycle; es wird **nicht** die Datei als Skript gestartet.
 
-Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signaturstatus, benötigte Core-Version, Runtime, benötigte Abhängigkeiten, angeforderte Capabilities, Paketgröße und vorhandene Installation. Anschließend bestätigt der Administrator die Installation und legt die erlaubten Benutzer/Gruppen fest.
+Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signaturstatus, benötigte Core-Version, Runtime, benötigte Abhängigkeiten, angeforderte Capabilities, Paketgröße und vorhandene Installation. Anschließend bestätigt der Administrator die Installation und legt die erlaubten Benutzer/Gruppen fest. **Bei einer gueltigen Selbstsignatur** zeigt `AppInstaller.cloudApp` vorher einen hervorgehobenen Sicherheitsdialog: Der Herausgeber ist nicht unabhaengig verifiziert, die App kann Schadcode enthalten; App-ID, Version, SHA-256-Zertifikatsfingerprint, Paketdigest und angeforderte Rechte werden angezeigt. Die Aktion `Risiko akzeptieren und installieren` ist nur durch einen berechtigten Administrator mit einmaliger, paketgebundener Bestätigung moeglich; Abbrechen ist der sichere Standard. Bei ungueltiger Signatur erscheint ausschliesslich ein Fehler, keine Risiko-Ausnahme.
 
 **Standardpolitik MVP:** Installation ist ausschließlich eine administrative, systemweite Aktion. Nach Installation ist die App **nicht automatisch für alle Nutzer freigegeben**. Nur ausdrücklich zugewiesene Nutzer/Gruppen können sie in ihrer App-Liste sehen und starten. Core-Apps sind durch die Baseline von dieser optionalen Zuweisung ausgenommen und für berechtigte cloudOS-Nutzer verfügbar.
 
@@ -345,7 +350,8 @@ Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signatur
 | Admin, gültige `.cloudApp`, noch nicht installiert | `App installieren` | Installationsvorschau / Adminprüfung |
 | Admin, gültige `.cloudApp`, ältere Version vorhanden | `App aktualisieren` | Versions- und Kompatibilitätsprüfung |
 | Admin, dieselbe Version mit gleichem Digest installiert | `App verwalten` | Vorhandene Installation, kein Doppelimport |
-| Admin, unsigniertes / defektes Paket | `Paketinformationen` / Fehler | Installation verweigert |
+| Admin, selbstsigniertes, kryptografisch gueltiges Paket | `App installieren` | Deutliche Warnung, gesonderte Admin-Risikoannahme, dann Installation |
+| Admin, unsigniertes / defektes Paket | `Paketinformationen` / Fehler | Installation **immer** verweigert |
 | Standardbenutzer, `.cloudApp` in eigenem Home | Keine Installationsaktion; `Paketinformationen` optional | `403` bei eigenmächtigem API-Aufruf |
 | Beliebiger Benutzer, Doppelklick auf nicht installiertes Paket | Paketinformation; beim Admin optional Installationsdialog | **Keine Ausführung** |
 | Core-App im Systemvolume | `App-Informationen` / administrativer Updatepfad | Geschützte Baseline, kein normales Uninstall |
@@ -376,7 +382,13 @@ sequenceDiagram
     P->>F: Eingeschränktes Paket lesen
     P->>T: Signatur / Publisher / Berechtigung prüfen
     P-->>I: Version, Capabilities, Dependencies, Trust
-    A->>I: Installation + Nutzerzuweisung bestätigen
+    opt Gueltige Selbstsignatur
+        I-->>A: Warnung, App-ID, Fingerprint, Paketdigest und Berechtigungen
+        A->>I: Selbstsigniertes Risiko bewusst akzeptieren
+        I->>G: Einmalige Risk-Acceptance fuer diesen Digest
+        G->>P: Administratorrecht und gebundene Risikoentscheidung pruefen
+    end
+    A->>I: Installation + Nutzerzuweisung bestaetigen
     I->>G: POST /app-installations mit Preview-ID/Idempotenz
     G->>P: Installiere validierten Plan
     P->>F: Paketstaging / geprüftes Promotion
@@ -396,6 +408,9 @@ sequenceDiagram
 - Installationen und ihre Freigaben sind getrennte transaktionale/kompensierbare Schritte mit Audit und Wiederholungsregeln.
 - Der File Explorer darf die Installation nicht direkt im Browser entpacken oder Dateien in `system:/` schreiben.
 - Eine Installation darf ohne explizite, vom Core kontrollierte Freigabe keine neuen Publisher-Vertrauensanker importieren.
+- **Self-signed** erfordert zusaetzlich `apps.install.self_signed` und eine serverseitige, einmalige, an Preview, Paketdigest, App-ID, Zertifikatsfingerprint und Policy gebundene Risikobestaetigung. **Kein** Selbstsignatur-Dialog bei `INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE`, `INVALID_SIGNATURE`, `APP_SCOPE_MISMATCH` oder Widerruf.
+- Jede neue selbstsignierte Version und jeder neue Digest benoetigt eine erneute Warnung. Automatische stille Updates sind ausgeschlossen.
+- Die eigene Warnungs- und Key-Rotation-Policy ist in [`APP_SIGNING.md`](APP_SIGNING.md) definiert.
 
 ## 9. App-Berechtigungen, Zuweisungen und Sichtbarkeit
 
@@ -523,13 +538,16 @@ Alle Ressourcen liegen unter `/api/v1/` und werden vor der Implementierung in Op
 | `GET` | `/api/v1/app-instances/{id}` | Instanzstatus | Owner / Policy |
 | `POST` | `/api/v1/app-instances/{id}/stop` | App beenden | Owner / Policy |
 | `POST` | `/api/v1/app-installation-previews` | Paket prüfen; signierten Installationsplan erstellen | `apps.install` |
-| `POST` | `/api/v1/app-installations` | Geprüften Plan installieren | `apps.install` |
+| `POST` | `/api/v1/app-installation-previews/{id}/risk-acceptances` | Explizite Self-signed-Risikoannahme fuer genau diesen Plan | `apps.install.self_signed` |
+| `POST` | `/api/v1/app-installations` | Geprüften Plan installieren, ggf. mit einmaliger Risikobestaetigung | `apps.install` |
 | `GET` | `/api/v1/app-installations` | Installierte Apps administrieren | `apps.manage` |
 | `GET` | `/api/v1/app-installations/{id}` | Installationsstatus | `apps.manage` |
 | `PATCH` | `/api/v1/app-installations/{id}/assignments` | Nutzer-/Gruppenzuweisung | `apps.assign` |
 | `POST` | `/api/v1/app-installations/{id}/updates` | Neue Paketversion aktivieren | `apps.update` |
 | `DELETE` | `/api/v1/app-installations/{id}` | Nicht geschützte App entfernen | `apps.uninstall` |
 | `GET` | `/api/v1/app-packages/{digest}/assets/{path}` | Nur freigegebene App-Assets liefern | Installiert + Zuweisung + Ticket |
+| `GET` | `/api/v1/app-installations/{id}/verification` | Integritaet, Zertifikatsstatus und Risikoklasse anzeigen | `apps.manage` |
+| `POST` | `/api/v1/app-installations/{id}/integrity-checks` | Neues Signatur-/Hash-Audit ausloesen | `apps.manage` |
 | `GET` | `/api/v1/core-apps/status` | Baseline-/Recovery-Status | `system.health` |
 
 **API-Stil:** `POST /app-installation-previews` bekommt eine begrenzte `source_file_handle`-Referenz, *keinen* frei wählbaren VFS- oder Hostpfad. `POST /app-installations` bindet `preview_id`, `plan_hash`, Installationsziel und Zuweisungen. Alle schreibenden Endpunkte verwenden geeignete Idempotenzschlüssel. Die hier skizzierten Routen sind noch nicht freigegebene Contracts.
@@ -561,7 +579,10 @@ Alle Ressourcen liegen unter `/api/v1/` und werden vor der Implementierung in Op
   },
   "verification": {
     "format": "valid",
-    "signature": "trusted",
+    "signature_valid": true,
+    "file_hashes_valid": true,
+    "trust_class": "publisher_verified",
+    "certificate_chain_trusted": true,
     "compatibility": "compatible"
   },
   "capabilities_requested": ["files.open:selected", "files.save:selected"],
@@ -625,7 +646,10 @@ Events werden in der Owner-Datenbank mit einer Outbox erzeugt und über NATS Jet
 
 | Entität | Wichtige Attribute | Owner |
 |---|---|---|
-| `app_packages` | `digest`, `format_version`, `size`, `publisher_id`, `signature_state`, `storage_ref` | Package Service |
+| `app_packages` | `digest`, `format_version`, `size`, `publisher_id`, `signature_state`, `trust_class`, `storage_ref` | Package Service |
+| `app_signatures` | Paketdigest, Indexdigest, X.509-Fingerprint, Algorithmus, `crypto_valid`, `verified_at` | Signing / Trust Service |
+| `app_signing_certificates` | Fingerprint, App-ID-Scope, Subject/Issuer, Ablauf, Revocation | Signing / Trust Service |
+| `app_risk_acceptances` | App, Version, Digest, Fingerprint, Admin, Risikobestaetigung und Widerruf | Permission / Trust Service |
 | `app_versions` | `id`, `app_id`, `version`, `package_digest`, `runtime`, `manifest_digest`, `core_api_range` | Registry Service |
 | `app_installations` | `id`, `app_id`, `active_version_id`, `scope`, `state`, `installed_by`, `installed_at` | Installer Service |
 | `app_assignments` | `installation_id`, `subject_type`, `subject_id`, `enabled` | Assignment Service |
@@ -786,7 +810,7 @@ cloudOS/
 2. Core-Apps und optionale Bundled Apps bauen.
 3. Pakete reproduzierbar und deterministisch als `.cloudApp` erzeugen.
 4. Manifeste, Assets und Abhängigkeiten validieren.
-5. Paketindex/Hashliste erzeugen und Pakete signieren.
+5. SHA-512-Paketindex erzeugen, mit appgebundenem X.509-Code-Signing-Zertifikat signieren und die fertigen Pakete unabhaengig verifizieren; Core-App-Signatur ueber dedizierte Release-Keys.
 6. Core-App-Baseline für konkreten cloudOS-Release signieren.
 7. Pakete und Baseline mit vollständiger Versions- und Herkunftsinformation ausliefern.
 8. End-to-End-Installation, Baseline-Repair und App-Start automatisiert testen.
@@ -805,7 +829,9 @@ cloudOS/
 | App beansprucht ohne Freigabe Adminfunktionen | Capability-Matrix und serverseitige Operationserlaubnis |
 | Drittanbieter-App im privilegierten Browserkontext | Separate Origin, sandboxed iframe, CSP, COOP/COEP nach Bedarf |
 | Cross-App-Nachrichtenmissbrauch | Validierte Bridge, Origin-/Instanz-Bindung, keine geheimen Tokens im Message-Bus |
-| App-Update erweitert stillschweigend Rechte | Capabilities-Diff, erneute Bestätigung, signiertes neues Artefakt |
+| App-Update erweitert stillschweigend Rechte | Capabilities-Diff, erneute Bestaetigung, signiertes neues Artefakt |
+| Self-signed-App soll ohne Warnung installiert oder aktualisiert werden | Separate Admin-Risikoannahme pro neuer Version/Digest, kein Auto-Update |
+| Selbstsigniertes Paket imitiert Core-App oder offizielle Vertrauenskette | Dedizierter Core-Release-Trust, geschuetzte App-IDs, harte Ablehnung |
 | Core-App-Update macht Desktop unstartbar | Geschützte Baseline + kompatibler Rollback + Recovery |
 | WASI-/native Runner erreicht Host | Isolation, Rechte-Minimum, explizite Limits/Netzrechte, kein Docker-Socket |
 | Benutzer erhält Installationsartefakt via App-API | Auslieferung nur erlaubter, nicht geheimer App-Assets; VFS-Laufwerk bleibt unsichtbar |
@@ -823,7 +849,8 @@ Eine Signatur ist **keine Sicherheitsanalyse des Codes**. Apps und Updates benö
 | Datei heißt `.cloudApp`, Inhalt aber kein Paket | Keine Installationsaktion / Fehlermeldung |
 | Paketformat unbekannt | Vor Installation abgelehnt; Core bleibt betriebsbereit |
 | Signatur ungültig | Installation gesperrt, Audit-Eintrag |
-| Signatur gültig, Publisher nicht vertraut | Abgelehnt, bis separater Admin-Trust-Workflow abgeschlossen ist |
+| Gueltig selbstsigniert mit passendem App-ID-Scope | Nur nach deutlicher Warnung und einmaliger Admin-Risikoannahme installierbar |
+| Signatur gueltig, Publisher-Kette nicht vertraut und nicht lokal selbstsigniert | Gesperrt bis gesonderte Trust-Policy explizit geaendert ist |
 | Dependency fehlt | Installationsplan mit Abhängigkeit oder klare Ablehnung |
 | Paket benötigt neuere Core-API | Keine Installation/Aktivierung ohne kompatibles Core-Upgrade |
 | Paket bereits installiert | Status anzeigen; kein blindes Überschreiben |
@@ -857,7 +884,7 @@ Installationsdauer (p50/p95), Paketprüffehler, Signaturfehler, Installations-Ro
 | APP-008 | Zuweisung für Gruppe | Nur Mitglieder sehen/starten App |
 | APP-009 | Doppelklick auf unregistrierte `.cloudApp` | Keine direkte Ausführung |
 | APP-010 | Gewöhnliche ZIP in `.cloudApp` umbenennen | Installation wird abgelehnt |
-| APP-011 | Digest im Paket manipulieren | Signatur-/Integritätsprüfung schlägt fehl |
+| APP-011 | Digest im Paket manipulieren | Signatur-/Integritaetspruefung schlaegt fehl |
 | APP-012 | Core-App-ID in Fremdpaket behaupten | Keine Core-Registrierung, Paket abgelehnt |
 | APP-013 | Pflicht-Core-App deaktivieren | Serverseitig verweigert |
 | APP-014 | Desktop-Paket korrupt machen | Recovery aktiviert letzte signierte Baseline |
@@ -867,6 +894,23 @@ Installationsdauer (p50/p95), Paketprüffehler, Signaturfehler, Installations-Ro
 | APP-018 | Gleiche App-ID/Version mit neuem Digest | Konflikt, kein stilles Überschreiben |
 | APP-019 | Update fordert zusätzliche Berechtigung | Admin sieht Unterschied, keine stille Grant-Erweiterung |
 | APP-020 | Uninstall mit noch laufender Instanz | Policy-gerechter Stop/Drain oder Ablehnung |
+
+### 22.1a Signing- und Self-Signed-Abnahmetests
+
+| ID | Test | Erwartung |
+|---|---|---|
+| APP-SIGN-001 | CA-signierte `.cloudApp` mit passender App-ID | Normale Admininstallation moeglich |
+| APP-SIGN-002 | Gueltig selbstsigniertes `.cloudApp`-Paket | Warnung mit Publisherstatus, Fingerprint und Berechtigungen |
+| APP-SIGN-003 | Admin bestaetigt gueltige Selbstsignatur | Nur exakt gepruefter Paketdigest wird installiert |
+| APP-SIGN-004 | Admin bricht Warnung ab | Keine Installation |
+| APP-SIGN-005 | Unsigniertes oder nach Signierung geaendertes Archiv | Harte Ablehnung, keine Ausnahmeoption |
+| APP-SIGN-006 | Falsche Zertifikats-App-ID / widerrufenes Zertifikat | Harte Ablehnung |
+| APP-SIGN-007 | Selbstsignierte neue Version | Erneute Warnung; kein stilles Auto-Update |
+| APP-SIGN-008 | Selbstsignierte `io.cloudos.desktop` | Keine Core-App-Installation oder Baseline-Manipulation |
+| APP-SIGN-009 | Standardbenutzer manipuliert API fuer Risikoannahme | `403`, keine Installation |
+| APP-SIGN-010 | Self-signed-Freigabe widerrufen | Weitere Starts verboten, Audit gespeichert |
+
+Die ausfuehrliche Pruefmatrix mit `SIGN-001` bis `SIGN-034` ist in [`APP_SIGNING.md`](APP_SIGNING.md) definiert.
 
 ### 22.2 VFS-, Rust- und Sicherheitstests
 
@@ -934,14 +978,16 @@ Damit validieren wir Core/API, Bootstrap, Core-Apps, File Service, Installer, Zu
 |---|---|---|
 | **ADR-025** | CloudOS App-first und Core-/App-Grenze | Übernehmen und verbindlich festhalten |
 | **ADR-026** | `.cloudApp` v1, deterministischer ZIP-Container und Manifest | Präzise Schema- und Archive-Contract-Version |
-| **ADR-027** | App-Signaturen, Publisher-Vertrauen und Schlüsselrotation | Signierte Indizes, Ed25519, geschützte Trust-Registry |
+| **ADR-027** | App-Signaturen, Publisher-Vertrauen und Schluesselrotation | Nextcloud-inspiriertes X.509-Code-Signing mit SHA-512-Dateiliste und geschuetzter Trust-Registry |
 | **ADR-028** | Pflicht-Core-App-Baseline und Recovery-Strategie | Geschützte Release-Baseline; CLI-/Notfall-Reparatur |
 | **ADR-029** | Administrative Installation über File Explorer | Preview/Confirm mit handle-basiertem Workflow |
 | **ADR-030** | Installations-/Zuweisungsmodell | MVP nur systemweit durch Admin; explizite Nutzergruppen |
 | **ADR-031** | App-Host-, Sandbox-, Browser-Origin- und Messaging-Modell | Stabile, versionierte Bridge und Herkunftsprüfung |
 | **ADR-032** | App-Update, Migration, Rollback und Garbage Collection | Unveränderliche Versionen und geprüfte Releaseaktivierung |
 | **ADR-033** | Core-App-Theme-Compliance und Systemdialog-Vertrauen | Pflicht-Theme-SDK und vertrauenswürdige Dialoge |
-| **ADR-034** | Rust-/WASM-, WASI- und native App-Package-Matrix | Runtime-spezifische Payload-/Kompatibilitätsregeln |
+| **ADR-034** | Rust-/WASM-, WASI- und native App-Package-Matrix | Runtime-spezifische Payload-/Kompatibilitaetsregeln |
+| **ADR-035** | Self-signed-Apps und Administratorwarnung | Nur nach gesonderter Admin-Risikoannahme; Freigabe paketdigestgebunden |
+| **ADR-036** | X.509-Signature-Format und Crypto-Profile | JCS, SHA-512, RSA-PSS, App-ID-Scope und Testvektoren |
 
 Bis zum Abschluss dieser ADRs sind genaue JSON-/Protobuf-Feldnamen, Runtime-Grenzen, Paketlimitwerte und Signatur-Byteformate Entwürfe. Die **fachlichen Entscheidungen** aus Abschnitt 1 gelten bereits als verbindliches Ziel.
 
@@ -970,6 +1016,9 @@ Dieses Dokument ist für den **App-Lebenszyklus** fachlich führend; `SYSTEM_ARC
 - **System-App-Pakete werden im nur für Admins sichtbaren Systemvolume verwaltet.**
 - **Jeder Benutzer sieht weiter sein eigenes Home als `/` und erhält keine globalen App-Datenrechte.**
 - **Rust-/WASM-Apps verwenden dieselbe Paket-, Installer- und API-Plattform.**
+- **Jede `.cloudApp` ist kryptografisch signiert.** Zertifizierte Publisher und selbstsignierte Herausgeber werden getrennt ausgewiesen.
+- **Selbstsignierte Apps koennen Administratoren bewusst installieren**, aber nur nach sichtbarer Sicherheitswarnung und einmaliger, digestgebundener Zustimmung. Defekte und unsignierte Pakete sind nicht installierbar.
+- **Core-Apps akzeptieren niemals lokale Self-signed-Ausnahmen;** Updates selbstsignierter Apps sind nicht stillschweigend moeglich.
 - **Core-Apps erfüllen die vollständigen Theme-/Accessibility-Anforderungen.**
 - **Recovery und Rollback schützen den Systemstart vor fehlerhaften App-Updates.**
 
