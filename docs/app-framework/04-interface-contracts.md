@@ -50,3 +50,19 @@ Der regulaere clientseitige Server-Push-Kanal ist gemaess [PUSH_REALTIME.md](../
 ## 7. Spezifikationsluecken vor Implementierung
 
 Noch zu erstellen bzw. gegen Originalvertraege zu pruefen: ID-Namensraum, Fehlerkatalog, Feldtypen, Pagination, Revisions-/ETag-Rechte, schema versions, Protokoll-Traces, OpenAPI-Definitionen, Interaktionssequenzen, konkretes Auth-/Grant-Format, Testvektoren und Limits. Eine solche Luecke ist keine implizite Freigabe zur Implementierung nach eigenem Ermessen.
+
+## 8. Zusätzliche verbindliche Contract-Invarianten K1–K9
+
+| Vertrag | Normative Pflicht | Nicht erlaubt | Beschluss |
+|---|---|---|---|
+| Install/Activation | Signatur, Integrität, Conformance, Endpoint-/Device-Policy, Self-signed-Risikoannahme unabhängig | Admin-Override harter Prüffehler | K1 |
+| Runtime Selection | Explizites signiertes Runtime-Profil und Capability-Gate; isolierte WASI-/Native-Bindings | Beliebiger nativer Code / Hostzugriff | K2 |
+| Browser Bridge | App-eigene Origin, geprüfter Instanzkanal, sichere Sandbox/SW-Policy | Gemeinsame Privileg-Cookies / App-gesteuerter SW | K3 |
+| Compatibility | Eine aktive Core-API-Major; kompatible Parallel-App-Releases | Parallele Alt-Major-APIs | K4 |
+| Realtime/Egress | Core SSE über Host; externe SSE/WS über Broker; Web Push über Notification | Eigenes App-Core-EventSource/WS-Bypass | K5 |
+| Data Profile | `server_managed` versus echtes `e2ee_client_keys`, mit Capability-Fallback | Server-Klartextvorschau bei E2EE | K6 |
+| Replay | Audience/Policy-gebundener Cursor, neue AuthZ-Prüfung, expliziter Resync | Alt-Payload nach Grant-Entzug | K7 |
+| Saga Recovery | Neue minimale Recovery-Autorisierung und idempotente Kompensationen | Weiterbenutzung alter widerrufener Rechte | K8 |
+| Release Kill Switch | Digest-/App-/Trust-/Runtime-Sperre vor Start, Bridge und Rollback | Reaktivierung gesperrter Digests | K9 |
+
+Die Vertragstabelle beschreibt **Semantik**, nicht existierende REST-Endpunkte. Konkrete DTOs, Feature Negotiation, Policy-Revision, Error-Typen, AuthZ-Checkpoints und Zustands-Enums müssen aus diesen Invarianten abgeleitet und mit `API_CONTRACTS.md` abgestimmt werden. Vollständiger Beschlussnachweis: [K1–K9](11-architecture-decisions-K1-K9.md).

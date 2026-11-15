@@ -67,3 +67,21 @@ Authentifizierung (inkl. Passkey/Step-Up), autorisierte Resource Operation, App-
 ## 8. Mindest-Sicherheitsabnahme
 
 Vor Implementierung je Komponente: Owner, Trust Boundary, Permissions, Failure Mode, Abuse Cases, Datenfluss und negative Integrationstests. Ein bestandener automatisierter Konformitaetstest ist kein Nachweis vollstaendiger Sicherheit.
+
+## 9. Sicherheitsverträge aus K1–K9
+
+**K1 – Herstellervertrauen vs. technische Konformität:** Die Ausnahme für Self-signed betrifft ausschließlich das Publisher-Risiko. Signatur-/Integritätsfehler, ungültige deklarierte Capabilities und harte Konformitätsfehler bleiben nicht übersteuerbar.
+
+**K2 – Server-App-Isolation:** WASI ist ein isoliertes, zeitlich und funktional begrenztes Worker-Profil; native Isolation erfordert später eine zusätzliche Abnahme. Keine App-Runtime erhält Host-, KMS-, DB- oder Docker-Socket-Privilegien aus ihrer Programmiersprache.
+
+**K3 – Browser-Isolation:** Trennung von App- und Desktop-Origin; Host-gesteuerte iFrames, Browser-Speicher, MessagePort-Bindung und Service Worker. Ein kompromittierter oder offline getrennter Browser ist keine durch das SDK vollständig kontrollierbare Sicherheitszone.
+
+**K5 – Kommunikations-Egress:** Core SSE und externe Provider-Verbindungen besitzen verschiedene Trust Boundaries. Externe SSE/WS gehen über Network Broker; optionaler Web Push nur mit Benutzer-/Browserfreigabe und zentraler SW-Kontrolle.
+
+**K6 – Verschlüsselung:** Server-KMS ist kein E2EE-Beweis. Für E2EE kein serverseitiger Klartextzugang, keine stillschweigende Content-Indexierung, keine versteckten Admin-Recovery-Schlüssel. App-Klartextfreigaben benötigen eine eigenständige Nutzerentscheidung.
+
+**K7/K8 – Widerruf:** Replay-Events werden erneut autorisiert; ein alter Cursor ist kein Rechtetoken. Sagas setzen keine alten Delegationen fort; Recovery ist eigenständig autorisiert, minimal und auditiert.
+
+**K4/K9 – Release-Policy:** Nur kompatible Releases dürfen bei aktiver API-Major laufen. Kill-Switch-/Zertifikat-/Digest-Sperren gelten auch für laufende Bridges/Worker und blockieren Rollbacks.
+
+**Pflicht-Negativtests:** Self-signed-Bypass, Core-App-Impersonation, Cross-Origin-Bridge, SW-Scope, Provider-SSRF, E2EE-Klartextleck, Revocation-Replay, Saga-Recovery-Impersonation, Kill-Switch-Cache/Offline-Grenze. Vollständige Beschlüsse: [K1–K9](11-architecture-decisions-K1-K9.md).

@@ -54,3 +54,16 @@ flowchart TD
 - Vor Ablaufdefinition: persistente Tabellen/Transaktionen, Replay/Retention, Recovery und DB-Isolation festlegen.
 - Vor SDK-Release: echte cloudOS-Testinstanz statt Simulator, feste Testvektoren und Konformitaetsberichte.
 - Vor Implementierung: offene `BLOCKER` aus [09-risk-register.md](09-risk-register.md) schliessen; sonst nur unabhaengige, implementierungsreife Komponenten zulassen.
+
+## 5. Entscheidungsgates aus K1–K9
+
+| Implementierungsbereich | Vorbedingungen aus Konfliktbeschlüssen | Noch benötigter Nachweis |
+|---|---|---|
+| Package/Signing | K1, K9 | Conformance ohne Bypass, Publisher Trust, Kill-Switch-Sperrklassen |
+| App Host/SDK | K3, K4, K5 | Origin/SW-Topologie, Bridge-Policy, eine API-Major, SSE-Event-Grants |
+| WASI/Native Runtime | K2, K9 | Signierte Profile, Host-Binding- und Runner-Isolation, Stopp nach Revoke |
+| App Data/VFS | K6, K7 | E2EE-Capability-Matrix, Index-/Preview-Abgrenzung, Lösch-/Event-Owner |
+| Jobs/Sagas | K7, K8 | Dedupe/Checkpoint/Recovery-Identität, Human Approval und Rollback |
+| Release/Operations | K1, K4, K9 | Upgrade-Readiness, App-Parallelversionen, Quarantäne/Audit |
+
+R-008 (Core-Owner-Abgleich) ist trotz dieser Entscheidungen **offen**. Es darf keine Parallelimplementierung bestehender Go-Core-Dienste entstehen. Referenz: [Beschlussnachweis K1–K9](11-architecture-decisions-K1-K9.md).

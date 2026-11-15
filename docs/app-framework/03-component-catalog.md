@@ -50,3 +50,20 @@ Der Combined-Core bleibt Standard. Split-/Kubernetes-Ausfuehrung sind opt-in. Se
 4. Welche Integrationspunkte sind innerhalb eines Combined-Core atomar und welche nicht?
 
 Siehe [09-risk-register.md](09-risk-register.md).
+
+## 6. Komponentenverantwortung nach K1–K9
+
+Die vollständige Norm findet sich in [11-architecture-decisions-K1-K9.md](11-architecture-decisions-K1-K9.md). Die folgenden Verantwortlichkeiten sind **bestehenden fachlichen Core-Ownern zuzuordnen**, nicht automatisch neue physische Services:
+
+| Funktion | Autoritative fachliche Verantwortung | Vertrauensgrenze / Beschluss |
+|---|---|---|
+| Signing/Installer/Conformance | App Package/Installation und Trust/Release-Policy | K1, K9: Digest, Conformance, Sperrstatus vor Aktivierung |
+| Runtime Controller | Signierte Runtime-Profile, isolierte Worker, Quotas | K2: Browser getrennt von WASI/Native |
+| Trusted App Host / Bridge | Origin-, iFrame-, Instanz-, Service-Worker- und MessagePort-Policy | K3: kein App-Direktzugriff auf Core-Cookies |
+| API Registry / Compatibility | Genau eine aktive Core-API-Major, App-Kompatibilitätsgate | K4: kein Alt-Major-Service |
+| Realtime / Network Broker / Notification | Interner SSE-Stream / externer SSE-WS-Egress / Web Push getrennt | K5: keine doppelte Core-Push-Architektur |
+| App Data / VFS / Key Owner | Datenklassifikation, KMS, optional clientkontrollierte E2EE | K6: keine Server-Klartextfunktionen auf E2EE |
+| Event Delivery / Audit | Owner-spezifische Retention, Replay-Autorisierung, getrenntes Audit | K7: Cursor kein Rechtetoken |
+| Saga/Job Owner / Recovery | Workflow-Schritte, Checkpoint, Kompensations-Capabilities | K8: neue Rechte statt alte Delegation |
+
+**Offener R-008:** Die tabellarische Zuordnung muss noch gegen den vollständigen Go-Core-Dienstkatalog verifiziert werden. Begriffe dieser Tabelle sind fachliche Funktionen, keine neu beschlossenen Implementierungsdienste.

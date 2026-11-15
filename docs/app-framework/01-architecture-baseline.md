@@ -79,3 +79,17 @@ Ein Schreibvorgang wird vom verantwortlichen Owner autorisiert und validiert; se
 ## 8. Architecture Baseline – Freigabebedingungen
 
 Eine formelle Baseline-Freigabe setzt den Vollabgleich der Repository-Dokumente, die Rekonstruktion fehlender Entscheidungsnachweise, die Klaerung aller `BLOCKER` sowie die Abnahme der Service-Owner-, API-, Sicherheits- und Datenvertraege voraus. **Diese Bedingungen sind noch nicht nachgewiesen.**
+
+## 9. Verbindliche Baseline-Präzisierungen aus K1–K9
+
+Die vollständigen Beschlüsse stehen in [11-architecture-decisions-K1-K9.md](11-architecture-decisions-K1-K9.md). Diese Kurzfassung präzisiert die Systemgrenzen und erzeugt keine neuen Service-Owner.
+
+- **Paket und Release (K1/K9):** Eine Self-signed-Herkunftsfreigabe übersteuert keine technische Conformance-Prüfung. Release-/Digest-Widerruf hat Vorrang vor Übergangsfenstern; Rollback nur auf nicht gesperrte, kompatible Pakete.
+- **Runtime (K2):** Browser JS/TS/WASM als reguläres sichtbares Profil, WASI serverseitig isoliert nach MVP, Native nur später nach eigener Freigabe; keine beliebige native Ausführung im Core.
+- **Browser Security (K3):** Unterschiedliche Apps verwenden getrennte Origins und kontrollierte iFrames; der Core setzt App-Bridge-, Service-Worker- und Speichergrenzen verbindlich durch.
+- **Kompatibilität (K4):** Eine aktive Core-API-Major; parallele App-Releases nur bei gültiger Kompatibilität, Grant- und Datenmigration.
+- **Kommunikation (K5):** Core zu Desktop über SSE, Drittanbieter-Provider-SSE/WS über Network Broker, Web Push als optionale Notification Delivery.
+- **Daten (K6/K7):** KMS-verschlüsselte Serverdaten und echte optionale E2EE sind getrennte Fähigkeiten. Event-Klassen besitzen separate Retention; Replay autorisiert aktuelle Rechte erneut.
+- **Workflows (K8):** Widerruf stoppt neue normale Schritte. Kompensation benötigt eine neue zweckgebundene Recovery-Autorisierung.
+
+**Nicht abgenommen:** konkrete Origins/Hostnames, Release-Kill-Switch-Ausführung, E2EE-Recovery, Runtime-Sandbox, API-Schemas und Repo-weite Core-Owner-Zuordnung.

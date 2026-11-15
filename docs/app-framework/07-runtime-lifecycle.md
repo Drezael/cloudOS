@@ -60,3 +60,19 @@ Versionierte Diagnosetests `PASS`, `WARN`, `FAIL`, `SKIPPED`, `UNAVAILABLE` unte
 ## 10. Ausfalltestmatrix
 
 Mindestens: Tab-Absturz, Service-Worker-Ende, Worker-Crash, Berechtigungswiderruf waehrend Auftrag, Netzwerkunterbruch nach Datenbank-Commit, abgeschalteter Provider, inkompatibles Alt-Release, nicht verfuegbarer Auditpfad und teilweise restaurierter Datenbestand. Weitere Details erst nach Repo-Abgleich und konkreten API-Vertraegen.
+
+## 11. Release-, Runtime- und Recovery-Lifecycle K1–K9
+
+| Anlass | Sicherheits-/Lifecycle-Reaktion | Beschluss |
+|---|---|---|
+| Selbstsignierte App installieren/aktualisieren | Technische Pflichtprüfungen durchlaufen; separate Herkunftsrisiko- und Endpoint-/Device-Freigaben | K1 |
+| Server-WASI-/Native-Worker starten | Profil-/Signatur-/Grant-Gate, getrennte Isolation und Laufzeitbudgets | K2 |
+| Browser-Tab/Service Worker startet | Host-validierte App-Origin, geprüfte Instanz, kontrollierte SW-Scope-/Asset-Policy | K3 |
+| Alte und neue App-Version parallel | Nur bei aktiver API-Major und gültiger Daten-/Capability-Kompatibilität; Übergangsfrist begrenzt | K4 |
+| Provider- oder Notification-Verbindung | Network- oder Notification-Owner kontrolliert Reconnect, Consent, Suspend und Revoke | K5 |
+| E2EE-Ressource geöffnet | Klartextnur lokal auf befugtem Client; serverseitige Content-Funktionen nicht verfügbar | K6 |
+| Browser nach Unterbrechung reconnectet | Nur aktuelle autorisierte Eventprojektion; Gap führt zu gezieltem Snapshot | K7 |
+| Saga verliert notwendige Rechte | Normale Schritte stoppen; nur gesondert autorisierte Kompensation/Recovery | K8 |
+| Release-Digest wird gesperrt | Neue Starts/Bridge-Operationen blockieren, betroffene Instanzen/Worker stoppen, Cache-/SW-Reaktivierung verhindern | K9 |
+
+**Präzisierung:** Aufruf-Cancellation, Sicherheitswiderruf und Saga-Kompensation sind unterschiedliche Vorgänge. Ein abgeschlossener Commit wird nicht durch das Beenden eines Tabs rückgängig gemacht. Vor einem Release-Rollback sind Policy, API-Major, Datenschema und in-flight Jobs zu prüfen. Echte technische Browser-/Recovery-/Runtime-Tests sind noch offen. Vollständiger Nachweis: [K1–K9](11-architecture-decisions-K1-K9.md).

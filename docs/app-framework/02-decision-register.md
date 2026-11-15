@@ -127,7 +127,7 @@
 | Q110 | Reaktive Abfragen | Reactive Queries | `REKONSTRUIERT` |
 | Q111 | Zeitgesteuerte Jobs | Scheduling mit delegierter Autorisierung | `REKONSTRUIERT` |
 | Q112 | Server-Worker | Signierte isolierte App-Worker | `REKONSTRUIERT` |
-| Q113 | Ausfuehrungsformate | JS/TS und WASM, kein beliebiger nativer Code | `REKONSTRUIERT` |
+| Q113 | Ausfuehrungsformate | JS/TS und Browser-WASM regulaer; keine beliebige Native-Ausfuehrung; K2 klaert spaeteres isoliertes WASI/Native | `REKONSTRUIERT` |
 | Q114 | Worker-Pool | Sichere Wiederverwendung und Skalierung | `REKONSTRUIERT` |
 | Q115 | Ressourcen | Hierarchisches Accounting, Quotas und Fair Use | `REKONSTRUIERT` |
 | Q116 | Supply Chain | SBOM und fortlaufende Schwachstellenpruefung | `REKONSTRUIERT` |
@@ -171,6 +171,24 @@
 | Q154 | App-Konformitaet | App Conformance & Release Gate Contract (C) | `BESTAETIGT_IM_VERLAUF` |
 | Q155 | SDK-Dokumentation | SDK Documentation & Developer Contract (C) | `BESTAETIGT_IM_VERLAUF` |
 | Q156 | Architekturabschluss | Architecture Baseline & Implementation Readiness (C) | `BESTAETIGT_IM_VERLAUF` |
+
+## Konfliktentscheidungen K1–K9 (nach Q156)
+
+Diese neun Entscheidungen wurden nach Q156 im Gespräch **explizit** als Option C bestätigt. Sie bilden eine zweite, nachgelagerte Beschlussebene und erhöhen nicht künstlich die Zählung Q001–Q156. Die vollständigen Inhalte stehen in [11-architecture-decisions-K1-K9.md](11-architecture-decisions-K1-K9.md).
+
+| ID | Risiko | Wahl | Gesicherter Beschluss | Nachweisstatus |
+|---|---|---|---|---|
+| K1/9 | R-002 | C | Self-signed ohne Bypass technischer Conformance- und Sicherheitsprüfungen | `BESTAETIGT_IM_VERLAUF` |
+| K2/9 | R-003 | C | Browser JS/TS/WASM Standard, isoliertes WASI nach MVP, Native später optional | `BESTAETIGT_IM_VERLAUF` |
+| K3/9 | R-005 | C | Separate App-Origins, kontrollierte iFrames, sichere Bridge, Core-verwaltete Service Worker | `BESTAETIGT_IM_VERLAUF` |
+| K4/9 | R-001 | C | Eine aktive API-Major mit befristetem Parallelbetrieb kompatibler App-Releases | `BESTAETIGT_IM_VERLAUF` |
+| K5/9 | R-004 | C | Core SSE, externe SSE/WS und Web Push getrennt mit zentraler Policy | `BESTAETIGT_IM_VERLAUF` |
+| K6/9 | R-006 | C | Serververschlüsselung regulär, echte optionale E2EE mit begrenzten Serverfunktionen | `BESTAETIGT_IM_VERLAUF` |
+| K7/9 | R-010 | C | Retention-Klassen getrennt, Replay aktuell autorisiert, Resync bei Gap | `BESTAETIGT_IM_VERLAUF` |
+| K8/9 | R-011 | C | Separate minimale Kompensationsautorisierung nach Rechteentzug | `BESTAETIGT_IM_VERLAUF` |
+| K9/9 | R-014 | C | Release-spezifischer Kill Switch/Quarantäne und sicherer Rollback | `BESTAETIGT_IM_VERLAUF` |
+
+**Zählung der historischen Q-Fragen unverändert:** 156 Q-Einträge, davon weiterhin 32 `OFFEN_QUELLNACHWEIS`, 92 `REKONSTRUIERT`, 32 `BESTAETIGT_IM_VERLAUF`. Die neun neuen K-Beschlüsse sind davon getrennt zu zählen. Q029 ist rekonstruiert, aber noch ohne verifizierten Originalwortlaut.
 
 ## Verifizierungs- und Freigabeprozess
 

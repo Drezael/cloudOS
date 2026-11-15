@@ -3,7 +3,7 @@
 > **Pfad:** `docs/APP_FRAMEWORK_SDK.md`  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS) · Branch `main`  
 > **Stand:** 15.11.2026  
-> **Status:** Konzept und Dokumentationspaket zur Konsolidierung; **nicht** als abgeschlossener Architekturreview, API-Implementierung oder verifizierte Implementation Readiness zu verstehen.  
+> **Status:** Konzept und dokumentierte Konfliktbeschlüsse K1–K9; **nicht** als abgeschlossener Architekturreview, API-Implementierung oder verifizierte Implementation Readiness zu verstehen.  
 > **Entscheidungsbasis:** 156 in der Fragerunde behandelte Architekturfragen. Die historischen Originalantworten der frühen Fragen sind noch nicht vollständig nachgewiesen.
 
 ## 1. Zweck
@@ -26,6 +26,8 @@ cloudOS ist ein browserbasierter Desktop mit einem **Go-Core**, API-first-System
 | [08-dependency-matrix.md](app-framework/08-dependency-matrix.md) | Abhängigkeiten und Implementierungsfolge | Vorläufig |
 | [09-risk-register.md](app-framework/09-risk-register.md) | Konkrete Konflikte und Prüflücken | Offen |
 | [10-implementation-readiness.md](app-framework/10-implementation-readiness.md) | Definition of Ready und Prüf-/Abnahmeplan | Nicht freigegeben |
+| [11-architecture-decisions-K1-K9.md](app-framework/11-architecture-decisions-K1-K9.md) | Wortlaut der neun ausdrücklich beschlossenen Konfliktlösungen | Konzeptionell beschlossen |
+| [12-legacy-alignment.md](app-framework/12-legacy-alignment.md) | Abgleichsmatrix zur späteren Volltextintegration führender Bestandsdokumente | Volltextabgleich ausstehend |
 
 ## 3. Verbindliche Eckpunkte der Fragerunde
 
@@ -57,6 +59,27 @@ cloudOS ist ein browserbasierter Desktop mit einem **Go-Core**, API-first-System
 
 Die Dateien beschreiben **Zielverträge**, keine bereits verfügbaren Endpunkte. Bei Widersprüchen gilt **kein automatischer pauschaler Vorrang nach Dateidatum**: Die fachliche Owner-Grenze, die konkrete dokumentierte Entscheidung und die Sicherheitswirkung werden in [09-risk-register.md](app-framework/09-risk-register.md) erfasst und über einen expliziten ADR/Freigabeschritt geklärt. Insbesondere darf ein jüngerer SDK-Entwurf nicht stillschweigend die verbindliche SSE-Transportentscheidung oder den Signing-Vertrauenspfad ersetzen.
 
-## 6. Nächster Arbeitsschritt
+## 6. Beschlossene Konfliktlösungen K1–K9
 
-Nach dem Push: Repository-Vollabgleich, verifizierte Rekonstruktion der frühen Fragen, Konfliktklärung, Konsolidierung, Definition of Ready und **erst danach** Implementierungsplanung. **Kein Implementierungscode** ist Bestandteil dieses Pakets.
+Die ursprüngliche Fragerunde mit 156 Architekturfragen ist abgeschlossen. Danach wurden am 15.11.2026 **neun weitere konkrete Konfliktentscheidungen** explizit mit **Option C** getroffen. Die vollständigen normativen Beschlüsse und sicherheitsrelevanten Abgrenzungen stehen ausschließlich im zentralen [Beschlussnachweis K1–K9](app-framework/11-architecture-decisions-K1-K9.md). Alle SDK-Teildokumente verweisen auf diese Entscheidungen; führende Altverträge behalten ihre fachliche Eigentümerschaft.
+
+| Konflikt | Geltender Architekturgrundsatz |
+|---|---|
+| K1/R-002 | Self-signed nach separater Admin-Herkunftsrisikoannahme, aber niemals ohne verpflichtende technische Prüfung |
+| K2/R-003 | JS/TS und Browser-WASM regulär; isoliertes WASI später; Native nur optional nach eigener Abnahme |
+| K3/R-005 | Separate App-Origins, Host-gesteuerte iFrames/Bridge und zentral verwaltete Service Worker |
+| K4/R-001 | Genau eine aktive Core-API-Major, mehrere kompatible App-Releases innerhalb eines Übergangsfensters |
+| K5/R-004 | Core SSE, externe SSE/WS und Web Push sind klar getrennte, kontrollierte Verträge |
+| K6/R-006 | Serverseitige Verschlüsselung regulär; echte E2EE optional ohne serverseitige Klartextverarbeitung |
+| K7/R-010 | Separate Retention-Klassen, erneute Rechteprüfung beim Replay, kontrollierter Resync |
+| K8/R-011 | Nach Widerruf keine alten Saga-Rechte; Kompensation mit eigener, minimaler Recovery-Autorisierung |
+| K9/R-014 | Release-/Digest-gezielter Sicherheits-Kill-Switch, Quarantäne und nur sicherer Rollback |
+
+**Abnahmegrenze:** Konzeptionell entschieden bedeutet **nicht** bereits implementiert, technisch verifiziert, formal freigegeben oder in sämtliche bestehenden cloudOS-Bestandsdokumente integriert.
+
+## 7. Nächster Arbeitsschritt
+
+1. Die [Abgleichsmatrix](app-framework/12-legacy-alignment.md) gegen die vollständigen aktuellen Bestandsdokumente bearbeiten, ohne bestehende Normen stillschweigend zu überschreiben.
+2. Q001–Q033 historisch verifizieren und R-008/R-009/R-013/R-015 weiter prüfen.
+3. Fachliche Schnittstellen, technische Tests und Definition of Ready pro Komponente konkretisieren.
+4. **Erst nach Abnahme** die Implementierungsreihenfolge freigeben. Dieses Paket enthält **keinen Implementierungscode**.

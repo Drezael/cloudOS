@@ -56,3 +56,14 @@ Expand-and-Contract wo moeglich, versionierte Constraints, getrennte Workflow-/E
 ## 9. Zu spezifizierende Abnahmedetails
 
 Isolation Levels, atomare Owner-Grenzen, Schema-Versionen, Stream-/Cursor-Format, Dedupe-Retention, DLQ-Redrive, konkrete Kompensationsautorisierung, Migration-Backfills, RPO/RTO und E2EE-Abhaengigkeiten sind vor der jeweiligen Implementierung festzulegen.
+
+## 10. Daten- und Konsistenzpräzisierungen K4/K6/K7/K8/K9
+
+1. **Mehrversionsbetrieb (K4):** Parallele App-Releases sind nur bei kompatiblen Fachdatenschemas und einer aktiven Core-API-Major zulässig. Migration/Backfill/Rollback sind getrennt nach App, Daten und Prozessversion zu prüfen.
+2. **Sicherheitsprofile (K6):** Eine Ressource wird eindeutig als serververwaltet oder echt E2EE ausgewiesen. Nur autorisierte serververwaltete Inhalte dürfen für Volltextindizes, Vorschau und Server-Worker entschlüsselt werden. Verschlüsselte E2EE-Payloads bleiben aus Server-Klartextindizes ausgeschlossen.
+3. **Speicherklassen (K7):** Fachlicher Primärzustand, Outbox, Inbox-/Dedupe, interner Eventstream, Browser-Replay, Notification Inbox und Security Audit besitzen unabhängige Retention/Owner. Retention der Auditklasse hebt Lösch- und Datenschutzpflichten für Nutzinhalte nicht pauschal auf.
+4. **Replay (K7):** Aktuelle Benutzer-/App-/Resource-/Audience-Rechte werden bei Auslieferung erneut bewertet. Ungültige Cursor führen zu explizitem Gap und autorisiertem Snapshot, nie zu Freigabe alter Inhalte.
+5. **Saga (K8):** Neue Fachschritte dürfen nicht auf widerrufene Delegationen gestützt werden. Idempotente Kompensation verwendet separate eng begrenzte Recovery-Rechte. Bei unbekanntem Commit erfolgt Statusklärung vor Retry.
+6. **Sicherheitssperre (K9):** Ein gesperrtes Release kann keine alte Datenmigration oder Workflow-Instanz unter früheren Rechten reaktivieren. Persistierte Daten bleiben nach Sperrung gemäß separater Retention und Recovery erhalten.
+
+Konkrete Schlüssel- und Schema-Formate, RPO/RTO, Retention-Zeiten, DLQ-Budgets und Saga-Enums sind **noch nicht festgelegt**. Referenz: [K1–K9](11-architecture-decisions-K1-K9.md).
