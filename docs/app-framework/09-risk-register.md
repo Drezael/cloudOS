@@ -1,0 +1,41 @@
+# Risk, Conflict & Open Issues Register – App Framework SDK
+
+> **Stand:** 15.11.2026 · **Status:** Erstpruefung anhand ausgewaehlter realer Repository-Dokumente; **keine vollstaendige Repo-weite Auditierung**.  
+> `BLOCKER` = vor betroffener Umsetzung zwingend klaeren; `HIGH` = vor Schnittstellenfreeze klaeren; `MEDIUM` = vor konkretem Schritt; `LOW` = Nachpflege.
+
+## 1. Konkrete Konflikte und Verifikationsaufgaben
+
+| ID | Risiko / Beobachtung | Relevante Quellen | Prioritaet | Aufloesungsbedarf | Status |
+|---|---|---|---|---|---|
+| R-001 | `API_CONTRACTS.md` verlangt nur aktive API-Major; Q151 erlaubt parallele App-Releases. Ein App-Kompatibilitaetsfenster ist **kein** impliziter paralleler API-Major-Betrieb. | API_CONTRACTS, Q104/Q151 | HIGH | Kompatibilitaet mit nur einer aktiven API-Major konkret nachweisen | OFFEN |
+| R-002 | `APP_SIGNING.md` erlaubt selbstsignierte `.cloudApp` nach Admin-Risikofreigabe; Q154 verlangt verbindliches Conformance-Gate. | APP_SIGNING, APP_API_ACCESS, Q100/Q154 | BLOCKER | Policy-gestuetzte Test-/Admin-Ausnahme definieren; Integritaet nie umgehen | OFFEN |
+| R-003 | Altarchitektur nennt browser-WASM, optionale WASI-/Native-Komponenten; Q113 begrenzt ausfuehrbare App-SDK-Worker auf JS/TS und WASM ohne beliebigen nativen Code. | SYSTEM_ARCHITECTURE, APPLICATION_SYSTEM, Q113/Q137 | BLOCKER | Umfang von WASI, Native-Option und signierten Runtime-Profilen formell festlegen | OFFEN |
+| R-004 | `PUSH_REALTIME.md` definiert SSE als regulaeren Browser-Push; Q035 nennt externe SSE-/WebSocket-Verbindungen. | PUSH_REALTIME, API_CONTRACTS, Q035/Q139 | HIGH | Browser-Push, externe Verbindungen, Web Push eindeutig trennen | OFFEN |
+| R-005 | App-Origin, Service-Worker-Scope, Tab-Coordination und iframe-Sandbox muessen tatsaechlich getrennt sein; geteilte Origin koennte SW-Interception ermoeglichen. | APP_API_ACCESS, Q101/Q136/Q138/Q140 | BLOCKER | Nachweisbare Origin-/Scope-Topologie, Browser-Testmatrix | OFFEN |
+| R-006 | Optionale E2EE verhindert bei clientseitigem Schluesselbesitz gegebenenfalls serverseitige Indexierung, Vorschau, Suche und diagnosebezogene Inhaltspruefung. | Q067/Q068/Q099/Q109 | HIGH | Datenklassifizierung und faehigkeitsbasierte Fallbacks | OFFEN |
+| R-007 | 156 Fragen werden als behandelt gefuehrt; Q001–Q028 und Q030–Q033 sind im vorliegenden Kontext nicht rekonstruierbar. | Gespraechsverlauf, Q001–Q033 | HIGH | Originalentscheidungen verifizieren, Register vervollstaendigen | OFFEN |
+| R-008 | Geplante logische Komponenten koennten mit dem vorhandenen Go-Core-Rollenkatalog doppelt erfasst werden. | SYSTEM_ARCHITECTURE, CORE_DEPLOYMENT_SCALING, Q156 | HIGH | Bestehende Service-Owner vollstaendig zuordnen | OFFEN |
+| R-009 | Freiwilliger Consent kann nur Core-vermittelte Datenverarbeitung technisch kontrollieren; client-/providerseitige Verarbeitung ist begrenzt kontrollierbar. | Q057/Q102/Q142 | MEDIUM | Controller-/Datenflussgrenzen und Zweckbindung festlegen | OFFEN |
+| R-010 | Retention- und Replay-Cursor duerfen Revocation, Loeschung, Audit-Pflicht sowie E2EE nicht umgehen. | API_CONTRACTS, Q058/Q097/Q129/Q148/Q149 | HIGH | Strom-Owner, Dedupe-/Retention-/Purge-Regeln | OFFEN |
+| R-011 | Workflow-Kompensationen koennen nach Widerruf keine alten Rechte nutzen; gleichzeitig kann Recovery erforderlich sein. | Q058/Q127/Q146/Q147 | HIGH | Administrativen Recovery-Prozess und getrennte Autorisierung festlegen | OFFEN |
+| R-012 | `APP_FRAMEWORK_SDK.md` fehlte bei GitHub-Lesezugriff auf `main`; diese Dateien sind ein erstmaliger vorgeschlagener Aufbau und noch keine gepruefte Integration. | Repo `Drezael/cloudOS`, 15.11.2026 | MEDIUM | Nach Push Links/Struktur/Verweise verifizieren | OFFEN |
+| R-013 | Q036/Q052/Q075/Q090/Q105/Q130 sind ausdrueckliche Negativentscheidungen, die durch spaetere Details unabsichtlich verletzt werden koennten. | Decision Register | HIGH | Negative Contract-Tests und Redaktion | OFFEN |
+| R-014 | Alte aktive App-Releases duerfen trotz Altversions-Uebergang keine bereits abgeschalteten API-Major-Versionen oder kompromittierte Module verwenden. | Q050/Q104/Q137/Q151 | HIGH | Kompatibilitaets- und Notfall-Revocation-Plan | OFFEN |
+| R-015 | Conformance-Test gegen echte cloudOS-Instanz kann in Testumgebung privilegierte Ressourcen veraendern. | Q105/Q154 | MEDIUM | Isolierte Test-Tenants, synthetische Daten, Policy-/Rollback-Regeln | OFFEN |
+
+## 2. Vorrang und Aenderungsprozess
+
+Bei einem Konflikt wird kein bestehender Fachvertrag stillschweigend ueberschrieben. Fuer jede betroffene Entscheidung: (1) Originaltext finden, (2) Sicherheitsauswirkung und Owner bestimmen, (3) Loesungsvarianten dokumentieren, (4) expliziten ADR/Entscheid einholen, (5) alle betroffenen Dateien aktualisieren, (6) Vertrags-/Integrationstests definieren. Dokumentzeitstempel alleine erzeugen keinen Vorrang.
+
+## 3. Fehlende Nachweise
+
+Es liegt **kein vollstaendiger Audit aller Repository-Dateien** vor. Die Einsicht umfasst den per GitHub-Connector abgefragten Stand einzelner Dokumente, darunter `CONCEPT.md`, `SYSTEM_ARCHITECTURE.md`, `API_CONTRACTS.md`, `APPLICATION_SYSTEM.md`, `APP_API_ACCESS.md`, `APP_SIGNING.md`, `PUSH_REALTIME.md` und `CORE_DEPLOYMENT_SCALING.md`. Die nicht aufgelisteten weiteren Repository-Dokumente sind vor formeller Freigabe nachzuziehen.
+
+## 4. Freigabeprotokoll (noch auszufuellen)
+
+| Rolle | Verantwortliche Person | Datum | Ergebnis |
+|---|---|---|---|
+| Architektur | Offen | Offen | NICHT GEPRUEFT |
+| Sicherheit | Offen | Offen | NICHT GEPRUEFT |
+| API/SDK | Offen | Offen | NICHT GEPRUEFT |
+| Betrieb | Offen | Offen | NICHT GEPRUEFT |
