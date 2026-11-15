@@ -1,11 +1,20 @@
 # cloudOS - Architektur des virtuellen Dateisystems (VFS)
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/VIRTUAL_FILESYSTEM.md`  
-> **Dokumentversion:** 0.5 (Shares, Spaces und virtuelle Mount-Sichten)
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
-> **Geprüfte Grundlage:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
-> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.7), `docs/APPLICATION_SYSTEM.md` (v0.4), `docs/APP_SIGNING.md` (v0.2), `docs/APP_API_ACCESS.md` (v0.2), `docs/SHARING_SPACES.md` (v0.1) und `docs/IDENTITY_INTEGRATION.md` (v0.1)  
+> **Geprüfte Grundlage:** `main`, Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
+> **Referenzen:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md` (v0.8), `docs/APPLICATION_SYSTEM.md` (v0.5), `docs/APP_SIGNING.md` (v0.2), `docs/APP_API_ACCESS.md` (v0.3), `docs/SHARING_SPACES.md` (v0.2), `docs/IDENTITY_INTEGRATION.md` (v0.1) und `docs/DESKTOP_ENVIRONMENT.md` (v0.1)  
 
 > **App-API-Zugriffsmodell:** [`APP_API_ACCESS.md`](APP_API_ACCESS.md); jede VFS-API-Nutzung aus Apps benötigt eine signierte und genehmigte Operation
 > **Status:** Neue Anforderungen verbindlich; genaue Implementierungsdetails werden in Phase 0/6 entschieden.
@@ -116,10 +125,10 @@ system:/
 |   |-- config/                  # Versionierte, nicht geheime Systemkonfiguration
 |   |-- defaults/                # Systemweite Voreinstellungen
 |   `-- policies/                # Nicht geheime Policy-/Regelressourcen
-|-- applications/
+|-- apps/
 |   |-- packages/                # Unveraenderliche, signierte installierte .cloudApp-Versionen
-|   |-- manifests/               # Systemweite App-Manifeste
-|   `-- assets/                  # Gemeinsame App-Ressourcen
+|   |-- runtime-assets/           # Kontrolliert ausgelieferte Web-/WASM-Assets
+|   `-- release-baseline/         # Geschützte Core-App-Artefakte
 |-- themes/
 |   |-- builtin/                 # Integrierte Themes
 |   `-- installed/               # Vom Admin freigegebene Themes
@@ -137,7 +146,7 @@ Das Systemvolume darf weder Benutzer-Home-Daten noch ungeprüfte temporäre Uplo
 
 Die aus Docker-Images geladenen Go-Binaries sind ebenfalls **nicht automatisch** Dateien im virtuellen Systemvolume. Das Volume enthält die durch das VFS verwalteten cloudOS-Ressourcen, nicht zwangsläufig jedes physische Deployment-Artefakt.
 
-**Verbindliche Ergänzung für Apps:** Alle regulären Benutzeranwendungen einschließlich `Desktop.cloudApp` und `FileExplorer.cloudApp` werden zuerst als `.cloudApp` installiert. Pflicht-Core-Apps werden durch eine signierte Release-Baseline automatisch provisioniert. **Normale VFS-Schreibrechte eines Administrators erlauben keine direkte Manipulation bereits installierter Paket-Artefakte.** Paketstaging, Paketpromotion, Versionsaktivierung und Removal erfolgen ausschließlich über den geprüften App Installer-/Release-Workflow. Die genaue Spezifikation steht in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+**Verbindliche Ergänzung für Apps:** Alle regulären Benutzeranwendungen einschließlich `Desktop.cloudApp` und `FileExplorer.cloudApp` werden zuerst als `.cloudApp` installiert. Pflicht-Core-Apps werden durch eine signierte Release-Baseline automatisch provisioniert. **Normale VFS-Schreibrechte eines Administrators erlauben keine direkte Manipulation bereits installierter Paket-Artefakte.** Paketstaging, Paketpromotion, Versionsaktivierung und Removal erfolgen ausschließlich über den geprüften Core Installation-/Release-Workflow, bedient durch `Apps.cloudApp` oder den provenancegebundenen App Store. Die genaue Spezifikation steht in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
 
 **Wichtig für Themes und Apps:** Ein normaler Benutzer darf ein vom System freigegebenes Theme anwenden oder ein App-Bundle im Browser laden, ohne das Systemvolume durchsuchen zu können. Der Zugriff erfolgt über **gesonderte, explizit freigegebene Theme-/Asset-/App-APIs**, niemals durch ein allgemeines `list system:/`. Statisch an Browser ausgelieferte Assets sind naturgemäß für berechtigte Clients abrufbar und deshalb keine Geheimnisse.
 
@@ -154,7 +163,9 @@ Die technische Struktur des zweiten Volumes lautet:
 users:/
 |-- homes/
 |   |-- <user-uuid-A>/
-|   |   |-- Desktop/
+|   |   |-- .desktop/              # autoritatives Desktop-Verzeichnis
+|   |   |-- .taskbar.json          # private Taskleistenkonfiguration
+|   |   |-- .desktop-layout.json   # optionale Icon-Positionen
 |   |   |-- Documents/
 |   |   |-- Downloads/
 |   |   |-- Pictures/
@@ -163,7 +174,9 @@ users:/
 |   |   |-- .config/
 |   |   `-- .local/
 |   `-- <user-uuid-B>/
-|       |-- Desktop/
+|       |-- .desktop/
+|       |-- .taskbar.json
+|       |-- .desktop-layout.json
 |       |-- Documents/
 |       `-- ...
 `-- shared/                       # Reservierter Bereich der zweiten Festplatte
@@ -174,7 +187,9 @@ Für Benutzer A wird aus der internen Struktur ausschließlich Folgendes sichtba
 
 ```text
 /
-|-- Desktop/
+|-- .desktop/
+|-- .taskbar.json
+|-- .desktop-layout.json
 |-- Documents/
 |-- Downloads/
 |-- Pictures/
@@ -199,7 +214,9 @@ Bei erstmaliger Bereitstellung einer Benutzeridentität wird im `users`-Volume g
 - Es wird **nicht** der veränderliche Anzeigename oder Login-Name für den internen Pfad verwendet.
 - Ein Benutzername kann geändert werden, ohne Home-IDs, Dateilinks oder Berechtigungen zu verlieren.
 - Die Erstellung ist idempotent: Wiederholte Provisionierung erzeugt kein zweites Home.
-- Vorlagen für Desktop-/Dokumentenverzeichnisse kommen kontrolliert aus Systemressourcen.
+- Vorlagen fuer den Desktop **`/.desktop/`** und die privaten versteckten Dateien **`/.taskbar.json`**, **`/.desktop-layout.json`** kommen kontrolliert aus Systemressourcen; der bisherige Pfad `/Desktop/` wird nicht als zweiter Desktop fortgefuehrt.
+- Vorgeschlagene Initialmodi sind `0700` fuer `/.desktop/` und `0600` fuer beide JSON-Dateien.
+- Jede Desktop-Datei ist ein normaler Node unter `/.desktop/`; ein loeschbarer Knoten darf ohne zweiten UI-Datensatz entfernt werden.
 - Bei einem Fehler wird ein halbfertiges Home entweder vollständig fertiggestellt oder eindeutig als nicht bereit gemeldet.
 - Die Löschung eines Benutzerkontos löscht Daten nicht stillschweigend: Sperrung, Aufbewahrung, Export und endgültige Entfernung erhalten getrennte Lebenszyklen.
 
@@ -340,7 +357,7 @@ Zugriffssperren gelten auch für Nebenkanäle:
 
 - Suche darf fremde oder Systemdateien nicht durch Treffer, Dateinamen oder Snippets verraten.
 - Dateivorschauen, Thumbnails, Indexe und Caches beachten dieselben Scopes wie Originaldateien.
-- WebSocket-Events dürfen keine fremden Dateinamen, Node-IDs oder Metadaten offenlegen.
+- SSE-Push-Deltas duerfen keine fremden Dateinamen, Node-IDs oder Metadaten offenlegen.
 - Audit-/Fehlermeldungen für nicht berechtigte Clients enthalten keine internen Pfade.
 - `404 Not Found` kann für nicht sichtbare Ressourcen verwendet werden; die konkrete einheitliche Fehlerpolitik wird dokumentiert.
 - Quota- und Kapazitätsendpunkte dürfen nicht ungefragt fremde Benutzerstatistiken preisgeben.
@@ -574,7 +591,11 @@ Die konkreten Protobuf-Nachrichten verwenden typisierte IDs, strukturierte Fehle
 | `files.system.updated` | Systemressource geändert. | Berechtigte Systemdienste. |
 | `files.access_grant.revoked` | Temporäre Freigabe widerrufen. | Broker, Audit. |
 
-Events sind versioniert und enthalten keine unnötigen persönlichen Pfade. Der Realtime Service prüft Empfängerberechtigungen. Nach Verbindungsabbruch erfolgt REST-Resynchronisierung; NATS-Events sind nicht die maßgebliche Datenspeicherung.
+Owner-Events sind versioniert und enthalten keine unnoetigen persoenlichen Pfade. Der Push Projector erzeugt **autorisiert gefilterte UI-Deltas**; das SSE Gateway prueft Empfaenger bei Auslieferung und Replay erneut. Nach Verbindungsabbruch folgen `Last-Event-ID`-Replay oder bei Cursor-Luecke genau **eine** Snapshot-Recovery, niemals periodisches Client-Polling. NATS-Events sind nicht die massgebliche Datenspeicherung.
+
+### 10.3 Datei-Aenderungen als serverseitige SSE-Deltas
+
+Jeder erfolgreiche Commit im eigenen Home, in autorisierten Shares/Spaces und im adminsichtbaren Systemvolume ermoeglicht eine **pro Empfaenger gefilterte** Push-Projektion ueber [PUSH_REALTIME.md](PUSH_REALTIME.md). `/.desktop/` liefert direkte `add|update|remove|move`-Deltas mit erlaubten Metadaten, `/.taskbar.json` und `/.desktop-layout.json` liefern validierte Konfigurationsrevisionen. Ein Browser fragt Ordner nicht periodisch ab und muss nach normalen Events keinen neuen `GET children` ausfuehren. Die POSIX-/ACL-/Mount-Pruefung wird beim Befehl und vor Eventauslieferung beachtet; Replay darf kein Rechte-Rollback bewirken. Der Stream ersetzt keine Datenbanktransaktion.
 
 ## 11. Dateioperationen und Transaktionen
 
@@ -707,6 +728,14 @@ Die Zuordnung ist konfigurierbar. Der `File Service` verwaltet beide Volumes üb
 - Schreiboperationen im Systemvolume benötigen entsprechende Rechte und eine explizite Bestätigung.
 - Administrative Benutzerdatensicht zeigt ohne Supportfreigabe keine privaten Datei-Inhalte.
 
+### 13.1a Verbindliche Desktop-Pfade und Live-VFS
+
+Die Desktop-Shell (`Desktop.cloudApp`) zeigt direkt die Kinder des privaten Verzeichnisses `/.desktop/` an. Das Entfernen, Verschieben oder Umbenennen einer Datei im File Explorer oder der virtuellen Shell veraendert die Quelle im File Service und loest via Outbox/Realtime eine UI-Invalidierung aus. Der Desktop aktualisiert seinen autoritativen Verzeichnis-Snapshot **ohne Neuladen der Browserseite**. Eine zweite Desktop-Datenbank oder eigenes Mount-Laufwerk ist verboten.
+
+Die Taskleiste speichert Position, Pins und Benutzerpraeferenzen in `/.taskbar.json` im eigenen Home. Die vier zulaessigen Positionen sind `top`, `bottom`, `left`, `right`. Ein separates `/.desktop-layout.json` speichert ausschliesslich die Icon-Anordnung nach Node-ID. Der Verzeichnis-Root `/.desktop/` ist reserviert und gegen versehentliches Loeschen/Verschieben geschuetzt; **seine Kinder** folgen normalen VFS-Rechten und koennen geloescht werden.
+
+Fuer Details siehe [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md). Die Shell und andere Apps duerfen nicht ohne die jeweils signierte App-API-Freigabe auf diese Dateien zugreifen.
+
 ### 13.2 Terminal und virtuelle Shell
 
 ```text
@@ -738,17 +767,16 @@ Dies sind **geplante Shell-Semantiken**, keine bereits implementierten Befehle. 
 
 ### 13.4 File Explorer und `.cloudApp`-Installationsworkflow
 
-Der File Explorer ist selbst eine verpflichtend installierte `FileExplorer.cloudApp` und **kein hartcodiertes Modul im Browser-Bootstrap**. Er nutzt VFS-APIs und den zentralen Dateityp-/Kontextaktionskatalog. Erkennt er ein valides `.cloudApp`-Paket im eigenen Home eines Administrators, bietet er **App installieren** an. Die Aktion startet `AppInstaller.cloudApp` mit einem opaken, kurzlebigen File-Handle.
+Ein `.cloudApp`-Paket in `/Downloads` oder `/.desktop/` ist eine gewöhnliche **nicht installierte** Datei des Benutzers. Der VFS-Dateityp-Resolver bietet **keine Installation per Rechtsklick** an. Nur ein **Doppelklick** auf ein unregistriertes Paket ruft den geschützten Intent `apps.install.from-file` auf und startet bei administrativ berechtigten Benutzern direkt `Apps.cloudApp` (in Settings auffindbar) mit einem kurzlebigen, revisionsgebundenen Dateihandle. Die Signatur-/API-Vorprüfung beginnt sofort; der produktive Commit erfolgt erst nach allen verbindlichen Bestätigungen.
 
-- **Paketquelle:** z. B. `/Downloads/ExampleEditor-1.0.0.cloudApp` im *eigenen* Home des angemeldeten Admins.
-- **Vorschau:** Der Go-Core liest einen unveränderlichen Snapshot, prüft Format, Signatur, Publisher-Vertrauen, Runtime, Abhängigkeiten und Paketdigest.
-- **Bestätigung:** Nur mit `apps.install` und digestgebundenem Preview-Plan.
-- **Ablage:** Der App Installer übernimmt die geprüften, unveränderlichen Paketdaten nach `system:/applications/packages/` und registriert die Version im fachlichen App-Register.
-- **Zuweisung:** Benutzer-/Gruppenfreigabe erfolgt getrennt von der Installation; ohne Zuweisung kein Nutzer-Launch.
-- **Nutzung:** Berechtigte Benutzer laden App-Assets über App-/Asset-APIs, ohne das Systemvolume als Laufwerk zu sehen.
-- **Schutz:** Dateioperationen im File Explorer dürfen installierte Paketdateien nicht unkontrolliert überschreiben, löschen oder umbenennen.
+- **Kanonischer Zielpfad:** `system:/apps/packages/<app-id>/<version>/<digest>.cloudApp` auf Festplatte 1. Die physische Blob-Ablage verwendet wie bisher opake Storage-Schlüssel.
+- **Speichersicherheit:** Eine App wird nur vom privilegierten Package Service nach validierter X.509-/SHA-512-/Endpoint-Prüfung dorthin übernommen; keine Benutzer- oder Shell-Dateioperation kann installierte Bytes verändern.
+- **Systemweite Installation:** Die App Registry ist global. Benutzer-Home-Daten bleiben auf der zweiten Festplatte; `/.desktop/` kann nur autorisierte App-Shortcuts darstellen.
+- **Zuweisung:** Neue Zusatz-Apps sind ausschließlich für die stabile Gruppe `Admin` sichtbar/startbar. Das System führt die POSIX-Gruppenmitgliedschaft und den eigentlichen `apps.assign`-/`apps.install`-Core-RBAC getrennt.
+- **Deinstallation und Löschen:** `Apps.cloudApp` entfernt globale Installationen nach sicherer Prüfung und kann separat eine referenzfreie installierte Paketdatei löschen. Originaldateien im persönlichen `/Downloads` oder private App-Daten werden nicht stillschweigend entfernt.
+- **Store-Installationen:** `AppStore.cloudApp` nutzt dieselben Backendprüfungen, kann aber nur selbst installierte Pakete deinstallieren. Weitere GitHub-Quellen erzeugen keine weiteren virtuellen Laufwerke oder eigenen VFS-Roots.
 
-Doppelklick auf ein noch nicht installiertes `.cloudApp`-Paket führt höchstens zur Paketinformation bzw. für Administratoren zum Installer, **niemals** zur direkten Code-Ausführung. Normale Benutzer können Pakete speichern, aber im MVP nicht installieren. Der volle Ablauf und die Paketformat-Verträge stehen in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
+Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md) für Installationsprovenienz, Deinstallationsgrenzen, externe Katalogquellen und Echtzeit-Zuweisungen.
 
 ### 13.5 Core-App-Daten im Home
 
@@ -756,9 +784,9 @@ Desktop-Layouts, Fensterzustände, Theme-Auswahl, App-Berechtigungen und Install
 
 ### 13.6 Signaturgepruefte `.cloudApp`-Pakete im VFS
 
-Der `FileExplorer.cloudApp` darf beliebige noch **nicht installierte** `.cloudApp`-Pakete im jeweiligen Benutzer-Home anzeigen. Die Dateiendung oder ein Metadateneintrag im VFS bedeutet **keine** Installationserlaubnis. Admins koennen bei Rechtsklick einen signaturgeprueften Preview-Workflow starten.
+Der `FileExplorer.cloudApp` darf beliebige noch **nicht installierte** `.cloudApp`-Pakete im jeweiligen Benutzer-Home anzeigen. Die Dateiendung oder ein Metadateneintrag im VFS bedeutet **keine** Installationserlaubnis. Administrativ berechtigte Nutzer können per **Doppelklick** die signaturgeprüfte Vorschau in `Apps.cloudApp` starten; der Rechtsklick bietet keine Installationsaktion.
 
-Vor dem Uebergang aus dem `users`-Volume nach `system:/applications/packages/` prueft der Go App Package Service einen unveraenderlichen Snapshot: SHA-512-Dateiliste, kryptografische X.509-Signatur, App-ID-Scope, Zertifikatsstatus und Paketdigest. **Gueltig selbstsignierte Pakete** erfordern eine deutliche Warnung und eine separate, digestgebundene Administratorbestaetigung; dies erteilt **keine** Schreibrechte auf andere Pfade und hebt die zwei-Volume-Isolation nicht auf.
+Vor dem Uebergang aus dem `users`-Volume nach `system:/apps/packages/` prueft der Go App Package Service einen unveraenderlichen Snapshot: SHA-512-Dateiliste, kryptografische X.509-Signatur, App-ID-Scope, Zertifikatsstatus und Paketdigest. **Gueltig selbstsignierte Pakete** erfordern eine deutliche Warnung und eine separate, digestgebundene Administratorbestaetigung; dies erteilt **keine** Schreibrechte auf andere Pfade und hebt die zwei-Volume-Isolation nicht auf.
 
 `INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE`, `INVALID_SIGNATURE`, falsche App-ID und Widerruf sind **harte Installationsfehler**. Eine Systemvolume-Berechtigung erlaubt keine manuelle Umgehung dieser Pruefung oder das Editieren aktivierter App-Artefakte. Der Paketstore bleibt unveraenderlich und wird bei Integritaetsfehlern quarantinisiert. Stille Updates selbstsignierter Pakete sind ausgeschlossen.
 
@@ -771,6 +799,9 @@ Der File Explorer ist selbst eine signierte, vorinstallierte `.cloudApp` und bes
 Jede weitere Web-/Rust-App deklariert ihre notwendigen Datei-APIs in `permissions/api-access.json`. Der Installer zeigt die jeweilige Methode, Route, den maximalen Ressourcenscope und das Risiko von Datei-Lese-, Schreib- oder Löschzugriffen **vor** der administrativen Installation an. `APP_SIGNING.md` bindet die Datei kryptografisch; [`APP_API_ACCESS.md`](APP_API_ACCESS.md) definiert die Laufzeitdurchsetzung.
 
 ## 14. Rust-/WASM- und weitere Anwendungsruntimes
+
+**Erweiterung v0.12 – lokale Clientgeräte:** Apps können einen vom **Browser aus bewusst ausgewählten** USB-Stick oder lokale Dateiauswahl für Import/Export verwenden. Ein USB-Massenspeicher wird aber **weder direkt in den Core-Docker-Container gemountet noch als dritte virtuelle Festplatte angelegt**. Die Daten gelangen nur durch ausdrückliche File-/Directory-Picker, einen dafür signierten App-Device-Grant sowie normale VFS-Dateioperationen in das eigene Home oder einen berechtigten Space. Barcode-Rohdaten sind unvertrauenswürdige Eingaben und dürfen niemals ungeprüft als Pfad/Hostkommando ausgeführt werden. Vertrag: [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+
 
 ### 14.1 Rust-WebAssembly im Browser
 
@@ -967,7 +998,7 @@ Der Dateisystementwurf wird nicht stillschweigend als bereits implementiert betr
 
 ---
 
-**Änderungsvermerk 0.2 (15.11.2026):** Die Zwei-Volume-/Home-Root-Architektur bleibt vollständig erhalten. Ergänzt wurden der unveränderliche `.cloudApp`-Paketstore auf `system:/`, die Admininstallation über `FileExplorer.cloudApp` und `AppInstaller.cloudApp`, der Schutz vor direkter Ausführung aus dem Home sowie private App-Daten unter dem persönlichen `/`. Der Core stellt die APIs bereit; die sichtbare Bedienung erfolgt ausschließlich über installierte Core-Apps und weitere zugewiesene Anwendungen.
+**Änderungsvermerk 0.2 (15.11.2026):** Die Zwei-Volume-/Home-Root-Architektur bleibt vollständig erhalten. Ergänzt wurden der unveränderliche `.cloudApp`-Paketstore auf `system:/`, die Doppelklick-Intent zu `Apps.cloudApp` und `Apps.cloudApp`, der Schutz vor direkter Ausführung aus dem Home sowie private App-Daten unter dem persönlichen `/`. Der Core stellt die APIs bereit; die sichtbare Bedienung erfolgt ausschließlich über installierte Core-Apps und weitere zugewiesene Anwendungen.
 
 
 ---
@@ -996,3 +1027,40 @@ Share Service und Space Service verwalten die Grants/Metadaten, File Service ble
 - Share- und Space-Mounts lassen nur ihren Unterbaum und ihre eigene Rolle zu.
 - Widerruf, Gruppenentzug, Space-Deaktivierung und Konto-/App-Sperre wirken serverseitig.
 - Backup/Restore rekonstruiert Nodes, Share-Referenzen und Space-Roots konsistent.
+
+
+---
+
+## 23. Desktop-Dateien und VFS-Konfiguration im Home
+
+Der Name **`/.desktop/`** ist die einzige kanonische Quelle fuer Desktop-Dateien, -Ordner und `.cloudlink`-Verknuepfungen des aktuellen Benutzers. **`/.taskbar.json`** ist die versteckte, benutzereigene Taskleisten-Konfigurationsdatei; **`/.desktop-layout.json`** enthaelt optionale Anordnungsdaten, niemals eine zweite File-Liste. Jeder dieser Pfade wird serverseitig von `/` aus zum Home-Root des authentifizierten Benutzers aufgeloest. Datei-/Ordneraenderungen erhalten Revisionen und Outbox-Ereignisse; der Desktop abonniert die eigenen Node-IDs, validiert den Snapshot und aktualisiert Icons/Panel **ohne Browser-Reload**. Ausfuehrliche API-, Konflikt-, Sicherheits- und Testregeln: [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+
+## 24. Der App-Paketspeicher `system:/apps` (Architektur v0.9)
+
+Die **erste** virtuelle Festplatte enthält alle global installierten App-Archivdateien ausschließlich unter **`system:/apps/`**. Die bisher geplante Ablage `system:/applications/...` wird bei Einführung durch eine kontrollierte Migration ersetzt. Datei- und Blob-Schlüssel bleiben opak; der Package Service ist einziger Schreib-Owner des produktiven, immutable Paketbereichs. Ein Administrator mit normalem Dateimanagerzugriff darf keine registrierten Pakete frei umschreiben.
+
+Eine noch nicht installierte `.cloudApp` im Benutzer-Home ist nur eine **Quelldatei**. Durch Doppelklick startet bei ausreichender Systemrolle unmittelbar die `Apps.cloudApp` mit Paket-Preflight. Es gibt **keinen** Rechtsklick-Installationsmenüpunkt. Nach vollständiger API- und Signatur-/ggf. Selbstsignaturfreigabe wird das Paket systemweit gespeichert und anfangs ausschließlich der Gruppe **`Admin`** zur Nutzung zugewiesen. Nutzer ohne Grant sehen die App weder im App-Launcher noch über Package-Asset-APIs; die Sichtbarkeit ihrer selbst hochgeladenen Quelldatei bleibt eine eigene, gewöhnliche VFS-Frage.
+
+`Apps.cloudApp` kann nach berechtigter Deinstallation ein **referenzfreies** App-Paket unter `system:/apps` löschen; das Löschen eines Quellarchivs aus einem persönlichen `/Downloads` und das Löschen privater App-Daten bleiben **separate** VFS-Operationen. GitHub-App-Store-Katalogquellen speichern keine neuen Festplatten und ändern keine Home-Root-Semantik. Dynamische Grants an Benutzer und Gruppen lösen gefilterte `apps.assignments.changed`-Ereignisse aus; der Core blockiert unzulässige Starts und API-Aufrufe sofort nach Policy-Commit. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 25. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Standardbetrieb:** Das logische `files`-Modul läuft mit den übrigen Go-Core-Diensten **im selben Container**. Die virtuellen Festplatten bleiben `system:/` und `users:/`, und jeder Benutzer sieht sein Home als `/`. Physische Containeranzahl und Mounts verändern niemals den logischen VFS-Pfadraum.
+
+**Split/Kubernetes:** Mehrere File-Pods müssen auf **einen** transaktionalen File-Owner-Metadatensatz und **ein** gemeinsames Storage-Backend zugreifen. Dateiinhalte dürfen nicht als einziges Original auf einer lokalen Pod-Dateisystemschicht liegen. `system:/apps/`, freigegebene Dateien, Spaces, `/.desktop/` und `.taskbar.json` müssen unabhängig vom anfragenden Pod dieselben Revisionen besitzen. ETags, DB-Transaktionen, Quota-Reservierungen und idempotente Upload-Commits schützen bei parallelen Requests.
+
+Dateiereignisse werden nach Owner-Commit einmal dauerhaft in der Outbox registriert und asynchron in SSE-Deltas projiziert. Zwei File-Pods dürfen weder Duplikat-Dateien durch Race Conditions erzeugen noch einen nicht autorisierten Empfänger durch falsch geroutete Events informieren. Bei Pod-Ausfall ist ein Upload über Staging-/GC-/Idempotenzmechanismen rekonstruierbar; `emptyDir` ist höchstens Scratch und niemals der alleinige Datenträger.
+
+## Architektur-Ergänzung v0.12 – Device Broker, VFS und Logging
+
+Die VFS-Mount-Sicht bleibt `system:/` (administrativ) und `users:/` (eigene `/`-Home-Sicht). Browser-Dateihandles, USB-Scanner-Handles und `FileSystemDirectoryHandle`s sind **lokale** Clientgrants und können nicht als VFS-Node-ID oder Core-Dateiberechtigung verwendet werden. `files.upload` und `files.download` sind getrennt konfigurierbare Diagnose-Logger; sensible Dateiinhalte werden niemals selbst bei `TRACE` protokolliert. `Logs.cloudApp` darf keine Dateiberechtigungen durch Logsuche umgehen.
+
+## Ergänzung v0.13 – Theme-Ressourcen und Wallpaper-Präferenzen
+
+Die Zwei-Volume-Invariante bleibt unverändert. Alle integrierten Theme- und Wallpaper-Assets liegen logisch auf dem **Systemvolume**, z. B. unter `system:/themes/builtin/` und `system:/themes/assets/wallpapers/`, und dürfen von regulären Benutzern nur über explizit autorisierte Theme-/Asset-APIs gelesen werden. Das Systemvolume wird nicht als normales Home-Laufwerk eingebunden.
+
+Die neue persönliche Konfigurationsdatei `/.config/cloudos/appearance.json` liegt ausschließlich im eigenen `users:/homes/<user-uuid>/`-Root (für den Benutzer als `/.config/cloudos/appearance.json` sichtbar), gehört dem Benutzer und erhält standardmäßig `0600`. Sie enthält Theme-ID/-Variante sowie Wallpaper-Typ/-ID, Qualitäts- und Accessibility-Optionen. **Keine Doppelautorität**: Der Theme Service ist Owner der validierten wirksamen Projektion, der File Service prüft den Home-Speicherzugriff.
+
+`/.taskbar.json` bleibt die kanonische Datei für Taskbar-Position und -Pins; `/.desktop-layout.json` für Iconpositionen; `/.desktop/` für tatsächliche sichtbare Desktop-Dateien, Ordner und `.cloudlink`-Verknüpfungen. Wallpaper-/Theme-Wechsel dürfen keine dieser Daten erzeugen, löschen oder verändern.
+
+Persönliche Bilder/Videos werden durch die bestehende Dateiauswahl mit opaken VFS-Handles verknüpft. Ein Theme darf daraus keinen freien Zugriff auf fremde Home-Dateien, geschützte Spaces oder `system:/` ableiten. Eventuelle Zugriffsverluste führen zu einem statischen Fallback, nicht zu einem Rights-Bypass. Details: [THEMING.md](THEMING.md), [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).

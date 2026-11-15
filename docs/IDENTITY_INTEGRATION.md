@@ -1,8 +1,14 @@
 # cloudOS - Externe Verzeichnisse, LDAP-Synchronisation und optionale Identity Provider
 
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Datei:** `docs/IDENTITY_INTEGRATION.md`  
-> **Dokumentversion:** 0.1 (Zielarchitektur, Phase 0)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Gepruefter Repository-Stand:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
 > **Fachlich fuehrend fuer:** lokale/externe Identitaetsquellen, LDAP-Imports und Synchronisation, IdP-Anbindung, Kontoverknuepfung, Fehler- und Sicherheitsregeln  
@@ -75,6 +81,9 @@ flowchart TB
 Der lokale LDAPv3-Adapter bietet eine **Ansicht der cloudOS-Daten**, waehrend der externe LDAP-Connector eine **separat konfigurierte Importquelle** ist. Diese Funktionen werden nicht versehentlich als zwei unabhaengige Master-Directorys betrieben.
 
 ## 3. Betriebsarten und Kombinationsmatrix
+
+**Erweiterung v0.12:** Die optionalen externen LDAP-/OIDC-Adapter ändern **nicht** die vier lokal geplanten Authentifizierungswege. Passwort, WebAuthn-Passkey, YubiKey-FIDO2 und SSH-Signatur gehören zum lokalen Credential-/Session-Service; ein späterer IdP liefert nur nach vertrauenswürdigem Claim-Mapping einen alternativen Login. LDAP-Sync bleibt für Identitätsattribute/Gruppen zuständig und darf nicht die zu einer stabilen `user_id` gebundenen Public Keys oder Passkeys ersetzen. Beim LDAP-Rename bleiben alle Credentials gültig; bei Deaktivierung werden Sessions/Grants widerrufen. Details: [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+
 
 | Modus | Verzeichnisdaten | Login | Zustand |
 |---|---|---|---|
@@ -441,3 +450,23 @@ Alle ADRs sind zunaechst Backlog-Eintraege; sie werden nicht durch diese Uebersi
 ## 16. Zusammenfassung
 
 cloudOS kann weiterhin eigenstaendig mit lokalem LDAP-kompatiblem Directory Service, lokalen Accounts und POSIX-artigen Dateirechten betrieben werden. Externe LDAP-Synchronisation und externe OIDC-Anmeldung werden als **unabhaengige, optionale, von Administratoren konfigurierbare** Adapter vorbereitet. Interne Identitaeten, Besitzrechte, Home-Verzeichnisse, Shares und Spaces bleiben langfristig stabil. Externe Quell- und Authentifizierungsdaten werden niemals direkt zu cloudOS-Superuser- oder App-API-Rechten.
+
+### 16.1 Push statt Client-Polling nach externem Sync
+
+Nur der vertrauenswuerdige serverseitige LDAP-Connector darf seine externe Directory-Quelle per Delta-Sync, Scheduler oder definierten LDAP-Ereignisverfahren abfragen. Bei erfolgreichem **lokalem Commit** erhoeht der Identity Owner die autoritative Gruppen-/User-Revision und erzeugt Outbox-Events; der Push Projector uebermittelt berechtigte `identity.membership.changed`, `applications.available.changed` und Space-/Share-Deltas per SSE. Browser-Apps fragen weder LDAP noch `GET /users/groups` periodisch ab, um neue Berechtigungen zu entdecken. Optionale IdP-Anmeldeereignisse gelten nach lokaler Session-/Userverknuepfung ebenso; sie verleihen nie ohne Grant zusaetzliche Rechte. Siehe [PUSH_REALTIME.md](PUSH_REALTIME.md).
+
+## 17. Synchronisierte Gruppen und App-Berechtigungen (v0.9)
+
+Zusätzliche globale Apps sind standardmäßig nur der stabilen, lokalen Gruppe **`Admin`** zugewiesen. Ein später konfigurierter externer LDAP-Server kann Benutzer- und Gruppenmitgliedschaften synchronisieren, die dann nach ausdrücklichem, sicherem Mapping zu internen `user_id`/`group_id` für die **App-Sichtbarkeit und Startberechtigung** herangezogen werden. Die reservierte Gruppe `Admin` wird **nicht** allein durch Namensgleichheit mit `cn=Admin` oder `cn=cloudos-admins` eines fremden LDAP-Verzeichnisses verknüpft. Identity führt hierfür explizite, auditierte Mappings.
+
+Synchronisationen, Kontodeaktivierungen und Gruppenaustritte erzeugen autorisierte Revisionen/Ereignisse, welche die personalisierte Liste `GET /api/v1/apps/available` und die Launch-/Capability-Policy **sofort serverseitig** ändern; Desktop und weitere Clients aktualisieren sich über scoped Realtime-Hinweise ohne Browser-Neuladen. Die separate Store-App darf aus Gruppenmitgliedschaften keine zusätzlichen Management-/Installationsrechte ableiten. Referenz: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 18. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+Die spätere externe LDAP-Synchronisation ist ein **koordiniertes Hintergrundverfahren**. Auch wenn mehrere LDAP-Sync-Pods bereitstehen, darf pro Verzeichnisquelle zu einem Zeitpunkt nur ein gültiger aktiver Lease-Owner mit Fencing-Token schreiben. Ein Pod-Absturz und die Übernahme durch eine andere Replik dürfen keine doppelten Benutzer, inkonsistenten UID-/GID-Zuweisungen oder mehrfach verarbeiteten Deprovisionierungen erzeugen.
+
+Der lokale Login bleibt anfangs ohne Kubernetes, externes LDAP oder externen IdP nutzbar. Später müssen sämtliche Identity-/Session-Pods die gleichen lokalen Benutzer-IDs und konsistenten Login-/Revoke-Revisionen sehen. Externe IdP-Tokens werden im sicheren BFF validiert; Kubernetes-ServiceAccounts sind davon vollständig getrennte, interne Workload-Identitäten.
+
+## Architektur-Ergänzung v0.12 – externe Identitäten und Auth-Assurance
+
+Externe Auth-Claims (`amr`, `acr`, Verifikationsstatus) werden ausschließlich über einen administrativ festgelegten Mapping-Vertrag auf cloudOS-Assurance-Level umgesetzt. Ein LDAP-Bind-Passwort wird **niemals** in die Diagnose-Logpipeline geschrieben. Neue verifizierte E-Mail-Aliase dürfen kein lokales Konto allein durch Stringgleichheit übernehmen. Die Logging- und Audit-Quellen `identity.ldap.sync`, `identity.auth.webauthn` und `identity.auth.ssh` haben getrennte Kategorien; kritische Änderungen erscheinen im Audit auch bei `OFF`.

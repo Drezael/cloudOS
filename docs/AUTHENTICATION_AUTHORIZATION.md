@@ -1,10 +1,16 @@
 # cloudOS – Authentifizierung, Benutzer, Gruppen und Autorisierung
 
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Pfad im Repository:** `docs/AUTHENTICATION_AUTHORIZATION.md`  
-> **Dokumentversion:** 0.2 - externe LDAP-/IdP-Optionen, interne Shares und Spaces
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
-> **Verifizierte Ausgangsbasis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
+> **Verifizierte Ausgangsbasis:** `main`, Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
 > **Status:** Neue fachliche Anforderungen sind verbindlich; technisch offene Detailentscheidungen sind ausdrücklich gekennzeichnet.  
 > **Verwandte Dokumente:** [CONCEPT.md](CONCEPT.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [APP_API_ACCESS.md](APP_API_ACCESS.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [SHARING_SPACES.md](SHARING_SPACES.md).
 
@@ -59,6 +65,11 @@ Die sichtbare cloudOS-Shell ist keine allgemeine Linux-Login-Shell. `chmod`, `ch
 - Der Core lässt sich nicht dadurch umgehen, dass ein Client direkt eine bekannte Node-ID, UID, GID oder einen LDAP-DN verwendet.
 
 ## 3. Logische Zielarchitektur
+
+**Erweiterung v0.12 – mehrere Loginmethoden:** Der lokale Directory Service ist weiterhin die Quelle der Benutzer, Gruppen, UID/GID und der POSIX-/CloudOS-Autorisierung. Credential-Verifikation wird als eigener Owner/Port im Go-Core modelliert und unterstützt künftig **Benutzername oder verifizierte E-Mail + Passwort, WebAuthn-Passkeys, SSH-`sshsig`-Challenges und YubiKeys über FIDO2/WebAuthn**. Der Browser besitzt keinen generellen SSH-Agent-/Raw-USB-Zugriff; bei klassischem SSH-Key-Login ist ein vertrauenswürdiger lokaler Companion nötig. Hardware-YubiKeys zählen nicht als eigenständiger Faktor zusätzlich zu der von ihnen gelieferten WebAuthn-Assertion. Die komplette Vertragsspezifikation steht in [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+
+**Security-Audit:** Loginversuche, Key-Registrierungen, Widerrufe und Policyänderungen werden unabhängig vom konfigurierbaren Diagnoselevel auditiert. Die administrative `Logs.cloudApp` darf weder Credential-Geheimnisse abrufen noch die Auditpflicht deaktivieren. `AccountSecurity.cloudApp` bietet Methoden-/Sessionverwaltung über signierte und autorisierte App-APIs. Siehe [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md).
+
 
 ```mermaid
 flowchart TB
@@ -343,7 +354,7 @@ Siehe [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/ch
 - Session-Cookie: `Secure`, `HttpOnly`, angemessene `SameSite`-Policy und möglichst `__Host-`-Präfix.
 - Server-Session-ID wird zufällig und ausreichend entropiereich generiert, nicht aus UID/Username abgeleitet.
 - Session wird bei Login, Passwortwechsel, sensibler Rollenänderung und Step-up rotiert beziehungsweise neu validiert.
-- CSRF-Schutz für cookie-authentifizierte Schreibaktionen; WebSockets zusätzlich mit Authentifizierung und strikter Origin-Prüfung.
+- CSRF-Schutz fuer cookie-authentifizierte Schreibaktionen; SSE-Streams nur aus authentifizierten BFF-Sitzungen mit strikter Same-Origin-/Fetch-Metadata-Pruefung.
 - Idle-Timeout, absolute Lebensdauer, „von allen Geräten abmelden“ und administrative Sitzungssperre sind als Policies vorgesehen.
 - Browser erhält keine langlebigen allgemeinen Access-Tokens; Drittanbieter-Apps bekommen nur instanzgebundene und begrenzte App-Bridge-Berechtigungen.
 - Backend-Caches von Gruppen und Rollen werden durch Revisionsprüfung oder explizite Widerrufsereignisse aktuell gehalten; ein Event-Ausfall darf alte Rechte nicht unbegrenzt erhalten.
@@ -801,6 +812,10 @@ Ereignisse werden mittels Transactional Outbox und NATS JetStream zugestellt. Ko
 
 Wenn eine Gruppe entzogen wird, muss eine App mit bereits geöffnetem Datei-Handle nach Widerruf den Zugriff verlieren. Die präzise maximale Widerrufsverzögerung wird als Abnahmekriterium festgelegt; kritische Systemrechte werden vor jedem sensiblen Schreibvorgang aktuell geprüft.
 
+### 15.1 Security Push bei Benutzer-, Gruppen- und App-Rechten
+
+Identitaets- und Membership-Aenderungen werden im lokalen Go-Owner zuerst verbindlich gespeichert; der Permission Service aktualisiert die autoritativen Revokationsrevisionen. Der Realtime Projector sendet `identity.membership.changed`, `identity.session.revoked`, `applications.available.changed` und betroffene Share-/Space-Mount-Deltas **ueber SSE** an die jeweils berechtigten Browser. Clients fuehren **kein periodisches Rechte-Polling** aus. Bei deaktivierten Konten wird der Stream beendet; nach abgelaufenem Replay-Cursor kann ein einzelner autorisierter Snapshot erfolgen. Weder Verlust einer Push-Verbindung noch die Verzoegerung im Browser koennen den serverseitigen Rechteentzug aufheben. Fachlich massgeblich [PUSH_REALTIME.md](PUSH_REALTIME.md).
+
 ## 16. Sicherheitsmaßnahmen und Bedrohungsmodell
 
 | Gefahr | Konsequenz | Gegenmaßnahme |
@@ -914,7 +929,7 @@ Die folgenden Testfälle sind mindestens automatisiert (Unit/Integration/Contrac
 | AUTH-03 | Passwort-Hash in Directory lesen | Keine Ausgabe eines Verifiers |
 | AUTH-04 | Passwortwechsel | Alte Sessions nach Policy widerrufen |
 | AUTH-05 | CSRF bei Admin-PATCH | Anfrage abgewiesen |
-| AUTH-06 | WebSocket mit falscher Origin | Abgewiesen |
+| AUTH-06 | SSE-Stream mit falscher Origin | Abgewiesen |
 | AUTH-07 | LDAP Simple Bind ohne TLS | Abgewiesen |
 | AUTH-08 | LDAP Bind mit leerem Passwort | Keine authentifizierte Identität |
 | AUTH-09 | LDAP Search ohne Berechtigung | Kein Benutzer-/Gruppendump |
@@ -1126,3 +1141,30 @@ Share Grants geben bewusst ausgewaehlten internen Benutzern/Gruppen Zugriff auf 
 - `Sharing.cloudApp` und `Spaces.cloudApp` werden als eigene signierte, installierte Core-Apps zum jeweiligen Feature ausgeliefert; ihre UI verwendet das cloudOS-Designsystem.
 
 Die verbindliche Fach-/API-/VFS- und Testarchitektur steht in [SHARING_SPACES.md](SHARING_SPACES.md). Eine neue LDAP-Gruppe kann darin nur ueber die stabile lokale Gruppen-UUID referenziert werden, nicht ueber ihren DN.
+
+
+## 27. Berechtigungen fuer persoenlichen Desktop und Taskleiste
+
+Der Desktop des angemeldeten Benutzers ist **kein globales Systemverzeichnis**. Der File Service loest `/.desktop/` und `/.taskbar.json` ausschliesslich relativ zum authentifizierten Home-Root auf. Als sichere Defaults gelten `0700` fuer den reservierten Desktop-Ordner und `0600` fuer private Konfigurationsdateien `/.taskbar.json` sowie `/.desktop-layout.json`. Eigene Datei-/Ordnerkinder unter `/.desktop/` unterliegen ihren POSIX-Modi und allen sonstigen VFS-Regeln. Ein Administratorkonto besitzt nicht automatisch ein Leserecht auf fremde Desktop-Dateien.
+
+`Desktop.cloudApp` und `Settings.cloudApp` sind **verschiedene** installierte App-Identitaeten mit jeweils eigenen signierten Endpoint-Allowlists. Der Settings-Deep-Link von der Taskleiste enthaelt keine Credentials oder API-Rechte. VFS-Autorisierung prueft nach wie vor Identitaet, UID/GID/POSIX, Mount-Root, ggf. Share-/Space-Grant, App-Instanz und effektiven API-Scope. Datei-Aenderungsereignisse werden nur an autorisierte Home-Subscriptions gesendet; bei einer Sitzungssperre oder Rechteaenderung sind Cache und Subscription zu invalidieren. Das Daten- und UI-Modell steht in [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+
+## 28. Administratorgruppe, systemweite App-Zuweisung und Realtime-Widerruf (v0.9)
+
+cloudOS hat eine **stabile, reservierte lokale Gruppe `Admin`**. Für eine neue zusätzliche global installierte `.cloudApp` erhält standardmäßig **nur diese Gruppe** die Berechtigungen `discover` und `launch`. Gruppenmitgliedschaft wird über stabile `group_id`- und `user_id`-IDs aus der lokalen Directory-/Identity-Verwaltung aufgelöst. Das ältere Gruppenbeispiel `cloudos-admins` ist in der Migration als Alias bzw. definierte Bestandsgruppe zu behandeln: Eine beliebige fremde LDAP-Gruppe mit demselben Anzeigenamen darf **niemals** ohne ausdrückliche, administrative Mapping-Policy zum eingebauten Admin-Principal werden.
+
+**Wichtig:** Die App-Startzuweisung an Gruppe `Admin` und die Core-RBAC-Berechtigungen `apps.install`, `apps.assign`, `apps.remove`, `apps.package.delete` und `appstores.sources.manage` sind **getrennte Sicherheitsentscheidungen**. Eine Gruppenmitgliedschaft allein bewirkt keine systemweite Installations- oder API-Superuserrolle. Die zentralen Benutzer-/Gruppensettings werden weiterhin über eigenständige `.cloudApp`-Core-Apps dargestellt; die App-Rechteverwaltung erfolgt in `Apps.cloudApp` (Settings → Apps).
+
+Bei jeder Änderung von Mitgliedschaften, Kontostatus oder App-Grants invalidiert der Permission Service die effektiven Zuweisungsrevisionen. Der Desktop ruft seine autorisierte App-Liste nach einem scoped Event erneut ab und entfernt oder ergänzt Apps **ohne Browser-Neuladen**; der Core verweigert neue Launches und App-API-Aufrufe ab Commit. Das gilt ebenfalls nach späterer LDAP-Synchronisation. Notwendige Pflicht-Core-Apps haben eigene geschützte Baseline-Zuweisungen, damit der Desktop für normale Nutzer weiterhin erreichbar bleibt. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 29. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+Der lokale Directory-Service bleibt die initiale Identitätsquelle. `identity`, `sessions` und `permissions` sind **im Standard in einem gemeinsamen Go-Core-Container enthalten**, können später aber mehrfach replizierte, voneinander getrennte Dienste sein. Das erfordert gemeinsame autoritative Benutzer-/Gruppen-, UID-/GID- und Sessiondaten und ein einheitliches, versioniertes Berechtigungsmodell. Neue UIDs/GIDs werden durch Transaktionen und eindeutige Constraints vergeben, nie durch einzelne lokale Prozesszähler.
+
+Ein Kubernetes-Pod ist kein cloudOS-Administrator. Interne Go-Calls tragen prüfbar gebundene Dienst- und Endbenutzeridentität; `X-User-Id`-Header, Pod-IP und Service-DNS ersetzen keine Authentifizierung. Änderungen an Nutzerstatus oder Gruppenmitgliedschaft machen bestehende Sessions/Grants nach spezifizierter Revision unverzüglich ungültig. Jede Permission-Replik muss denselben `rwx`-/ACL-/App-API-Entscheid liefern; im Zweifel gilt **deny**. SSE-Revoke-Events aktualisieren die Oberfläche, sind aber keine Voraussetzung für den tatsächlichen Sicherheitsentzug.
+
+## Architektur-Ergänzung v0.12 – Credential Assurance und App-/Device-Trennung
+
+Für jede Authentifizierung werden authentifizierte Methoden, Assurance-Level, Zeitpunkt des letzten frischen Step-up und Sessionrevision **serverseitig** persistiert. Die verwendete Loginmethode verleiht keine Ausnahme von POSIX-/ACL-/App-API-Rechten und ermöglicht keinen Zugriff auf fremde Home-Verzeichnisse. Ein Administrator kann für Hochrisikoaktionen einen frischen phishingresistenten Faktor fordern. `Login.cloudApp` als normal gestartete Drittanbieter-App ist nicht erlaubt: Login ist die eng begrenzte Plattform-Bootstrap-Ausnahme.
+
+Ein Device Grant im laufenden Browser folgt einer anderen Policy als die WebAuthn-Anmeldung. Selbst ein erfolgreiches YubiKey-Login autorisiert keine WebUSB-Zugriffe einer App. Window-/Taskbar-Requests haben zusätzlich die `app_instance_id`, `window_id`, Benutzer- und Sessionbindung. Nutzerbezogene Auditereignisse sind selbst bei Diagnoselevel `OFF` verpflichtend.

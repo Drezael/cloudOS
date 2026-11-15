@@ -1,13 +1,22 @@
 # cloudOS – Anwendungsarchitektur und `.cloudApp`-Paketformat
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Dokument:** `docs/APPLICATION_SYSTEM.md`  
-> **Version:** 0.4 - App-first, Signing, API-Allowlist, Shares, Spaces und IAM-Apps
+> **Version:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
-> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
+> **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main` bei `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
 > **Übergeordnete Dokumente:** `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`  
 > **Signatur- und Vertrauenskonzept:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) (v0.2; für kryptografische Details fachlich führend)  
 
-> **Verbindliche API-Endpoint-Policy:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (v0.2; fuer Deklaration, Freigaben, Installationsvorschau und API-Enforcement fuehrend)
+> **Verbindliche API-Endpoint-Policy:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (v0.3; fuer Deklaration, Freigaben, Installationsvorschau und API-Enforcement fuehrend)
 > **Geltungsbereich:** CloudOS-Core, Core-Apps, installierbare Apps, Paketformat, Installation, Laufzeit, Berechtigungen, UI-Integration und Wartung
 
 ## 1. Ziel und verbindliche Produktentscheidung
@@ -18,7 +27,7 @@ Eine Anwendung muss im cloudOS-App-Register **ordnungsgemäß installiert** und 
 
 Die normalen grafischen Apps werden **auf dem Server gespeichert und im Browser ausgeführt** (Web/TypeScript oder Rust/WebAssembly). Der Core stellt Backend-Dienste bereit, führt aber nicht den normalen App-Oberflächencode aus. Spätere ausdrücklich freigegebene WASI-/Native-Jobs sind getrennte isolierte Hintergrundkomponenten, keine implizite Fähigkeit jeder `.cloudApp`.
 
-Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstützten Installation mit cloudOS ausgeliefert, automatisch provisioniert und stehen ab dem ersten Start bereit. Dazu gehören mindestens `Desktop`, `File Explorer`, `Settings` und `App Installer`. Ein Administrator kann zusätzliche `.cloudApp`-Pakete bequem im File Explorer per **Rechtsklick → App installieren** installieren.
+Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstützten Installation mit cloudOS ausgeliefert, automatisch provisioniert und stehen ab dem ersten Start bereit. Dazu gehören mindestens `Desktop`, `File Explorer`, `Settings` und `Apps`. Zusätzliche `.cloudApp`-Pakete werden ausschließlich über `Apps.cloudApp` installiert. Ein **Doppelklick** auf eine unregistrierte Paketdatei öffnet die Apps-Verwaltung samt Sicherheitsprüfung; **keine** Installation per Rechtsklick.
 
 > **Begriffliche Abgrenzung:** Interne Go-Core-Dienste, Nginx, PostgreSQL, NATS, ein OIDC-Provider und isolierte Runtime-Worker sind **Infrastrukturprozesse**, keine vom Benutzer gestarteten Anwendungen. Sie benötigen kein `.cloudApp`-Paket. Eine Authentifizierungs-/Notfalloberfläche vor dem App-Bootstrap darf als minimale, geprüfte Plattform-Oberfläche existieren; sie ist kein allgemeiner App-Ersatz. Alle regulären sichtbaren cloudOS-Funktionen müssen über Core-Apps realisiert werden.
 
@@ -40,7 +49,7 @@ Ein Teil dieser Anwendungen sind **Core-Apps**: Sie werden bei jeder unterstütz
 14. **Wiederherstellbarkeit.** Fehlerhafte Installationen, Updates und App-Abstürze dürfen cloudOS nicht unbootbar machen; ein minimaler Recovery-Pfad bleibt erhalten.
 15. **API-Allowlist je App-Version:** Jedes Paket muss die signierte Datei `permissions/api-access.json` mit den benötigten cloudOS-Core-API-Endpunkten enthalten, auch bei leerer Liste. Nicht aufgeführte Operationen sind immer serverseitig verboten.
 16. **Vollständige API-Freigabe vor Installation:** Der Administrator sieht bei jeder Installation und jedem Update **alle** beantragten Endpunkte, ihre Methoden, Ressourcenscopes und die vom Core ermittelten Sicherheitsrisiken. Die Genehmigung ist an den signierten Paket-/Deklarationsdigest gebunden.
-17. **Keine indirekte Privilegienausweitung:** Die App darf Core-APIs nur über einen validierten App-Kontext nutzen; dieselbe Prüfung gilt für Web, Rust/WASM, WASI, WebSocket und spätere native Runner. Selbst Core-Apps erhalten keine pauschalen API-Rechte.
+17. **Keine indirekte Privilegienausweitung:** Die App darf Core-APIs nur über einen validierten App-Kontext nutzen; dieselbe Pruefung gilt fuer Web, Rust/WASM, WASI, SSE-Event-Subscriptions und spaetere native Runner. Selbst Core-Apps erhalten keine pauschalen API-Rechte.
 
 ### 1.2 Nichtziele der ersten Version
 
@@ -81,7 +90,7 @@ flowchart TB
     Browser["Browser: schlanker Bootstrap / App Host"]
     Desktop["Desktop.cloudApp – Shell / Taskleiste / Fenster"]
     Explorer["FileExplorer.cloudApp"]
-    Installer["AppInstaller.cloudApp"]
+    Installer["Apps.cloudApp"]
     UserApps["Installierte Web- / Rust-WASM-Apps"]
     GW["Core API Gateway / BFF"]
     APP["Core: App Registry / Installer / Lifecycle"]
@@ -118,7 +127,7 @@ Das Diagramm zeigt *fachliche* Verbindungen. Physisch dürfen alle Go-Dienste zu
 
 Der Bootstrap-Client ist bewusst klein. Er lädt nach Anmeldung die registrierte, geprüfte `Desktop.cloudApp`-Version über die App API und startet sie als **Shell-App**. Diese stellt Startmenü, Taskleiste, Fenstercontainer und App-Launcher bereit. Die Core-Services sind unabhängig davon erreichbar und verwalten weiter Sitzung, Berechtigungen, Registry und Dateisystem.
 
-Ein `FileExplorer.cloudApp`-Paket implementiert den Dateimanager. Es fragt Dateiknoten und Volumes beim File Service ab. Eine `Settings.cloudApp`-Instanz nutzt Settings-/Theme-APIs. Der `AppInstaller.cloudApp`-Workflow ruft ausschließlich den App Installer Service auf.
+Ein `FileExplorer.cloudApp`-Paket implementiert den Dateimanager. Es fragt Dateiknoten und Volumes beim File Service ab. Eine `Settings.cloudApp`-Instanz nutzt Settings-/Theme-APIs. Der `Apps.cloudApp`-Workflow ruft ausschließlich den App Installer Service auf.
 
 Die Darstellung des Fensters und seiner Bedienelemente ist eine **Desktop-App-Aufgabe**; die autoritative Instanzregistrierung, die persistenten Fensterzustände und die Rechteprüfung liegen im Core.
 
@@ -160,18 +169,29 @@ Dateisystem, Authentifizierung, ACLs, Suche, Shell-Befehle und Theme-Auflösung 
 
 | Paket-ID (Entwurf) | Anzeigename | Rolle | Status |
 |---|---|---|---|
-| `io.cloudos.desktop` | Desktop | Desktop-Shell, Fenster, Taskleiste, Launcher, Kontextmenüs | **Pflicht / Autostart** |
+| `io.cloudos.desktop` | Desktop | Desktop aus `/.desktop/`, Taskbar an vier Kanten, Startknopf/Startmenue, Fenster und Realtime | **Pflicht / Autostart** |
 | `io.cloudos.file-explorer` | File Explorer | Zugriff auf das sichtbare VFS, Dateioperationen und Dateizuordnungen | **Pflicht / vorinstalliert** |
 | `io.cloudos.settings` | Settings | Benutzer-, Theme- und erlaubte Systemeinstellungen | **Pflicht / vorinstalliert** |
-| `io.cloudos.app-installer` | App Installer | Installationsvorschau, Bestätigung, Fortschritt und Ergebnis | **Pflicht / vorinstalliert** |
+| `io.cloudos.apps` | Apps | Installation, Uninstall, Paketlöschung, Benutzer-/Gruppenzuweisung; unter Settings erreichbar | **Pflicht / vorinstalliert** |
+| `io.cloudos.appstore` | App Store | Moderierter GitHub-Katalog und ausschließlich eigene Store-Installationen | **Vorinstalliert, zunächst Admin-Gruppe** |
 | `io.cloudos.system-dialogs` | System Dialogs | Datei-Picker, Bestätigungen, Berechtigungen und Fehlerdialoge | **Pflicht / vorinstalliert** |
 | `io.cloudos.notifications` | Notification Center | System- und App-Meldungen anzeigen | **Pflicht / vorinstalliert** |
 | `io.cloudos.sharing` | Sharing | Interne Datei-/Ordnerfreigaben | **Core-App mit Sharing-Feature / vorinstalliert** |
 | `io.cloudos.spaces` | Spaces | Arbeitsbereiche, Mitglieder, Rollen und Quotas | **Core-App mit Spaces-Feature / vorinstalliert** |
 | `io.cloudos.settings.users` | User Management | Lokale Benutzer und Profile | **Core-App der Identity-Baseline** |
 | `io.cloudos.settings.groups` | Group Management | Gruppen und Mitgliedschaften | **Core-App der Identity-Baseline** |
+| `io.cloudos.settings.account-security` | Account Security | Passkeys, SSH-Public-Keys, YubiKey/WebAuthn-Methoden, Sitzungen und Recovery | **Pflicht / signierte Core-App; Self-Service + getrennte Admin-Policy** |
+| `io.cloudos.logs` | Logs | Durchsuchbare, berechtigte Diagnoseprotokolle, Filter und Log-Level-Verwaltung | **Pflicht / signierte Core-App; Zugriff nur für Logging-Administratoren** |
 
-Die Namen/IDs sind **Entwürfe**, die in einem eigenen Contract festgeschrieben werden. Zusätzliche notwendige Core-Apps können auf dieselbe Weise Bestandteil der Baseline werden. **Nicht jede Core-App wird bei Login automatisch als sichtbares Fenster geöffnet**: Desktop startet als Shell-App; File Explorer, Settings und Installer starten bei Bedarf. System Dialogs und Notification Center dürfen von der Desktop-App als kontrollierte, registrierte Komponenten gestartet oder eingebettet werden.
+Die Namen/IDs sind **Entwürfe**, die in einem eigenen Contract festgeschrieben werden. Zusätzliche notwendige Core-Apps können auf dieselbe Weise Bestandteil der Baseline werden. **Nicht jede Core-App wird bei Login automatisch als sichtbares Fenster geöffnet**: Desktop startet als Shell-App; File Explorer, Settings, Apps und App Store starten bei Bedarf. System Dialogs und Notification Center dürfen von der Desktop-App als kontrollierte, registrierte Komponenten gestartet oder eingebettet werden.
+
+### 5.1a Desktop-Shell, Taskbar Settings und Verknuepfungen
+
+`Desktop.cloudApp` ist die einzige regulare Desktop-Shell. Sie rendert einen Start-Button und das Startmenue als **interne UI-Komponenten**, keine separat gestarteten Apps. Sie kann ihre Taskleiste ueber `top`, `bottom`, `left`, `right` an jedem Bildschirmrand darstellen. Der Benutzer konfiguriert dies durch Rechtsklick auf die Taskleiste -> **Taskleisteneinstellungen**, was die separat installierte `Settings.cloudApp` mit einem geprueften Deep Link startet. Deren eigene API-Allowlist und Datei-API-Zugriffsrechte gelten unveraendert.
+
+Datei-, Ordner- und Shortcut-Icons auf dem Desktop sind ausschliesslich direkte Kinder des VFS-Ordners `/.desktop/` im **eigenen Home**. `/.taskbar.json` speichert die Taskleisten-Settings; `/.desktop-layout.json` speichert gegebenenfalls Icon-Anordnung. Die Desktop-App reagiert auf File-Service-Events und autoritative Snapshots ohne Reload. Eine `.cloudlink` ist eine reine Daten-Verknuepfung, niemals eine installierte oder direkt ausfuehrbare `.cloudApp`. Der Lifecycle Service prueft jede Ziel-App vor dem Start.
+
+Fachlich fuehrend: [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
 
 ### 5.2 Vorinstallierte optionale Anwendungen
 
@@ -192,6 +212,7 @@ Auch eine vertrauenswürdige Core-App darf keine Sicherheitsprüfung im Go-Core 
 - **Containerformat v1:** ZIP-Archiv mit unveränderlicher, dokumentierter Verzeichnisstruktur.
 - **Manifest:** `cloudos.app.json` im Archivstamm.
 - **API-Deklaration:** verpflichtende `permissions/api-access.json` mit allen benötigten cloudOS-API-Endpunkten; auch ohne API-Bedarf ist die signierte leere Liste Pflicht.
+- **Gerätedeklaration:** verpflichtende `permissions/device-access.json` mit Gerätekategorien, Transporten und Operationen; ohne Gerätebedarf eine signierte leere `devices`-Liste.
 - **Inhaltsverifikation:** SHA-512-Digest-Liste jedes relevanten Archiveintrags (Nextcloud-inspiriertes Modell).
 - **Authentizität:** X.509-Code-Signing-Zertifikat mit App-ID-Scope, signierter kanonischer Paketindex und differenziertes Vertrauensmodell (CA-verifiziert oder explizit genehmigte Selbstsignatur).
 - **Spezifikation:** eigenständige `package_format_version`, unabhängig von `app_version` und `core_api_version`.
@@ -204,7 +225,8 @@ Das Archivformat ist eine **Architekturvorgabe**, keine bereits implementierte D
 ExampleEditor-1.0.0.cloudApp
 ├── cloudos.app.json
 ├── permissions/
-│   └── api-access.json       # Signierter, verpflichtender Endpoint-Katalog der App
+│   ├── api-access.json       # Signierter, verpflichtender Endpoint-Katalog der App
+│   └── device-access.json    # Signierter, verpflichtender Geräte-Katalog, ggf. leer
 ├── META-INF/
 │   ├── package-index.json
 │   ├── signature.json
@@ -248,6 +270,10 @@ Die Inhalte richten sich nach dem Runtime-Profil: Eine reine Web-App benötigt k
     "schema_version": "1.0",
     "file": "permissions/api-access.json"
   },
+  "device_access": {
+    "schema_version": "1.0",
+    "file": "permissions/device-access.json"
+  },
   "capabilities_requested": [
     "files.open:selected",
     "files.save:selected",
@@ -280,6 +306,10 @@ Die gleichen Manifestregeln gelten für die Desktop-App:
   "api_access": {
     "schema_version": "1.0",
     "file": "permissions/api-access.json"
+  },
+  "device_access": {
+    "schema_version": "1.0",
+    "file": "permissions/device-access.json"
   },
   "capabilities_requested": [
     "desktop.shell",
@@ -383,101 +413,39 @@ sequenceDiagram
 - **Core-App-Schutz:** Normale `DELETE`-/Disable-Requests für Pflicht-Apps werden vom Server verweigert, auch für Administratoren.
 - **Keine öffentliche Ausführung des Staging-Codes:** Fehlgeschlagene Imports sind bis zur Bereinigung quarantänisiert.
 
-## 8. Installation per Rechtsklick – Administrator-Workflow
+## 8. Installieren mit Apps.cloudApp – Doppelklick und Settings
 
-### 8.1 Benutzererlebnis
+Das bisherige Konzept einer **Rechtsklickinstallation ist aufgehoben**. File Explorer und Desktop bieten keine Aktion „App installieren“ in Kontextmenüs. Eine nicht registrierte `.cloudApp` darf niemals direkt ausgeführt werden.
 
-Ein Administrator lädt `ExampleEditor-1.0.0.cloudApp` beispielsweise nach `/Downloads/` hoch. Der File Explorer erkennt Dateiendung, validen Dateityp und die Installer-Verfügbarkeit. Im Kontextmenü erscheint **App installieren**. Die Aktion öffnet den vorinstallierten App Installer über den Core App-Lifecycle; es wird **nicht** die Datei als Skript gestartet.
+### 8.1 Einstieg aus Settings
 
-Die Installer-Oberfläche zeigt Anzeigename, App-ID, Version, Publisher/Signaturstatus, benötigte Core-Version, Runtime, benötigte Abhängigkeiten, angeforderte Capabilities, Paketgröße und vorhandene Installation. **Sie muss immer jede deklarierte API mit Methode, Endpunkt, Scope, Datenkategorie und den vom Core ermittelten Sicherheitsauswirkungen anzeigen.** Der Administrator bestätigt die komplette API-Freigabe ausdrücklich; ohne Bestätigung ist die Installation unmöglich. Anschließend legt er die erlaubten Benutzer/Gruppen fest. **Unabhängig von der Signaturvertrauensklasse ist die API-Freigabe ein eigenständiger Pflichtschritt.** Bei einer gueltigen Selbstsignatur zeigt `AppInstaller.cloudApp` vorher einen hervorgehobenen Sicherheitsdialog: Der Herausgeber ist nicht unabhaengig verifiziert, die App kann Schadcode enthalten; App-ID, Version, SHA-256-Zertifikatsfingerprint, Paketdigest und angeforderte Rechte werden angezeigt. Die Aktion `Risiko akzeptieren und installieren` ist nur durch einen berechtigten Administrator mit einmaliger, paketgebundener Bestätigung moeglich; Abbrechen ist der sichere Standard. Bei ungueltiger Signatur erscheint ausschliesslich ein Fehler, keine Risiko-Ausnahme.
+`Settings.cloudApp` enthält unter **Apps** einen Einstieg in die geschützte, signierte `Apps.cloudApp`. Diese Core-App bietet: installierte und inaktive App-Versionen, manuelle Paketwahl, Installationsvorschau, Update, Uninstall, kontrolliertes Löschen von Paketdateien, Signatur-/API-Risikodetails, Benutzer-/Gruppenzuweisung sowie Herkunft/Provenienz.
 
-**Standardpolitik MVP:** Installation ist ausschließlich eine administrative, systemweite Aktion. Nach Installation ist die App **nicht automatisch für alle Nutzer freigegeben**. Nur ausdrücklich zugewiesene Nutzer/Gruppen können sie in ihrer App-Liste sehen und starten. Core-Apps sind durch die Baseline von dieser optionalen Zuweisung ausgenommen und für berechtigte cloudOS-Nutzer verfügbar.
+Sie ist anfangs nur für Mitglieder der stabilen Gruppe `Admin` sichtbar. Installieren, Zuweisen und Entfernen erfordern **zusätzlich** passende Core-RBAC-Rechte. Die Gruppe `Admin` ist kein unbedingter Superuser für VFS oder Go-APIs.
 
-### 8.2 Kontextmenü-Matrix
+### 8.2 Doppelklick auf eine nicht installierte `.cloudApp`
 
-| Situation | Kontextmenü | Serverergebnis |
-|---|---|---|
-| Admin, gültige `.cloudApp`, noch nicht installiert | `App installieren` | Installationsvorschau / Adminprüfung |
-| Admin, gültige `.cloudApp`, ältere Version vorhanden | `App aktualisieren` | Versions- und Kompatibilitätsprüfung |
-| Admin, dieselbe Version mit gleichem Digest installiert | `App verwalten` | Vorhandene Installation, kein Doppelimport |
-| Admin, selbstsigniertes, kryptografisch gueltiges Paket | `App installieren` | Deutliche Warnung, gesonderte Admin-Risikoannahme, dann Installation |
-| Admin, unsigniertes / defektes Paket | `Paketinformationen` / Fehler | Installation **immer** verweigert |
-| Standardbenutzer, `.cloudApp` in eigenem Home | Keine Installationsaktion; `Paketinformationen` optional | `403` bei eigenmächtigem API-Aufruf |
-| Beliebiger Benutzer, Doppelklick auf nicht installiertes Paket | Paketinformation; beim Admin optional Installationsdialog | **Keine Ausführung** |
-| Core-App im Systemvolume | `App-Informationen` / administrativer Updatepfad | Geschützte Baseline, kein normales Uninstall |
+Ein **Doppelklick** auf eine `.cloudApp`-Quelldatei aus Home, File Explorer oder dem Desktop wird als `apps.install.from-file` interpretiert. Der File Association Router prüft Dateirechte und `apps.install`, öffnet direkt `Apps.cloudApp` mit einem kurzlebigen, revisionsgebundenen File-Handle und beginnt unverzüglich den Installations-**Preflight**. Es ist kein zusätzlicher Rechtsklick- oder Auswahlschritt erforderlich.
 
-Die Sichtbarkeit des Menüeintrags ist Komfort, **kein Sicherheitsmechanismus**. API-Requests ohne `apps.install` scheitern selbst bei manipuliertem Browser oder direktem `curl`-Aufruf.
+Dieser automatische Beginn **umgeht keine Pflichtbestätigung**. Die eigentliche systemweite Registrierung erfolgt erst, wenn der Administrator alle signierten API-Endpunkte samt Sicherheitsfolgen bestätigt und bei Selbstsignatur zusätzlich das Herausgeberrisiko ausdrücklich akzeptiert hat. Fehlt eines davon, scheitert der Commit sicher. Eine bereits identisch installierte Datei führt zur App-Detailsicht; eine geänderte Version zu einem klaren Update-/Konfliktworkflow.
 
-### 8.3 Technischer Installationsablauf
+### 8.3 Installation, Herkunft und Admin-Default
 
-```mermaid
-sequenceDiagram
-    participant A as Administrator
-    participant E as FileExplorer.cloudApp
-    participant I as AppInstaller.cloudApp
-    participant G as API Gateway / BFF
-    participant P as App Installer Core
-    participant F as File Service
-    participant T as Trust / Permission Core
-    participant R as App Registry
-    participant S as system:/applications
-    participant N as Outbox / Events
-    A->>E: Rechtsklick auf *.cloudApp
-    E->>G: Metadaten / Installation erlaubt?
-    G-->>E: Kontextaktion bei Berechtigung
-    A->>E: App installieren
-    E->>I: App starten mit File-Handle
-    I->>G: POST /app-installation-previews
-    G->>P: Preview und Installationsplan
-    P->>F: Eingeschränktes Paket lesen
-    P->>T: Signatur / Publisher / Berechtigung prüfen
-    P-->>I: Version, Capabilities, Dependencies, Trust und API-Endpoints
-    I-->>A: Alle API-Endpoints mit Methode, Pfad, Scope und Sicherheitsrisiko anzeigen
-    A->>I: Gesamte Endpoint-Liste explizit genehmigen
-    I->>G: POST /app-installation-previews/{id}/api-approvals
-    G->>P: Genehmigung mit Paket-/Deklarationsdigest und Plan-Hash binden
-    opt Gueltige Selbstsignatur
-        I-->>A: Warnung, App-ID, Fingerprint, Paketdigest und Berechtigungen
-        A->>I: Selbstsigniertes Risiko bewusst akzeptieren
-        I->>G: Einmalige Risk-Acceptance fuer diesen Digest
-        G->>P: Administratorrecht und gebundene Risikoentscheidung pruefen
-    end
-    A->>I: Installation + Nutzerzuweisung bestaetigen
-    I->>G: POST /app-installations mit Preview-ID/Idempotenz
-    G->>P: Installiere validierten Plan
-    P->>F: Paketstaging / geprüftes Promotion
-    F->>S: unveränderliches Artefakt ablegen
-    P->>R: Version + Installation + Outbox registrieren
-    R->>N: app.installed (über Outbox)
-    P-->>I: installed / grant-Status
-    I-->>A: Ergebnis und App-Verwaltung
-```
+Alle zusätzlichen Apps werden **systemweit genau einmal** nach `system:/apps/` installiert; ihre Laufzeit ist mehrfach pro Benutzer möglich. Die Installation ist zunächst nur für die **vordefinierte Gruppe `Admin`** sichtbar und startbar. Ein Administrator kann über die Apps-Verwaltung Benutzer und Gruppen einzeln berechtigen oder entziehen, ohne Browser-Reload. Nicht freigegebene Apps erscheinen weder im Startmenü noch in Suche, Dateizuordnungen oder erlaubten App-Listen; direkte Start- und Asset-Anfragen sind serverseitig gesperrt.
 
-### 8.4 Installationssicherheit
+Für notwendige Pflicht-Core-Apps gelten geschützte **Release-Baseline-Zuweisungen**, die eine Bedienung des Systems durch alle berechtigten Benutzer ermöglichen. `Apps.cloudApp` und `AppStore.cloudApp` sind zunächst Admin-only. Die API-Allowlist und Linux-artigen Dateirechte sind hiervon **unabhängige zusätzliche Schranken**.
 
-- Der File-Handle gehört zur angemeldeten Administratorsitzung, nicht zu einer frei gewählten Hostdatei.
-- Installation arbeitet mit einem **unveränderlichen Snapshot** des Pakets. Wird das Original im Home zwischen Vorschau und Bestätigung geändert, wird ein anderer Digest erkannt und eine neue Vorschau verlangt.
-- Installation nutzt einen gebundenen, kurzlebigen `preview_id` beziehungsweise `plan_hash`; Bestätigung akzeptiert keine heimlich veränderten Capabilities oder Abhängigkeiten.
-- Bereits installierte Versionen sind bei gleichem App-ID/Version/Digest idempotent; bei unterschiedlichem Digest trotz gleicher ID/Version wird nicht still überschrieben.
-- Installationen und ihre Freigaben sind getrennte transaktionale/kompensierbare Schritte mit Audit und Wiederholungsregeln.
-- Der File Explorer darf die Installation nicht direkt im Browser entpacken oder Dateien in `system:/` schreiben.
-- Eine Installation darf ohne explizite, vom Core kontrollierte Freigabe keine neuen Publisher-Vertrauensanker importieren.
-- **Self-signed** erfordert zusaetzlich `apps.install.self_signed` und eine serverseitige, einmalige, an Preview, Paketdigest, App-ID, Zertifikatsfingerprint und Policy gebundene Risikobestaetigung. **Kein** Selbstsignatur-Dialog bei `INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE`, `INVALID_SIGNATURE`, `APP_SCOPE_MISMATCH` oder Widerruf.
-- Jede neue selbstsignierte Version und jeder neue Digest benoetigt eine erneute Warnung. Automatische stille Updates sind ausgeschlossen.
-- Die eigene Warnungs- und Key-Rotation-Policy ist in [`APP_SIGNING.md`](APP_SIGNING.md) definiert.
+### 8.4 Moderierter AppStore und externe GitHub-Quellen
 
-### 8.5 Verpflichtender API-Dialog und signierte Endpoint-Allowlist
+Die separate `AppStore.cloudApp` bezieht einen signierten moderierten Katalog aus einem **eigenen GitHub-Repository** und lässt weitere durch Administratoren konfigurierbare GitHub-Katalogrepositories als Quellen zu. Der Katalog ist ein Datenvertrag mit Versions-/Digestbindung, keine beliebig in die Store-App injizierte Webseite. Moderations-/Vertrauensstatus, Signatur, geprüfter Paketdigest und verlangte API-Endpunkte sind vor jeder Installation sichtbar. Zusätzliche Katalogquellen sind nicht automatisch offiziell moderiert.
 
-Das Paket enthält verpflichtend die Datei `permissions/api-access.json`. Die Prüfung erfolgt **vor** dem Installationsdialog und umfasst auch ihre SHA-512-Signaturbindung. Der Installer holt Methode/Pfad/Ressourcenrisiko aus dem **vertrauenswürdigen** Core-API-Katalog und zeigt **alle** Endpunkte an; für `core_only`- oder `internal_only`-Operationen ist eine reguläre Drittanbieterinstallation unabhängig von der Administratorrolle ausgeschlossen; eine einzelne Capability-Zusammenfassung reicht nicht aus.
+**Unveränderliche Installationsherkunft:** Die App Registry speichert `manual`, `store` mit `management_owner_app_id` und `catalog_source_id` oder `core_baseline`. Der App Store darf nur Anwendungen **aktualisieren oder deinstallieren, die er selbst installiert hat**. Die zentrale `Apps.cloudApp` darf im Rahmen administrativer RBAC- und Baseline-Regeln alle ungeschützten Apps verwalten. Das Entfernen einer GitHub-Quelle deinstalliert keine vorhandenen Apps und verleiht keinem anderen Store das Verwalten dieser Installation.
 
-- Die Entscheidung ist an `preview_id`, `plan_hash`, Paketdigest, API-Deklarationsdigest, Katalogrevision, App-Version und den bestätigenden Administrator gebunden.
-- **MVP bei manuellen Installationen und Updates:** Alle deklarierten API-Zugriffe genehmigen oder die Installation abbrechen. Nicht genehmigte Endpunkte dürfen niemals zur Laufzeit genutzt werden. Verpflichtende Core-Apps erhalten ihre **signierte, einsehbare** Endpoint-Freigabe über die freigegebene Release-Baseline, ohne Bootstrap-Dialog.
-- Auch Updates zeigen die **gesamte** neue Liste sowie einen Berechtigungsdiff (neu, entfernt, geänderte Methode, Scope erweitert/reduziert).
-- Der Server prüft jeden App-Aufruf in der Schnittmenge aus signierter Deklaration, Installationsfreigabe, aktuellem App-Kontext, Benutzer-/App-Capabilities und Ressourcen-ACL.
-- Ein selbstsigniertes Paket erhält **zusätzlich** den unabhängigen Zertifikatsrisikodialog; beide Entscheidungen sind nötig.
-- Die geschützte Core-App-Baseline besitzt je Pflicht-App ebenfalls signierte API-Deklarationen und eine releasegebundene interne Genehmigung, aber **keinen** pauschalen All-API-Bonus.
+### 8.5 Deinstallation und Paketdatei löschen
 
-Ausführliches Schema, Browser-Isolation, REST-/WebSocket-/WASI-Enforcement und Testmatrix: [`APP_API_ACCESS.md`](APP_API_ACCESS.md).
+`Apps.cloudApp` bietet getrennte Aktionen: **App deinstallieren** (Registry, Zuweisung, Instanzen, Realtime), **nicht mehr referenzierte installierte Paketdatei löschen** (`system:/apps/`) und die optionale Kombination nach erfolgreicher Referenzprüfung. Eine ursprüngliche heruntergeladene Datei in `/Downloads` bleibt eine **separate private VFS-Datei** und wird niemals ohne ausdrückliche Bestätigung gelöscht. Ebenso bleiben private App-Daten in Home-Verzeichnissen erhalten, solange keine eigene autorisierte Löschaktion besteht. Pflicht-Core-Apps sind gegen gewöhnliches Uninstall/Delete geschützt.
+
+Die vollständige End-to-End-Spezifikation einschließlich GitHub-Quellen, moderierter Releases, Berechtigungswechseln, Versionen, Provenienz, Datenmodell und Abnahmetests steht in **[APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md)**.
 
 ## 9. App-Berechtigungen, Zuweisungen und Sichtbarkeit
 
@@ -515,11 +483,11 @@ Das VFS-Dokument definiert exakt **zwei** virtuelle Festplatten. Die neue App-Ar
 
 ```text
 system:/
-└── applications/
+└── apps/
     ├── packages/
-    │   └── <app-id>/<version>/<digest>/      # unveränderlicher geprüfter Paketinhalt
-    ├── manifests/                             # freigegebene Metadaten/Indizes
-    └── assets/                                # kontrolliert ausgelieferte Icons/Assets
+    │   └── <app-id>/<version>/<digest>.cloudApp # signiertes, unveraenderliches Archiv
+    ├── runtime-assets/                        # geprüfte Web/WASM-Assets
+    └── release-baseline/                      # geschützte Core-App-Assets
 ```
 
 Die Installations-Metadaten liegen primär in den App-Service-Tabellen von PostgreSQL; die logischen Systemdateien enthalten signierte bzw. geprüfte Paketartefakte. Core-Apps sind normale registrierte `.cloudApp`-Pakete mit zusätzlichem **Baseline-Schutz**, keine unregistrierten Dateien.
@@ -532,7 +500,9 @@ Jeder Benutzer sieht sein eigenes Home weiterhin als `/`. Ein mögliches interne
 
 ```text
 /                             # Home-Root des angemeldeten Nutzers
-├── Desktop/
+├── .desktop/                      # autoritative Desktop-Dateien und Verknuepfungen
+├── .taskbar.json                   # versteckte Taskbar-Einstellungen
+├── .desktop-layout.json            # optionale Icon-Positionen
 ├── Documents/
 ├── Downloads/
 │   └── ExampleEditor-1.0.0.cloudApp   # Installationsquelle, nicht ausführbar
@@ -567,11 +537,16 @@ Ein browserfähiges ArtCraft-/PhotoCraft-/CADCraft-Build kann als `web-wasm`-App
 
 ## 12. App Host, Window Manager und UI
 
+**Verbindlicher Fensterzwang v0.12:** Alle regulär sichtbaren `.cloudApp`-Anwendungen rendern ausschließlich innerhalb des **trusted Window Host** von `Desktop.cloudApp`, inklusive Rust-/WASM-Canvas. Das Framework erzeugt und kontrolliert Titelleiste, Min/Max/Restore, Fokus, Drag, Resize, Snap, Taskbar-Running-Markierung und Schließen. Die App darf nicht frei ein Pop-up außerhalb des Frameworks erzeugen oder ihre eigene privilegierte Fenster-/Dialogschale als cloudOS-Systemdialog ausgeben. Beim Taskleisten-Rechtsklick gibt es **Dieses Fenster schließen** und **App beenden**; vor einem normalen Close kann die App einen `beforeClose`-Hinweis zu ungespeicherten Daten liefern. Ausnahmen sind Desktop Shell, minimaler Login/Recovery-Bootstrap und reine Hintergrundjobs ohne UI. Fachvertrag: [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md).
+
+**Client-Geräte:** Sichtbare Apps dürfen nur die im signierten `permissions/device-access.json` deklarierten und genehmigten Geräteprofile über den **Client Device Broker** des Frameworks anfragen. Der Installer zeigt die Geräte-Risiken getrennt von API-Zugriffsrechten; der Benutzer muss den lokalen Browserpicker/Grant auslösen. Kein direktes Mounten von Client-USB in den Core. Siehe [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+
+
 ### 12.1 Desktop als Core-App
 
 `Desktop.cloudApp` ist die **Desktop-Shell**. Sie enthält die visuellen Komponenten und interaktiven Workflows für Desktop, Taskleiste, Launcher, Fensterrahmen, Startmenü, Kontextmenüs und App-Hosting. Sie verwendet den Go-Core zum Registrieren, Starten, Beenden, Persistieren und Berechtigen der App-Instanzen.
 
-**Wichtige Trennung:** Eine Anzeige innerhalb des Desktops ist nicht automatisch eine ausführbare App. Dekorative UI-Komponenten sind Bestandteile der installierten Desktop-App. Jede separat gestartete Funktion (z. B. File Explorer, Settings, Installer, Terminal) hat dagegen eine eigene registrierte `.cloudApp`-Identität und einen eigenen Lebenszyklus.
+**Wichtige Trennung:** Eine Anzeige innerhalb des Desktops ist nicht automatisch eine ausführbare App. Dekorative UI-Komponenten sind Bestandteile der installierten Desktop-App. Jede separat gestartete Funktion (z. B. File Explorer, Settings, Apps, App Store, Terminal) hat dagegen eine eigene registrierte `.cloudApp`-Identität und einen eigenen Lebenszyklus.
 
 ### 12.2 App-zu-App-Kommunikation
 
@@ -579,13 +554,13 @@ Apps kommunizieren untereinander nur über dokumentierte Core-APIs, adressierte 
 
 App-Verfügbarkeit wird über die Registry abgefragt. Der Launcher verwendet App-IDs und Installations-/Zuweisungsstatus, **keine hartcodierte Liste** von eingebauten Sonderfällen.
 
-### 12.3 Kontextmenü-Erweiterung für `.cloudApp`
+### 12.3 Doppelklick-Handler für `.cloudApp`
 
-Die App Installer-Core-App registriert die Aktion `App installieren` für den Dateityp `.cloudApp` über die zentrale Kontextaktions-/Dateitypregistrierung. Der File Explorer fragt diesen Katalog dynamisch ab. Eine zusätzliche Server-Policy filtert die Aktion nach Administratorrecht, Dateityp und Betriebszustand. Dadurch müssen weder der File Explorer noch das Desktop-UI Installationslogik duplizieren.
+Die geschützte File-Association-Tabelle registriert `.cloudApp` für einen **Doppelklick-Installationsintent**, der die signierte `Apps.cloudApp` mit einem opaken, kurzlebigen File-Handle öffnet. Der Go-Core prüft die Benutzerrolle, Dateirechte, Datei-Revision, Signatur und API-Allowlist; niemals wird ein nicht installiertes Paket direkt gestartet. **Kontextmenüs enthalten keine Installationsaktion.** Die technische Installation wird erst nach vollständigen, separaten Pflichtzustimmungen durchgeführt. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
 
 ## 13. Theming und UI-Architektur
 
-Die bisher festgelegte Pflicht zur vollständigen Anpassbarkeit aller cloudOS-eigenen visuellen Elemente gilt **auch für jede mitgelieferte Core-App**. Desktop, File Explorer, Settings, Installer, System Dialogs und Notification Center verwenden dieselben Design-Tokens, semantischen Komponenten, Icon-/Schrift-/Layout-Varianten und die Theme Bridge.
+Die bisher festgelegte Pflicht zur vollständigen Anpassbarkeit aller cloudOS-eigenen visuellen Elemente gilt **auch für jede mitgelieferte Core-App**. Desktop, File Explorer, Settings, Apps, App Store, System Dialogs und Notification Center verwenden dieselben Design-Tokens, semantischen Komponenten, Icon-/Schrift-/Layout-Varianten und die Theme Bridge.
 
 Der Theme Service verwaltet die autoritative Theme-Auswahl, während die Apps über ihr SDK signalisierte Theme-Änderungen übernehmen. Nicht jede Anwendung muss dieselbe Widget-Bibliothek verwenden, aber **cloudOS-eigene UI muss die versionierten Theme-Verträge vollständig implementieren**.
 
@@ -729,6 +704,10 @@ core_apps.baseline.degraded
 
 Events werden in der Owner-Datenbank mit einer Outbox erzeugt und über NATS JetStream verteilt. Empfänger müssen idempotent sein und Event-Replay unterstützen. Die Event-Payload darf keinen privaten Paketinhalt, keine unbegrenzten Dateihandles und keine Hostpfade enthalten.
 
+### 15.3 Push-Laufzeit fuer `.cloudApp`
+
+Der privilegierte App Host oeffnet eine authentifizierte SSE-Verbindung zum Core, nicht jede fremde App selbst. Die App Bridge leitet ausschliesslich die in der **signierten** `permissions/api-access.json` per `event_subscriptions` deklarierten, administrativ genehmigten und fuer die aktive App-Instanz aktuell berechtigten Deltas weiter. Der Core prüft Topics und Ressourcen-Scope bei Subscription, Projektion, Delivery und Replay. Keine App darf per JavaScript oder Rust/WASM zyklische REST-Statusabfragen als Aktualisierungsersatz starten. Installations-, Update-, Start-, Stop-, Notification- und Assignment-Events werden als autorisierte Deltas gepusht. Die Notification Inbox ist persistent und wird als Core-App dargestellt; sie ist kein ungeschuetzter generischer Event-Bus. Details [PUSH_REALTIME.md](PUSH_REALTIME.md).
+
 ## 16. Persistentes Datenmodell
 
 ### 16.1 Vorgesehene Entitäten
@@ -792,7 +771,7 @@ registered -> authorized -> starting -> running -> stopping -> stopped
                            +-> failed <-+
 ```
 
-Eine Installation kann **mehrere Instanzen bei verschiedenen Benutzern** haben. Eine App darf keine fremde laufende Instanz auflisten, beenden oder deren Dateihandles wiederverwenden. Autorisierung und Identität werden bei jeder neuen Instanz geprüft.
+Eine systemweit registrierte App kann **mehrere Laufzeitinstanzen bei verschiedenen Benutzern** haben. Eine App darf keine fremde laufende Instanz auflisten, beenden oder deren Dateihandles wiederverwenden. Autorisierung und Identität werden bei jeder neuen Instanz geprüft.
 
 ### 17.3 Updates und Rollback
 
@@ -866,16 +845,16 @@ cloudOS/
 │   ├── apps/bridge/v1/               # App Host Messaging
 │   └── apps/events/v1/               # Event-Schemas
 ├── core/
-│   ├── applications/                # Go Package/Registry/Installer/Lifecycle
+│   ├── apps/                # Go Package/Registry/Installer/Lifecycle
 │   ├── runtimes/                    # Go Runtime/Process Ports
 │   ├── permissions/
 │   └── files/
-├── applications/
+├── apps/
 │   ├── core/
 │   │   ├── desktop/
 │   │   ├── file-explorer/
 │   │   ├── settings/
-│   │   ├── app-installer/
+│   │   ├── apps-management/
 │   │   ├── system-dialogs/
 │   │   └── notifications/
 │   └── bundled/
@@ -976,19 +955,19 @@ Installationsdauer (p50/p95), Paketprüffehler, Signaturfehler, Installations-Ro
 | APP-001 | Frisches cloudOS booten | Pflicht-Core-Apps signiert installiert |
 | APP-002 | Standardbenutzer anmelden | Desktop startet automatisch als installierte `.cloudApp` |
 | APP-003 | File Explorer über Startmenü öffnen | Registrierte Core-App startet, keine eingebaute Sonder-App |
-| APP-004 | Standardbenutzer ohne Installerrecht | Kein Installationsmenü; direkte API liefert `403` |
-| APP-005 | Admin rechtsklickt auf gültige `.cloudApp` | Installer-App startet mit kontrolliertem File-Handle |
+| APP-004 | Standardbenutzer ohne Installerrecht | Kein privilegierter Doppelklick-Installationsintent; direkte Install-API liefert `403` |
+| APP-005 | Admin doppelklickt auf gültige `.cloudApp` | `Apps.cloudApp` öffnet unmittelbar die Installationsvorschau mit kontrolliertem File-Handle |
 | APP-006 | Admin bestätigt Installationsvorschau | Signierte App wird versioniert im Systemvolume installiert |
-| APP-007 | Installation nicht freigegeben | App ist für Standardbenutzer nicht startbar |
-| APP-008 | Zuweisung für Gruppe | Nur Mitglieder sehen/starten App |
-| APP-009 | Doppelklick auf unregistrierte `.cloudApp` | Keine direkte Ausführung |
+| APP-007 | Global installierte Zusatz-App ohne Einzel-/Gruppenfreigabe | Nur Mitglieder der Gruppe `Admin` sehen/starten sie |
+| APP-008 | Zusätzlicher Gruppen- oder Benutzergrant | Nur betroffene berechtigte Benutzer sehen/starten App; Realtime ohne Reload |
+| APP-009 | Doppelklick auf unregistrierte `.cloudApp` | Nur `Apps.cloudApp`-Preflight, niemals direkte Payload-Ausführung |
 | APP-010 | Gewöhnliche ZIP in `.cloudApp` umbenennen | Installation wird abgelehnt |
 | APP-011 | Digest im Paket manipulieren | Signatur-/Integritaetspruefung schlaegt fehl |
 | APP-012 | Core-App-ID in Fremdpaket behaupten | Keine Core-Registrierung, Paket abgelehnt |
 | APP-013 | Pflicht-Core-App deaktivieren | Serverseitig verweigert |
 | APP-014 | Desktop-Paket korrupt machen | Recovery aktiviert letzte signierte Baseline |
-| APP-015 | Installer-App fehlt | Nur Recovery-Adminpfad verfügbar |
-| APP-016 | App-Paketdatei nach Install löschen | Installierte App bleibt startbar |
+| APP-015 | `Apps.cloudApp` aus Baseline fehlt | Nur signierter Core-Recovery-Adminpfad verfügbar |
+| APP-016 | Ursprüngliche Quelldatei aus `/Downloads` löschen | Installierte App bleibt startbar; produktives Paket auf `system:/apps/` bleibt bestehen |
 | APP-017 | App-Version mit gleichem Digest erneut installieren | Idempotent, keine doppelte Installation |
 | APP-018 | Gleiche App-ID/Version mit neuem Digest | Konflikt, kein stilles Überschreiben |
 | APP-019 | Update fordert zusätzliche Berechtigung | Admin sieht Unterschied, keine stille Grant-Erweiterung |
@@ -1065,9 +1044,9 @@ Die bisherige Phasenfolge 0–18 bleibt erhalten, wird jedoch fachlich umsortier
 | **Phase 3–4** | `apps.install`, `apps.assign`, `apps.launch`, Admin-/User-Policy | Tests gegen unberechtigte Installation/Launch |
 | **Phase 5** | Desktop als `Desktop.cloudApp`, nicht hardcodierter Web-Desktop | Start aus Registry; Recovery möglich |
 | **Phase 6** | File Service liefert beiden Volumes und kontrollierte Paket-Storage-Operationen | Node-/Handle-/App-Package-Rechte bestehen |
-| **Phase 7** | File Explorer als `.cloudApp`; Dateitypregeln und Install-Kontextmenü | Admin kann im File Explorer Install-Preview öffnen |
+| **Phase 7** | File Explorer als `.cloudApp`; `.cloudApp`-Doppelklick-Intent ohne Install-Kontextmenü | Admin öffnet unmittelbar `Apps.cloudApp` und Install-Preflight |
 | **Phase 8** | Install-/Update-/Launch-Events über Core und Realtime | Zweite Sitzung erhält autorisierte Updates |
-| **Phase 9** | App Installer, Registry, Installation, Zuweisung, Lifecycle, SDK und Web-/Rust-WASM-Test-App | **App-first-MVP** abgeschlossen |
+| **Phase 9** | `Apps.cloudApp`, globale Registry, Admin-only-Default, Zuweisung, Lifecycle, SDK und Web-/Rust-WASM-Test-App | **App-first-MVP** abgeschlossen |
 | **Phasen 10–14** | Alle Systemanwendungen und Integrationen als installierte Apps | Keine versteckten UI-Sonderfälle |
 | **Phasen 15–18** | Signatur-/Publisher-Policies, Security Review, Recovery, Release und SDK-Stabilität | Sicherer Betrieb und dokumentierte Drittanbieterentwicklung |
 
@@ -1113,7 +1092,7 @@ Dieses Dokument konkretisiert und ersetzt ab seiner Übernahme die bisherigen al
 
 1. `docs/CONCEPT.md`: Alle benutzerseitig gestarteten Systemanwendungen sind `.cloudApp`-Pakete; Core-Apps sind vorinstalliert; Installationen sind admin-gesteuert.
 2. `docs/SYSTEM_ARCHITECTURE.md`: Die logische Trennung Core vs. App gilt auch für Desktop/Window-UI, App-Paket-Registry, Installer, Startvorgang und Recovery.
-3. `docs/VIRTUAL_FILESYSTEM.md`: Systempakete liegen unter `system:/applications`, persönliche Anwendungsdaten im Benutzer-Home; kein zusätzlicher virtueller Datenträger; Dateizugriff ausschließlich über Core-APIs.
+3. `docs/VIRTUAL_FILESYSTEM.md`: Systempakete liegen unter `system:/apps`, persönliche Anwendungsdaten im Benutzer-Home; kein zusätzlicher virtueller Datenträger; Dateizugriff ausschließlich über Core-APIs.
 4. Alle Beispiel-Pfade und IDs sind auf der richtigen Ebene zu interpretieren: Paketquelle im User-Home, unveränderliches installiertes Artefakt auf dem Systemvolume, App-Daten im Benutzer-Home.
 
 Dieses Dokument ist für den **App-Lebenszyklus** fachlich führend; `SYSTEM_ARCHITECTURE.md` bleibt führend für die übergreifende Service-/Vertrauensarchitektur und `VIRTUAL_FILESYSTEM.md` für Pfad-/Mount-/Dateirechte.
@@ -1122,14 +1101,14 @@ Dieses Dokument ist für den **App-Lebenszyklus** fachlich führend; `SYSTEM_ARC
 
 - **Jede regulär gestartete UI-Funktion ist eine installierte `.cloudApp`.**
 - **Core-Dienste sind Go-Systemfunktionen und Infrastruktur, keine Apps.**
-- **Desktop, File Explorer, Settings, App Installer, System Dialogs und Notification Center werden als Core-Apps mitgeliefert.**
+- **Desktop, File Explorer, Settings, Apps, App Store, System Dialogs und Notification Center werden als Core-Apps mitgeliefert.**
 - **Core-Apps sind von Beginn an installiert und geschützte, signierte Releases.**
 - **Drittanbieter-Apps sind im MVP nur durch Administratoren installierbar.**
-- **Rechtsklick auf eine `.cloudApp` öffnet die kontrollierte Installationsvorschau.**
+- **Doppelklick auf eine nicht installierte `.cloudApp` startet `Apps.cloudApp` mit Installationsvorschau; Rechtsklickinstallation ist ausgeschlossen.**
 - **Keine Ausführung direkt aus dem Dateisystem ohne Installation.**
 - **Installation, Zuweisung, Berechtigung und Start sind separate Schritte.**
 - **Das VFS behält genau zwei virtuelle Festplatten.**
-- **System-App-Pakete werden im nur für Admins sichtbaren Systemvolume verwaltet.**
+- **Installierte Apps liegen ausschließlich unter `system:/apps/` auf der ersten, nur für Admins sichtbaren virtuellen Festplatte.**
 - **Jeder Benutzer sieht weiter sein eigenes Home als `/` und erhält keine globalen App-Datenrechte.**
 - **Rust-/WASM-Apps verwenden dieselbe Paket-, Installer- und API-Plattform.**
 - **Jede `.cloudApp` ist kryptografisch signiert.** Zertifizierte Publisher und selbstsignierte Herausgeber werden getrennt ausgewiesen.
@@ -1154,3 +1133,40 @@ Die lokale Benutzer- und Gruppenverwaltung erfolgt weiterhin in **eigenstaendige
 Sowohl Share-/Space-Dialoge als auch LDAP-/IdP-Administrationsoberflaechen sind vollstaendig ueber zentrale Theme-Tokens, Zustandsvarianten und austauschbare UI-Komponenten zu gestalten. Kein Theme kann die eigentliche Berechtigungspruefung aendern.
 
 Fachliche Architektur: [SHARING_SPACES.md](SHARING_SPACES.md) und [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md). Der API-Contract wird in [APP_API_ACCESS.md](APP_API_ACCESS.md) spezifiziert.
+
+
+---
+
+## 28. Desktop.cloudApp, Startmenue und die benutzereigene Taskbar
+
+Die Pflicht-Core-App `Desktop.cloudApp` startet als Shell nach der Anmeldung. Ihre Taskleiste besitzt einen Start-Button/Startfenster und kann durch den Benutzer nach oben, unten, links oder rechts verschoben werden. Taskleisteneinstellungen werden ausschliesslich als private VFS-Datei `/.taskbar.json` persistiert; die sichtbaren Desktop-Eintraege stammen ausschliesslich aus `/.desktop/`. Aenderungen durch File Explorer, virtuelle Shell oder andere autorisierte Apps werden als direkt anwendbare SSE-Push-Deltas ohne Client-Polling oder Browser-Reload dargestellt. `Settings.cloudApp` ist eine **eigenstaendige** installierte App und besitzt eigene Endpoint-Rechte. App-Shortcuts starten nur registrierte, installierte und zugewiesene `.cloudApp`-Pakete. Details: [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+
+## 29. Systemweite Apps-Verwaltung und GitHub-App-Store (Architektur v0.9)
+
+Fachlich führend ist [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md). Jede installierte `.cloudApp` liegt auf der **ersten virtuellen Festplatte** unter `system:/apps/`, niemals als laufzeitfähiges Paket im persönlichen Home. Die Installationsoberfläche heißt `Apps.cloudApp`, ist unter `Settings.cloudApp` auffindbar und wird beim **Doppelklick** auf eine nicht installierte `.cloudApp` mit sofortigem Sicherheits-Preflight gestartet. **Installation per Rechtsklick ist nicht vorgesehen.**
+
+Ein App-Store ist eine **eigene** signierte `AppStore.cloudApp` mit verifiziertem, moderiertem GitHub-Katalog und ergänzbaren/entfernbaren GitHub-Katalogquellen. Er verwaltet nur Installationen mit seiner eigenen unveränderlichen Provenienz/Manager-Identität; manuelle Installationen bleiben der zentralen Apps-Verwaltung vorbehalten. Jedes neue zusätzliche Paket ist global installiert, erhält aber zunächst nur `discover`/`launch` für die stabile lokale Gruppe **`Admin`**. Weitere Nutzer- und Gruppenzuweisungen erfolgen über `Apps.cloudApp`; Änderungen wirken durch Core-seitigen Widerruf plus gefilterte Realtime-Resynchronisierung **ohne Reload** auf alle geöffneten Desktops, App-Instanzen und API-Zugriffe.
+
+## 30. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Core-Modell:** Jede `.cloudApp` bleibt genau einmal als systemweite Installation im gemeinsam zugreifbaren `system:/apps/` registriert; mehrfache Core-Pods sind **keine mehrfachen App-Installationen**. App-ID, Version, Signatur-/API-Allowlist-Hash, Installation-Provenienz und Benutzer-/Gruppenzuweisungen werden vom Owner atomar gespeichert. Der Browser führt die App weiterhin clientseitig aus. Mehrere Apps-/Package-Service-Pods dürfen gleichzeitig lesen, aber konkurrierende Installations-/Update-/Uninstall-Aktionen benötigen eindeutige Transaktions- und Idempotenzschlüssel.
+
+**Deployment:** Standard ein Core-Container mit allen Modulen. Getrennter `apps`-, `packages`- und `appstore`-Service sind opt-in; die getrennte Ausführung erteilt keine anderen Rechte. Signierte Paket- und UI-Assets liegen im gemeinsamen, unveränderlichen Storage. Die Quell-/Provenienzbindung bleibt clusterweit gültig. Eine App-Freigabe oder deren Entzug erzeugt einen persistierten Outbox-Eintrag; der Push-Service verteilt autorisierte SSE-Deltas an alle verbundenen Sitzungen, unabhängig davon, an welchem Gateway-Pod sie hängen.
+
+**Sperre bei Rollout:** Alte und neue Serviceversion müssen dieselbe Installations- und Paketsignatur-Semantik auswerten; Schemaerweiterungen werden rückwärtskompatibel migriert. Test: zwei konkurrierende Installationsversuche derselben Version erzeugen maximal eine Installation; kein doppelt ausgeführtes Postinstall und keine zusätzlichen App-Rechte.
+
+## Architektur-Ergänzung v0.12 – Core-Apps und Device-/Window-Verträge
+
+**Neue verpflichtend vorinstallierte `Logs.cloudApp`:** Für Administratoren sichtbar und startbar, über `Settings → System → Protokolle`; Logging-Policy und Audit-Lesezugriff benötigen getrennte Berechtigungen. **`AccountSecurity.cloudApp`:** Geschützte Benutzer-Sicherheitsseite in Settings für Passwort, Passkeys, FIDO2-Sicherheitsschlüssel, SSH-Public-Keys und Session-Revoke. Core-Apps bleiben signiert, versionsgebunden und werden nicht vom öffentlichen AppStore administriert.
+
+**Paketverträge:** Sichtbare Apps deklarieren `window.mode=framework`. Geräteanfragen liegen in der zusätzlich signierten `permissions/device-access.json` (auch leer vorhanden). API-Aufrufe verbleiben in `permissions/api-access.json`; Device Grants sind keine API-Allowlist-Bypasses. Eine App darf keine fremden Window-IDs, keine Core-Log-Quellen und keine Clientgeräte ohne explizite Instanzbindung verwenden. **Rechtsklick auf Taskleisten-App schließt ihre Instanz** nach gesicherter App-Lifecycle-Koordination, nicht pauschal alle Sitzungen.
+
+## Ergänzung v0.13 – Themefähigkeit aller Core-Apps und Wallpaper-Host
+
+**Verbindliche optische Abdeckung:** Alle mitgelieferten `Desktop.cloudApp`, `FileExplorer.cloudApp`, `Settings.cloudApp`, `Apps.cloudApp`, `AppStore.cloudApp`, `Logs.cloudApp`, `Sharing.cloudApp`, `Spaces.cloudApp`, User-/Group-Management, Notification Center und System Dialogs verwenden dieselben versionierten Theme-Tokens und geprüften Komponenten. Die sechs Presets aus [THEMING.md](THEMING.md) müssen eine vollständige Core-App-Abnahmematrix bestehen.
+
+`Desktop.cloudApp` beherbergt die in [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) konzipierte **clientseitige Wallpaper Engine**. Animationen sind kein separat installierbares, privilegiertes `.cloudApp`-Paket; es werden keine Server-Frames gestreamt. Die Wallpaper-Presets sind Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landscape. Der Benutzer kann statische Bilder/selbst ausgewählte Videos verwenden. Reduced Motion und Performance-Fallback sind verpflichtend.
+
+Drittanbieter-Apps werden weiterhin **immer im cloudOS Window Framework** gehostet. Der vom Core gezeichnete Fensterrahmen übernimmt das Theme; interne Browser-/WASM-Canvas-Elemente der Drittanbieter-App werden nur durch explizite Theme-Bridge-Integration thematisiert. Kein Theme darf per Cross-Origin-CSS oder frei ausgeführten Skripten unkontrolliert in andere Apps eingreifen.
+
+Neue, später installierbare Theme-Resource-Pakete müssen denselben vertrauenswürdigen `Apps.cloudApp`-Installationsweg wie andere `.cloudApp`-Pakete einhalten. **Keine** Rechtsklick-Installation, keine unregistrierte Paketausführung, keine Ausweitung des API-Scopes und keine Umgehung der Signaturprüfung. Die eigentlichen installierten App-Pakete bleiben unter `system:/apps/`; der Theme Service verwaltet nur freigegebene Theme-Referenzen.

@@ -1,7 +1,16 @@
 # cloudOS – Technisches Gesamtkonzept
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Dokument:** `CONCEPT.md`  
-> **Version:** 0.5 (lokale Identity, optionales LDAP/OIDC, interne Datei-Shares und Spaces)
+> **Version:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Projektname:** cloudOS  
 > **Architekturvariante:** B – serverbasiert, API-first  
@@ -20,6 +29,13 @@ Die Plattform wird **API-first** entwickelt: Systemfunktionen sind über version
 Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux oder Windows. Es ist eine servergestützte Web-Desktop-Plattform mit einer eigenen, kontrollierten Betriebssystemabstraktion.
 
 ## 2. Ziele und Abgrenzung
+
+**Verbindliche Erweiterung v0.12:** Ein Benutzer kann sich künftig per **Benutzername oder verifizierter E-Mail und Passwort, Passkey, SSH-Key-Signatur sowie YubiKey/WebAuthn** anmelden. Lokale SSH-Agent-Schlüssel benötigen einen geprüften Companion-/Extension-Weg; WebAuthn verwendet Browser-FIDO2 und ist kein Raw-USB-Login. Die unterschiedlichen Credential-Arten führen auf dieselbe lokale `user_id` und POSIX-/App-Rechteverwaltung. Fachlich führend: [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+
+Das **diagnostische Logging** erhält einen Core-Dienst `logging` und eine für Administratoren vorinstallierte `Logs.cloudApp` in Settings. Security Audit bleibt unabhängig vom dynamisch veränderbaren Log-Level. Alle **sichtbaren** Apps nutzen den cloudOS-Window-Host, dessen Fenster mit der Taskleiste interagieren, inklusive Rechtsklick → **App beenden**. Der **Client Device Broker** vermittelt nur ausdrücklich genehmigte Barcode-Scanner, ausgewählte USB-Stick-Dateien und unterstützte WebUSB/WebHID/WebSerial-Geräte. Unvertrauenswürdiger App-Code darf weder Browsergerät noch Core-API ohne zusätzliche Freigabe verwenden.
+
+Der Go-Core besitzt hierfür 22 logische katalogisierte Rollen, aber **alle laufen für die ersten Tests weiterhin in genau einem Core-Container**. Getrennte Kubernetes-Deployments bleiben opt-in. Die neuen vier Fachkonzepte und ihre Contracts sind Projektvorgaben; produktive Fach-APIs und Browser-UI sind noch nicht implementiert.
+
 
 ### 2.1 Projektziele
 
@@ -58,7 +74,7 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 - **Installation vor Ausführung:** Keine Benutzeranwendung startet aus einer beliebigen Datei; der Go-Core prüft Installation, Zuweisung, Benutzeridentität, App-Instanz und Berechtigungen.
 - **Pflicht-Core-Apps:** Releasegebunden signiert, automatisch provisioniert und im normalen Betrieb nicht deinstallierbar; Recovery bleibt möglich.
 - **Zwei virtuelle Festplatten:** `system:/` für Systemressourcen und geprüfte App-Pakete, `users:/` für Homes; `/` ist für jeden Benutzer sein eigenes Home.
-- **Admininstallation:** Im MVP installieren nur Administratoren `.cloudApp`-Pakete; die Installation kann im File Explorer über das Kontextmenü angestoßen werden.
+- **Admininstallation:** Im MVP installieren nur administrativ berechtigte Benutzer `.cloudApp`-Pakete; ein Doppelklick startet die `Apps.cloudApp` unmittelbar mit einem Installations-Preflight. Eine Installation über Rechtsklick ist ausgeschlossen.
 - **Verbindliche App-Architektur:** [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) ist fuer Paketformat, Baseline, App-Installation und -Lebenszyklus fachlich fuehrend.
 - **App-Signing:** Jede `.cloudApp` muss eine kryptografisch gueltige, X.509-gebundene Signatur ueber einen SHA-512-Dateiindex besitzen. Selbstsignierte Pakete bleiben installierbar, aber nur nach deutlicher Sicherheitswarnung, Administratorberechtigung und expliziter Freigabe des konkreten Digests. Unsignierte oder manipulierbare Pakete sind immer gesperrt.
 - **Fachlich fuehrendes Signing-Dokument:** [`docs/APP_SIGNING.md`](APP_SIGNING.md) definiert Zertifikate, Trust, Self-signed-Ausnahmen, Updates und Widerruf.
@@ -78,7 +94,7 @@ Das Projekt ist **kein neuer Betriebssystemkernel** und kein Ersatz für Linux o
 | App-API-Berechtigungen | Signierte `permissions/api-access.json` + Core Operation Registry | Strikte Endpoint-Allowlist, kontrollierte Scopes, Risikodialog |
 | Interne Dienstkommunikation | gRPC, Protocol Buffers | Typisierte Go-Service-Schnittstellen |
 | Ereignissystem | NATS JetStream | Zuverlässige asynchrone Benachrichtigungen |
-| Echtzeitkommunikation | WebSocket über HTTPS/WSS | Zustandsänderungen an verbundene Clients |
+| Echtzeitkommunikation | SSE ueber HTTPS / EventSource | Autorisierte Server-Push-Deltas an verbundene Clients |
 | Relationale Daten | PostgreSQL | Benutzer, Metadaten, Berechtigungen, Einstellungen |
 | Dateiinhalte | Lokaler persistenter Speicher, später S3-kompatibel | Binärdaten unabhängig von Metadaten |
 | Authentifizierung (MVP) | Lokaler Go Directory-/Authentication Service | Lokale Benutzer/Gruppen, sichere Anmeldung und Sessions |
@@ -115,7 +131,7 @@ flowchart TB
     DB[("PostgreSQL: getrennte Schemas und Rechte")]
     Storage[("Persistenter Dateispeicher")]
 
-    Browser -->|HTTPS / WSS| Edge
+    Browser -->|HTTPS + SSE| Edge
     Other -->|HTTPS| Edge
     Edge --> Gateway
     Gateway -.->|OIDC nur wenn konfiguriert| OIDC
@@ -148,7 +164,7 @@ Das Diagramm zeigt **fachliche** Komponenten, nicht die zwingende Anzahl von Con
 - Nutzereingaben und lokale UI-Zustände verarbeiten.
 - Dateien und Medien in dafür geeigneten Webkomponenten anzeigen.
 - APIs über einen generierten TypeScript-Client aufrufen.
-- Über WebSocket Änderungen abonnieren und nach Verbindungsverlust resynchronisieren.
+- Ueber eine dauerhafte, authentifizierte SSE-Verbindung berechtigte Zustands-Deltas aktiv empfangen; weder Polling noch Long-Polling; Reconnect ueber Replay-Cursor und einmalige Recovery.
 - Webanwendungen in kontrollierten, voneinander isolierten Kontexten darstellen.
 
 ### 4.2 Verantwortung des Servers
@@ -172,15 +188,19 @@ Das Diagramm zeigt **fachliche** Komponenten, nicht die zwingende Anzahl von Con
 | File Service | Dateien, Ordner, Metadaten, Quotas, Storage-Adapter | Ja |
 | App Service | App-Registry, Manifeste, Installation, Zuordnungen | Ja |
 | Settings Service | Persönliche und systemweite Einstellungen | Ja |
-| Realtime Service | WebSocket-Verbindungen, Event-Weiterleitung, Wiederverbindung | Ja |
+| Realtime Service | Authentifizierte SSE-Push-Streams, Event-Deltas, Delivery Log, Replay und sichere Subscriptions | Ja |
 | Audit Service | Sicherheitsrelevante Aktionen nachvollziehbar speichern | Ja |
 | Shell Service | Virtuelle Befehle, Pipelines, Shell-Sitzungen | Nach MVP |
 | Job Service | Asynchrone Aufträge, kontrollierte Laufzeitumgebungen | Nach MVP |
 | Search Service | Suche und Indexierung von Dateien und Anwendungen | Nach MVP |
-| Notification Service | Systemmeldungen und Benachrichtigungen | Nach MVP |
+| Notification Service | Persistente Benutzer-Inbox und Benachrichtigungszustand mit SSE-Zustellung | Ja |
 | Integration Service | WebDAV, S3-Adapter, externe Dienste und Laufwerke | Später |
 
 **Datenhoheit:** Jeder Dienst besitzt seine Daten und definiert den zulässigen Zugriff über APIs. Andere Dienste dürfen diese Geschäftsregeln weder über Tabellenzugriffe noch über direkte Imports umgehen.
+
+### Verbindlicher Push-Standard (cloudOS v0.10)
+
+Alle sichtbaren Clients bekommen Aenderungen **aktiv per SSE** vom Go-Core. Der Client startet **kein periodisches Polling**, auch nicht als Fehlerfallback. Die Owner-Dienste committen Daten und Outbox atomar, NATS JetStream verteilt intern, der Push Projector liefert autorisierte UI-Deltas an den Realtime Gateway, der sie mit einem persistenten Cursor via `/api/v1/events/stream` an berechtigte Browser-Sitzungen streamt. Die Notification Inbox ist persistent; Benachrichtigungen und Read-State werden ebenfalls gepusht. Beim initialen Login und nach Replay-Gap sind einmalige sichere Snapshots zulaessig. Signierte `.cloudApp`-Pakete deklarieren ihre erlaubten `event_subscriptions` und REST-Endpoints getrennt. Fachlich fuehrend ist [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 6. API-Architektur
 
@@ -210,7 +230,7 @@ Beispiel-Endpunkte (vorläufige API-Skizze):
 | GET | `/api/v1/apps` | Verfügbare Anwendungen |
 | POST | `/api/v1/apps/{id}/launches` | Anwendungsstart registrieren |
 | POST | `/api/v1/shell/executions` | Virtuellen Befehl ausführen (später) |
-| GET | `/api/v1/events/ws` | Ereignisverbindung aufbauen |
+| GET | `/api/v1/events/stream` | Authentifizierten SSE-Stream fuer direkt anwendbare Push-Deltas aufbauen |
 
 ### 6.2 Interne gRPC-API
 
@@ -278,7 +298,7 @@ Die verbindliche Zugriffskontrolle trennt (1) lokale Systemrollen, (2) POSIX-UID
 
 ### 7.4 Sicherheitsgrenzen
 
-- Nur Nginx/Gateway exponiert autorisierte HTTP-/WebSocket-Routen.
+- Nur Nginx/Gateway exponiert autorisierte HTTPS-/SSE-Routen; eventuelle spaetere WebSockets haben eigene Policy.
 - PostgreSQL, interne Go-Dienste und Storage bleiben isoliert; App-Code erhaelt keine direkten DB-/Hostrechte.
 - Drittanbieter-Apps benoetigen eine gueltige Signatur, installative Freigaben und eine unveraenderliche `permissions/api-access.json`.
 - Lokale oder externe Gruppenmitgliedschaft ist keine automatische Systemadministratorrolle.
@@ -295,7 +315,7 @@ Das VFS bietet **genau zwei virtuelle Festplatten**. Der Go File Service verwalt
 ```text
 system:/
 ├── core/
-├── applications/
+├── apps/
 │   ├── packages/         # geprüfte, unveränderliche installierte .cloudApp-Versionen
 │   ├── manifests/
 │   └── assets/
@@ -303,8 +323,11 @@ system:/
 
 users:/
 └── homes/
-    ├── <user-uuid-A>/   # bei Benutzer A als / sichtbar
-    └── <user-uuid-B>/   # bei Benutzer B als / sichtbar
+    |-- <user-uuid-A>/             # bei Benutzer A als / sichtbar
+    |   |-- .desktop/             # Dateien, Ordner, Verknuepfungen auf dem Desktop
+    |   |-- .taskbar.json         # versteckte Taskbar-Konfigurationsdatei
+    |   `-- .desktop-layout.json  # optionale Icon-Positionen
+    `-- <user-uuid-B>/             # eigenes Home, eigene Desktopdaten
 ```
 
 Eine `.cloudApp`-Quelldatei kann im eigenen `~/Downloads` liegen, ohne damit installiert oder ausführbar zu sein. Nur ein autorisierter Installationsworkflow darf sie verifizieren und als unveränderliche Installation im `system`-Volume registrieren.
@@ -333,12 +356,19 @@ Der Browser lädt zunächst lediglich einen **minimalen authentifizierten Bootst
 
 - Desktop Shell: `io.cloudos.desktop` – **Pflicht-Core-App, Autostart nach Login**.
 - Dateimanager: `io.cloudos.file-explorer` – **eigene Pflicht-Core-App**.
-- Settings, App Installer, System Dialogs und Notification Center – **weitere Pflicht-Core-Apps**.
+- Settings, Apps, App Store, System Dialogs und Notification Center – **weitere signierte Core-Apps**.
 - Anwendungen starten ausschließlich aus der App Registry als instanziierte, installierte und dem Benutzer zugewiesene `.cloudApp`.
 - UI-Komponenten innerhalb einer App sind keine separaten Apps, solange sie nicht eigenständig gestartet werden.
 - Alle cloudOS-eigenen sichtbaren Elemente sind über Theme Service, Design-Tokens, Varianten und App-Theme-Bridge modifizierbar.
+- Die Desktop-App besitzt einen Start-Button mit Startfenster; die Taskleiste kann pro Benutzer oben, unten, links oder rechts stehen.
+- Die Taskleisten-Einstellungen liegen als versteckte, private Datei `/.taskbar.json` im eigenen Home. Der Rechtsklick-Menuepunkt **Taskleisteneinstellungen** startet `Settings.cloudApp` im passenden Abschnitt.
+- Datei-, Ordner- und Shortcut-Icons des Desktops sind **ausschliesslich** direkte VFS-Kinder von `/.desktop/`. Das alte `/Desktop/` ist nicht mehr der kanonische Desktop-Pfad.
+- Aenderungen an `/.desktop/`, `/.taskbar.json` und `/.desktop-layout.json` werden nach Server-Commit als **direkt anwendbare SSE-Deltas** ohne Browser-Reload und ohne periodische REST-Abfrage gepusht.
+- Shortcut-Dateien starten nur bereits installierte, zugewiesene `.cloudApp`-Apps; die Datei selbst erteilt keine Ausfuehrungsrechte.
 
-**Performance-Regel:** Fensterbewegungen laufen sofort lokal im Browser, während persistente Änderungen gebündelt über die Core-API gespeichert werden. Nach einem Login startet der Browser die autorisierte Desktop-Core-App aus dem App-Register; Änderungen gelangen über REST-/WebSocket-Resynchronisierung an die Oberfläche.
+**Fachlich fuehrend fuer Desktop und Taskleiste:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md). Der Desktop State Service speichert Fenster-/Sitzungszustand, **nicht** eine zweite Liste der Desktop-Dateien.
+
+**Performance-Regel:** Fensterbewegungen laufen sofort lokal im Browser, während persistente Änderungen gebündelt über die Core-API gespeichert werden. Nach einem Login startet der Browser die autorisierte Desktop-Core-App aus dem App-Register; Änderungen gelangen als autorisierte SSE-Push-Deltas an die Oberflaeche. Ein Snapshot ist nur beim Bootstrap, nach Cursorverlust oder auf konkrete Benutzeraktion erforderlich.
 
 Eine minimale Login- und Recovery-Oberfläche ist als eng definierte Bootstrap-Ausnahme möglich. Sie ersetzt keine reguläre Core-App.
 
@@ -357,15 +387,21 @@ Jede sichtbare, regulär gestartete Funktion ist eine registrierte `.cloudApp`. 
 
 ### 10.2 Mitgelieferte Core-Apps
 
-Pflicht-Core-Apps werden durch eine signierte cloudOS-Release-Baseline automatisch installiert. Der normale Administrator kann sie nicht deaktivieren oder deinstallieren. Mindestens Desktop, File Explorer, Settings, App Installer, System Dialogs und Notification Center gehören zur Baseline. Zusätzliche Anwendungen wie Terminal, Texteditor und Mediaplayer können als optional vorinstallierte Apps ausgeliefert werden.
+Pflicht-Core-Apps werden durch eine signierte cloudOS-Release-Baseline automatisch installiert. Der normale Administrator kann sie nicht deaktivieren oder deinstallieren. Mindestens Desktop, File Explorer, Settings, Apps, App Store, System Dialogs und Notification Center gehören zur Baseline. Zusätzliche Anwendungen wie Terminal, Texteditor und Mediaplayer können als optional vorinstallierte Apps ausgeliefert werden.
 
 Der Core stellt alle zugehörigen APIs bereit, enthält aber **keinen hardcodierten Dateimanager oder Desktop**. Auch Core-Apps nutzen dokumentierte System-APIs und erhalten keine ungeprüften Host-/Datenbankrechte.
 
-### 10.3 Installation per Rechtsklick
+### 10.3 Apps-Verwaltung, Doppelklick und moderierter GitHub-App-Store
 
-Ein Administrator kann im File Explorer auf eine gültige `.cloudApp` im Home rechtsklicken und **App installieren** auswählen. Der vorinstallierte App Installer zeigt Herkunft, Signatur, Version, Kompatibilität, Capabilities, Abhängigkeiten und geplante Zuweisungen; erst nach ausdrücklicher Bestätigung installiert der Go-Core das Paket. Installation, Benutzer-/Gruppenzuweisung, Capability Grants und Start sind **separate Schritte**. Im MVP ist die systemweite Installation ausschließlich Administratoren vorbehalten.
+**Alle Apps werden systemweit** im `system`-Volume unter **`system:/apps/`** installiert. Eine App-Datei im persönlichen `/Downloads` ist nur ein nicht installiertes Quellpaket. Die geschützte `Apps.cloudApp` wird als Pflicht-Core-App mitgeliefert und ist in der `Settings.cloudApp` über **Apps** erreichbar. Sie bietet manuelle Installation, Update, Deinstallation, separates Löschen von Paketdateien sowie Benutzer-/Gruppenzuweisung.
 
-Der File Explorer registriert/zeigt die Aktion über einen zentralen Dateityp- und Kontextaktionskatalog; ein direkter API-Aufruf ohne `apps.install` wird unabhängig von der UI verweigert. Doppelklick auf ein nicht installiertes Paket startet **keinen** Code.
+Ein **Doppelklick** auf eine noch nicht installierte `.cloudApp` öffnet bei administrativ berechtigten Benutzern **sofort** `Apps.cloudApp` und beginnt den gesicherten Installations-Preflight. Das Paket wird nie direkt ausgeführt; Signaturprüfung, vollständige API-Endpoint-Anzeige mit Sicherheitsauswirkungen und explizite Freigaben bleiben Pflicht. **Eine Installation über Rechtsklick ist ausgeschlossen.**
+
+Die eigenständige `AppStore.cloudApp` bietet einen moderierten App-Katalog, dessen offizielle Quelle als **separates GitHub-Repository** geplant wird. Weitere kompatible GitHub-Katalog-Repositories können Administratoren als Quellen hinzufügen, deaktivieren oder entfernen. Externe Quellen gelten nicht allein durch Hinzufügen als offiziell moderiert. **Der Store darf nur Apps aktualisieren/deinstallieren, die er selbst installiert hat.** Der zentrale Apps-Manager verwaltet nach administrativen RBAC-Rechten dagegen alle ungeschützten App-Installationen.
+
+Neue zusätzliche Apps sind zwar **global** installiert, aber **standardmäßig nur für die Gruppe `Admin`** sichtbar und ausführbar. Administratoren können in Apps per Benutzer und Gruppe Rechte vergeben und entziehen. Alle offenen Desktops, Startmenüs, Suchoberflächen und laufenden Instanzen reagieren über serverseitige Autorisierung und gefilterte Realtime-Resynchronisierung ohne Seiten-Reload. Pflicht-Core-Apps erhalten separat geschützte Baseline-Zuweisungen, damit alle berechtigten Nutzer den Desktop bedienen können.
+
+Fachlich führend: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
 
 ### 10.4 App-Lebenszyklus und UI-Isolation
 
@@ -375,15 +411,15 @@ Alle cloudOS-eigenen Core-Apps müssen vollständig themefähig sein. Externe Ap
 
 Ein öffentlicher App Store wird erst nach Prüfung von Signaturen, Publisher-Vertrauen, Update-Sicherheit und App-Isolation eingeführt.
 
-### 10.4 Signierung und bewusste Installation selbstsignierter `.cloudApp`-Pakete
+### 10.5 Signierung und bewusste Installation selbstsignierter `.cloudApp`-Pakete
 
 Analog zum Nextcloud-Code-Signing-Modell besitzt cloudOS eine eigene X.509-Code-Signing-Vertrauenskette mit pro App-ID gebundenen Herausgeberzertifikaten. Ein signierter, kanonischer Paketindex beinhaltet die SHA-512-Hashes aller relevanten `.cloudApp`-Dateien. Die Signaturbelege liegen innerhalb des Pakets unter `META-INF/signature.json`.
 
-**Gueltig selbstsignierte Apps** koennen durch Administratoren ueber Rechtsklick -> `App installieren` nach einer hervorgehobenen Warnung und ausdruecklicher, paketgebundener Risikobestaetigung installiert werden. Eine Selbstsignatur ist kein Identitaets- oder Sicherheitsnachweis. Bei ungueltigen Hashes, fehlenden Dateien, falscher App-ID, fehlender Signatur oder widerrufenem Zertifikat wird die Installation **immer** abgelehnt. Core-Apps sind von lokalen Self-signed-Ausnahmen ausgenommen.
+**Gueltig selbstsignierte Apps** koennen durch Administratoren ueber `Apps.cloudApp` (Settings oder Doppelklick-Intent) bzw. den vertrauenswuerdigen Store-Installationsdialog nach einer hervorgehobenen Warnung und ausdruecklicher, paketgebundener Risikobestaetigung installiert werden. Eine Selbstsignatur ist kein Identitaets- oder Sicherheitsnachweis. Bei ungueltigen Hashes, fehlenden Dateien, falscher App-ID, fehlender Signatur oder widerrufenem Zertifikat wird die Installation **immer** abgelehnt. Core-Apps sind von lokalen Self-signed-Ausnahmen ausgenommen.
 
 Pro neuer selbstsignierter Version bzw. neuem Digest ist eine neue Adminbestaetigung erforderlich; stille Updates sind untersagt. Die technische Detailarchitektur, die Error-Codes und die Abnahmetests werden in [`docs/APP_SIGNING.md`](APP_SIGNING.md) festgelegt.
 
-### 10.4 Verpflichtende API-Deklaration und Installationsfreigabe
+### 10.6 Verpflichtende API-Deklaration und Installationsfreigabe
 
 Jede installierbare `.cloudApp` besitzt eine signierte Datei `permissions/api-access.json`. Sie gibt **alle cloudOS-Core-API-Endpunkte** an, die eine Anwendung verwenden will, mit stabiler Operation-ID, HTTP-Methode, kanonischem Pfad und höchstens zulässigem Ressourcenscope. Eine fehlende oder manipulierte Datei macht das Paket nicht installierbar.
 
@@ -430,18 +466,13 @@ Die Datenbank des zuständigen Dienstes bleibt die maßgebliche Datenquelle. Cac
 
 ## 13. Betrieb und Deployment
 
-### 13.1 Erste Docker-Compose-Umgebung
+### 13.1 Erste Docker-Compose-Umgebung – verbindlicher kombinierter Betrieb
 
-- `nginx`: einziger öffentlich erreichbarer Einstiegspunkt.
-- `web`: statische Desktop-Oberfläche.
-- `gateway`: öffentliche Go-API und Browser-Sitzungen.
-- `core`: zunächst gebündelte Go-Basismodule.
-- `files`: separat betreibbarer File Service.
-- `postgres`: Metadatenbank.
-- `nats`: Event-Bus mit persistenten JetStream-Daten.
-- `identity-provider`: Optionaler externer OIDC-Provider in einer spaeteren Integrationsphase, nicht fuer lokale MVP-Anmeldung erforderlich.
+**Standard:** Alle Go-Core-Microservices einschließlich Gateway/BFF, File/VFS, Identity, Permissions, Apps, Desktop und SSE laufen im ersten Entwicklungsstand **zusammen in einem einzigen Go-Prozess und Core-Container** (`CLOUDOS_MODE=combined`). Sie behalten ihre fachlichen Owner-/Portgrenzen. `deploy/compose/compose.yaml` baut und startet genau einen Core-Container; die technischen Go-Healthchecks sind bereits implementiert, nicht jedoch die Fach-APIs.
 
-Weitere Dienste werden erst bei Bedarf in eigene Container ausgelagert. Container und Netzwerke werden so getrennt, dass interne Komponenten nicht ungeschützt von außen erreichbar sind.
+PostgreSQL und NATS sind separate Infrastrukturservices, die im optionalen Compose-Profil `infra` für spätere Integrationsversuche hinzugeschaltet werden können. Optionaler externer IdP, Web-Asset-Hosting und nicht vertrauenswürdige WASI-/native Runner werden nicht in den privilegierten Core-Container integriert.
+
+**Vorbereiteter Split:** Dasselbe Go-Image kann über `CLOUDOS_MODE=split` und `CLOUDOS_SERVICE=<name>` jeden Core-Dienst als eigenen Prozess starten. Kubernetes `deploy/k8s/combined` ist die Alternative mit einer Replik, während `deploy/k8s/distributed` mehrere unabhängige Deployments/Replicas und CPU-HPA-Templates bereitstellt. **Kubernetes ist für die ersten Tests nicht erforderlich.** Alle Cluster-Fachdienste müssen noch implementiert und vor produktiver Aktivierung getestet werden. Siehe [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 ### 13.2 Betriebsanforderungen
 
@@ -468,6 +499,7 @@ cloudOS/
 │   ├── SYSTEM_ARCHITECTURE.md
 │   ├── VIRTUAL_FILESYSTEM.md
 │   ├── APPLICATION_SYSTEM.md
+│   ├── CORE_DEPLOYMENT_SCALING.md
 │   ├── decisions/
 │   ├── api/
 │   ├── development/
@@ -481,12 +513,15 @@ cloudOS/
 │       ├── bridge/v1/
 │       └── runtime/v1/
 ├── core/
-│   ├── cmd/
+│   ├── go.mod
+│   ├── Dockerfile
+│   ├── cmd/cloudos-core/            # ein Go-Binary für combined/split
 │   └── internal/
+│       ├── platform/               # Startmodi und Service-Katalog
 │       ├── identity/
 │       ├── permissions/
 │       ├── files/
-│       ├── applications/
+│       ├── apps/
 │       ├── packages/
 │       ├── runtimes/
 │       ├── desktop/
@@ -496,12 +531,12 @@ cloudOS/
 │   ├── bootstrap/
 │   ├── app-host/
 │   └── design-system/
-├── applications/
+├── apps/
 │   ├── core/
 │   │   ├── desktop/
 │   │   ├── file-explorer/
 │   │   ├── settings/
-│   │   ├── app-installer/
+│   │   ├── apps-management/
 │   │   ├── system-dialogs/
 │   │   └── notifications/
 │   └── bundled/
@@ -516,7 +551,8 @@ cloudOS/
 │   ├── browser-wasm/
 │   └── wasi-worker/
 ├── deploy/
-│   ├── compose/
+│   ├── compose/                   # Standard combined, Split opt-in
+│   ├── k8s/                       # Kustomize combined/distributed
 │   └── core-app-baselines/
 ├── tests/
 │   ├── contract/
@@ -539,18 +575,18 @@ Die Entwicklung besteht aus **19 Phasen (0–18)**. Jede Phase besitzt dokumenti
 | **0** | Architektur und Standards | Service-Katalog, Datenhoheit, Bedrohungsmodell, ADRs, Technologieentscheidungen und Repository-Grundstruktur dokumentiert |
 | **1** | API-Verträge und Codegenerierung | Erste OpenAPI-/Protobuf-/Event-Verträge; Go- und TypeScript-Clients automatisch generierbar; Contract-Tests in CI |
 | **2** | Basisinfrastruktur | Nginx, Gateway, PostgreSQL, NATS und erste Go-Laufzeit starten per Compose; Health Checks und Migrationen funktionieren |
-| **3** | Authentifizierung und Sitzungen | Lokaler Login/Logout, sichere Sessions, geschuetzte API-Aufrufe, CSRF- und WebSocket-Schutz getestet |
+| **3** | Authentifizierung und Sitzungen | Lokaler Login/Logout, sichere Sessions, geschuetzte API-Aufrufe, CSRF-, Same-Origin- und SSE-Schutz getestet |
 | **4** | Identitäten und Berechtigungen | Benutzer, Gruppen, Rollen und Ressourcenrechte; Zugriffstrennung zwischen Testbenutzern nachgewiesen |
 
 ### Abschnitt B – Funktionierender Desktop
 
 | Phase | Arbeitspaket | Ergebnis / Abnahmekriterium |
 |---|---|---|
-| **5** | Desktop-Core-App und Fensterverwaltung | Signierte `Desktop.cloudApp` aus Baseline startet nach Login; Fenster und Layout über Core-APIs |
+| **5** | Desktop-Core-App, Taskleiste und Startfenster | Signierte `Desktop.cloudApp` startet mit Startknopf, vier Taskbar-Positionen und privater `/.taskbar.json` |
 | **6** | Virtual File System | Ordner und Dateien per API erstell-, les-, verschieb- und löschbar; Zugriffsrechte und Persistenz getestet |
-| **7** | File Explorer Core-App | Registrierte `FileExplorer.cloudApp` nutzt File API; Admin-Kontextmenü für `.cloudApp`-Installationsvorschau |
-| **8** | Echtzeitkommunikation | Datei- und Desktop-Änderungen gelangen via Events/WebSocket an berechtigte Sitzungen; Resync funktioniert |
-| **9** | App-System, Installer und SDK | `.cloudApp`-Paketprüfung, Admininstallation per Rechtsklick, Zuweisung, Launch und Web-/Rust-WASM-App getestet |
+| **7** | File Explorer Core-App und Desktop-Dateien | File Explorer und `Desktop.cloudApp` lesen dasselbe `/.desktop/`; Doppelklick auf unregistrierte `.cloudApp` öffnet `Apps.cloudApp` direkt |
+| **8** | Verbindlicher Server-Push inkl. Desktop-Dateien | SSE liefert File-/Desktop-/App-/Notification-Deltas ohne Client-Polling; Replay und einmaliger Resync sind getestet |
+| **9** | App-System, Apps.cloudApp und SDK | `.cloudApp`-Paketprüfung, Doppelklick-Preflight, globale Installation mit Admin-Default und Zuweisungen, Launch und Web-/Rust-WASM-App getestet |
 
 **Meilenstein MVP:** Nach Phase 9 existiert cloudOS mit funktionsfähigem Go-Core, zwei VFS-Volumes, signierten Pflicht-Core-Apps, `.cloudApp`-Installation durch Administratoren, Zuweisungen und einem kontrollierten App-Start.
 
@@ -597,7 +633,7 @@ Eine Phase gilt erst als abgeschlossen, wenn:
 
 ## 16. Erster technischer End-to-End-Meilenstein
 
-**Aktualisierung App-first:** Nach Anmeldung wird der minimale Bootstrap ausgeführt, die signierte `Desktop.cloudApp` aus dem Core App Register aufgelöst und als Instanz gestartet. Erst anschließend laufen Desktop- und Dateimanager-UI. Ein vollständiger zweiter Vertikalschnitt umfasst die Admininstallation eines `.cloudApp`-Pakets per Rechtsklick und den anschließenden, zugewiesenen App-Start.
+**Aktualisierung App-first:** Nach Anmeldung wird der minimale Bootstrap ausgeführt, die signierte `Desktop.cloudApp` aus dem Core App Register aufgelöst und als Instanz gestartet. Erst anschließend laufen Desktop- und Dateimanager-UI. Ein vollständiger zweiter Vertikalschnitt umfasst den Doppelklick-Preflight einer `.cloudApp` über `Apps.cloudApp`, die genehmigte globale Installation und den anschließenden, der Gruppe `Admin` zugewiesenen App-Start.
 
 Vor dem Bau eines umfangreichen Desktops wird folgender vertikaler Durchstich umgesetzt:
 
@@ -611,7 +647,7 @@ Vor dem Bau eines umfangreichen Desktops wird folgender vertikaler Durchstich um
 8. NATS und Realtime Service melden die Änderung an berechtigte Browser-Sitzungen.
 9. Nach Verbindungsabbruch lädt der Browser den aktuellen Zustand erneut.
 
-Dieser Ablauf validiert Authentifizierung, REST, gRPC, Datenbank, Events, WebSocket und UI gemeinsam.
+Dieser Ablauf validiert Authentifizierung, REST, gRPC, Datenbank, NATS/Outbox, SSE-Push und UI gemeinsam.
 
 ## 17. Qualitäts- und Sicherheitsanforderungen
 
@@ -621,7 +657,7 @@ Dieser Ablauf validiert Authentifizierung, REST, gRPC, Datenbank, Events, WebSoc
 | Frontend | TypeScript-Typprüfung, Komponenten- und End-to-End-Tests |
 | APIs | OpenAPI-/Protobuf-Linting, Contract- und Kompatibilitätstests |
 | Datenbank | Versionierte Migrationen, dienstspezifische Rollen und Rechte |
-| Authentifizierung | OIDC- und Session-Tests, CSRF-/WebSocket-Negativtests |
+| Authentifizierung | Lokaler Login, optionales OIDC, Session-Tests und CSRF-/SSE-Negativtests |
 | Autorisierung | Ressourcenzugriffe explizit geprüft, Tests gegen Rechteausweitung |
 | Logging | Strukturierte, datensparsame Logs mit Korrelationskennung |
 | Events | Idempotente Handler, Outbox, Retry- und Fehlerkonzept |
@@ -638,7 +674,7 @@ Dieser Ablauf validiert Authentifizierung, REST, gRPC, Datenbank, Events, WebSoc
 - **Komplexe Dateikonsistenz:** Metadaten, Binärspeicher und Ereignisse benötigen definierte Wiederherstellungsregeln.
 - **Unsichere Drittanbieter-Apps:** Installation und Update dürfen keine implizite Privilegienausweitung bewirken.
 - **Serverseitige Programmausführung:** Ein Host-Shell-Zugriff wäre ein gravierendes Risiko; isolierte Ausführung getrennt planen.
-- **Event-Verlust bzw. Duplikate:** WebSocket ist kein persistenter Wahrheitszustand; REST-Resync und idempotente Verarbeitung vorsehen.
+- **Event-Verlust bzw. Duplikate:** SSE und JetStream sind nicht die fachliche Wahrheit; persistierter Replay-Cursor, idempotente Deltas und einmalige Snapshot-Recovery nach Cursor-Gap sind verpflichtend.
 - **Betriebsaufwand:** PostgreSQL, NATS, OIDC und Dateispeicher benötigen gemeinsam getestete Backups.
 
 ### 18.2 In Phase 0 verbindlich zu klären
@@ -693,7 +729,7 @@ cloudOS wird als **serverbasierte, App-first- und API-getriebene Web-Desktop-Pla
 
 ---
 
-**Dokumentabgleich 0.2 (15.11.2026):** Ergänzt wurden die zwingende `.cloudApp`-Installation, Pflicht-Core-Apps, Admininstallation per File-Explorer-Kontextmenü, das getrennte Core/App-Modell sowie das Zwei-Volume-VFS. Die Fachkonzepte `docs/APPLICATION_SYSTEM.md`, `docs/VIRTUAL_FILESYSTEM.md` und `docs/SYSTEM_ARCHITECTURE.md` konkretisieren diese Regeln.
+**Historischer Dokumentabgleich 0.2 (15.11.2026):** Ergänzt wurden die zwingende `.cloudApp`-Installation, Pflicht-Core-Apps und das getrennte Core/App-Modell sowie das Zwei-Volume-VFS. Die früher geplante Kontextmenü-Installation wurde in v0.9 ausdrücklich aufgehoben. Die Fachkonzepte `docs/APPLICATION_SYSTEM.md`, `docs/VIRTUAL_FILESYSTEM.md` und `docs/SYSTEM_ARCHITECTURE.md` konkretisieren diese Regeln.
 
 
 ---
@@ -709,3 +745,45 @@ cloudOS wird als **serverbasierte, App-first- und API-getriebene Web-Desktop-Pla
 **Sicherheitsregel:** Direkter Home-Zugriff unterliegt POSIX-Rechten; ein expliziter Share-/Space-Mount unterliegt seinem Grant-/Rollenmodell. In allen Faellen bleiben die signierte App-Endpoint-Allowlist, Benutzerautorisierung, Mount-Sicht und Systempolicies unverzichtbar. Externe Verzeichnisse duerfen diese Grenzen nicht durch Namensgleichheit aufheben.
 
 **Fachlich fuehrend:** [SHARING_SPACES.md](SHARING_SPACES.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md). Interne Shares und einfache Spaces folgen nach dem sicheren VFS; optionale LDAP- und IdP-Adapter werden spaeter integriert. Die Phasen und APIs bleiben bis zu einer konkreten Implementierung Entwuerfe.
+
+
+---
+
+## 22. Desktop-Shell, Taskleiste und dynamische Home-Dateien
+
+Fachlich verbindlich ist [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md). `Desktop.cloudApp` zeigt eine Taskleiste mit Start-Button und Startmenue. Die Taskleiste kann durch den angemeldeten Benutzer **oben, unten, links oder rechts** positioniert werden; `/.taskbar.json` im eigenen Home speichert die Einstellung. Die sichtbaren Desktop-Dateien, -Ordner und Verknuepfungen sind die direkten Kinder des verborgenen VFS-Ordners `/.desktop/`, **ohne** parallele Desktop-Icon-Datenbank. File-Service-Commits werden ueber Outbox/NATS/Realtime und autoritative File-API-Snapshots inkrementell auf die UI abgebildet. Eine Loeschung im File Explorer oder der virtuellen Shell entfernt das Icon **ohne Seitenneuladung**. Alle App-Starts werden weiterhin durch die installierte App Registry und die signierten Endpoint-Allowlists autorisiert.
+
+## 23. Globale App-Verwaltung, Defaultgruppe und GitHub-Kataloge (v0.9)
+
+Diese Ergänzung ersetzt die ältere Planung zur Installation per Rechtsklick. Alle global registrierten `.cloudApp`-Archivversionen liegen auf der **ersten** virtuellen Festplatte unter **`system:/apps/`**. `Apps.cloudApp` ist die in **Settings → Apps** erreichbare zentrale Verwaltungs-App für lokale Pakete, globale Installation, Uninstall, kontrolliertes Löschen installierter Paketdateien sowie Benutzer-/Gruppenzuweisungen. Ein **Doppelklick** auf ein unregistriertes `.cloudApp`-Archiv startet sofort den vertrauenswürdigen Installations-Preflight, jedoch niemals ohne Pflichtbestätigung die endgültige Registrierung.
+
+Ein separater moderierter **`AppStore.cloudApp`** verwendet einen signierten Katalog aus einem **eigenen GitHub-Repository** und erlaubt weitere kompatible GitHub-Katalogquellen, die Administratoren hinzufügen, deaktivieren und entfernen können. Ein Store hat keinerlei Verwaltungshoheit über manuell oder von anderen Stores installierte Apps. Neue zusätzliche Apps sind systemweit installiert, werden aber standardmäßig **nur der stabilen Gruppe `Admin`** zugewiesen. Die Vergabe oder Entziehung weiterer Nutzer-/Gruppen-Grants wirkt im Core ab Commit und wird auf Desktop, Startmenü, Taskleiste, Suche und laufende Apps **ohne Reload** übertragen. Die speziellen Rechte notwendiger Pflicht-Core-Apps bleiben über eine geschützte Release-Baseline geregelt. Vollständige Verbindlichkeit: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 24. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Initial:** alle Core-Module gemeinsam in einem Go-Container; später split-/Kubernetes-fähig. Siehe [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+
+## Architektur-Ergänzung v0.12 – Anmeldung, Logging, Fenster und Client-Geräte
+
+1. **Login:** Username/E-Mail + Passwort, WebAuthn-Passkeys, hardwaregestützte YubiKeys und SSH-Public-Key-Challenges mit kontrolliertem Agent-Companion. Gleiche lokale User-ID unabhängig vom Verfahren.
+2. **Logs:** Pflicht-Core-App `Logs.cloudApp` für Administratoren, separater diagnostischer `logging`-Service, typisierte Log-Level je Modul, niemals abschaltbares Security Audit.
+3. **Fenster:** Jede GUI-`.cloudApp` läuft in einem vom Framework erzeugten Fenster. Desktop-Shell und minimale Login-/Recovery-Oberfläche sind die begrenzten Ausnahmen; reine Jobs ohne GUI haben kein Fenster.
+4. **Taskleiste:** Laufende App-Instanzen, Fenster-Fokus/Min/Max und Rechtsklick-Schließen werden vom gemeinsamen Core-Lifecycle verwaltet und ohne Client-Polling gepusht.
+5. **Geräte:** Ausdrücklich signierte und administrativ genehmigte Device-Deklaration plus Browser-Auswahl und Nutzerzustimmung; keine direkte Verbindung des Go-Containers zu Client-USB.
+6. **Betrieb:** Zwei neue Core-Rollen `logging` und `devices`, jetzt 22 vorbereitete Split-Deployments und 18 HPA-Skalierungen. Default bleibt ein Core-Prozess/ein Container.
+
+Fachlich bindend: [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+
+## Ergänzung v0.13 – sechs OS-inspirierte Themes und animierte Wallpapers
+
+**Fachlich führend:** [THEMING.md](THEMING.md), [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).
+
+cloudOS wird sechs eigenständige, von realen Desktop-Betriebssystemen inspirierte Designs mitliefern: **Northstar** (Windows 11), **Cedar** (Linux Mint/Cinnamon), **Coast** (macOS), **Prism** (KDE Plasma), **Slate** (GNOME) und **RetroGlass** (Windows 7 Aero). Die Referenzen beschreiben ausschließlich die Gestaltungsidee; Markenlogos, proprietäre UI-Assets, Fonts und Programmcode werden nicht übernommen.
+
+Alle Designs verwenden dieselbe framework-gesteuerte Fenster- und Taskleistenfunktionalität. Jeder Benutzer kann die Taskleiste in allen sechs Themes oben, unten, links oder rechts platzieren. **Die explizite Position in `/.taskbar.json` hat Vorrang vor Theme-Defaults.** Startbutton, Launcher, Rechtsklick-Menü mit „App beenden“, App-Sichtbarkeitsregeln und zugängliche Systemdialoge bleiben erhalten. Sämtliche Core-Apps einschließlich Apps, App Store, Logs, Benutzerverwaltung, Spaces und Settings werden über ein gemeinsames Token-/Komponentensystem gestaltet.
+
+Die ersten dynamischen Hintergrund-Presets orientieren sich an daedalOS: **Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landscape**. Sie werden neu und eigenständig gestaltet. Die Berechnung findet ausschließlich **clientseitig** statt; der Go-Core verwaltet Präferenzen, Freigaben und Assets, aber überträgt keine Animationsframes. OffscreenCanvas/Web Worker und WebGL2 sind Zieltechniken mit Canvas- und statischen Fallbacks. Reduced Motion, Batterie- und Leistungsprofile werden respektiert.
+
+**Persönliche Auswahl:** `/.config/cloudos/appearance.json` enthält Theme-/Wallpaper-Präferenzen; `/.taskbar.json` bleibt ausschließlich für die Taskbar zuständig; `/.desktop/` bleibt alleinige Quelle der Desktop-Dateien. Die Themenauswahl und die Wallpaperauswahl sind getrennt: Theme-Wechsel überschreibt nicht einen ausdrücklich gewählten Hintergrund. Änderungen werden per **SSE-Push ohne periodisches Browser-Polling** auf die Sitzungen des Benutzers übertragen.
+
+**Phase:** Weiterhin reine Konzept-/Architekturarbeit; diese Ergänzung führt noch keine Go-, Browser- oder Deployment-Implementierung ein.

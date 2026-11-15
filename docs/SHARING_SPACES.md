@@ -1,10 +1,16 @@
 # cloudOS - Interne Dateifreigaben und Spaces
 
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Datei:** `docs/SHARING_SPACES.md`  
-> **Dokumentversion:** 0.1 (verbindliches Fachkonzept, technische Zielarchitektur)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
-> **Gepruefte Basis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
+> **Gepruefte Basis:** `main`, Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
 > **Fachlich fuehrend fuer:** interne Datei-/Ordnerfreigaben, projektbezogene Spaces, Rollen, Lebenszyklen, Quotas, sichere Mount-Sichten, Schnittstellen und Tests  
 > **Abhaengige Dokumente:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_API_ACCESS.md](APP_API_ACCESS.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)
 
@@ -123,12 +129,14 @@ system:/
 users:/
   homes/
     <uuid-alice>/
-      Desktop/
+      .desktop/
+      .taskbar.json
       Documents/
       Downloads/
       ...
     <uuid-bob>/
-      Desktop/
+      .desktop/
+      .taskbar.json
       Documents/
       ...
   shared/
@@ -146,7 +154,8 @@ Die technische Einordnung unter `users:/shared/spaces` nutzt den im bisherigen V
 
 ```text
 /                              <- users:/homes/<own-user-id>/
-  Desktop/
+  .desktop/
+  .taskbar.json
   Documents/
   Downloads/
   Shared with me/               <- virtuelle, durch Share-IDs gesicherte Mounts
@@ -440,6 +449,9 @@ Der Share-Ersteller kann nicht durch Angabe einer fremden `source_node_id` belie
 
 ## 10. REST-API-Entwurf (v1, nicht implementiert)
 
+**Lokale Geräte und UI v0.12:** Ein berechtigter Benutzer kann Dateien per Browser-Dateipicker/ausgewähltem USB-Stick in sein Home oder einen Space importieren und freigegebene Dateien ausdrücklich exportieren. Das gilt **nur** bei File-/Space-ACL, signierter App-API-Allowlist, ggf. signierter Device Capability und eigener Browserauswahl. Ein USB-Stick ist **kein weiteres VFS-Volume**, und eine App darf keine fremden Space-Dateien aufgrund eines lokalen Device-Grants lesen. Jeder Freigabe-/Mitgliedschaftswechsel wird unveränderlich auditiert und als berechtigtes SSE-Ereignis zugestellt.
+
+
 ### 10.1 Shares
 
 | Methode | Route | Zweck | Beispielhafte operation_id |
@@ -563,7 +575,11 @@ Fremde Go-Dienste greifen nicht direkt auf `files.*` zu. Referentielle Konsisten
 | `spaces.space.disabled` | Schreib-/Lesezugriffe gemaess Space-Policy sperren |
 | `spaces.quota.updated` | Quota-/Status-UI aktualisieren |
 
-Die Realtime-Events sind **Hinweise**, keine Autorisierungsquelle. Jeder Zugriff fragt die gueltigen Policy-Revisionen ab. Eine WebSocket-Verbindung darf keine Dateien oder Namen preisgeben, die der Empfaenger nicht sehen darf. Idempotente Events und REST-Resync sind Pflicht.
+Die Realtime-Events sind **Hinweise**, keine Autorisierungsquelle. Jeder Zugriff fragt die gueltigen Policy-Revisionen ab. Ein SSE-Stream darf keine Dateien oder Namen preisgeben, die der Empfaenger nicht sehen darf. Idempotente Events und Replay ueber einen persistenten Cursor sind Pflicht; nur bei einer nachgewiesenen Cursor-Luecke ist eine einmalige autorisierte Snapshot-Recovery erlaubt.
+
+### 13.1 Direkte Mount- und Space-Deltas per SSE
+
+`sharing.share.created`, `sharing.share.revoked`, `spaces.member.added`, `spaces.member.removed`, `spaces.role.changed`, `spaces.content.changed` und `spaces.quota.updated` werden aus Owner-Outbox und NATS JetStream durch den Push Projector in **direkt anwendbare und empfaengerspezifisch autorisierte SSE-Deltas** umgesetzt. Die aktuell erlaubte Mount-/Space-Ansicht aendert sich ohne Browser-Reload, `GET`-Poll und ohne zusaetzliche Volume-Mounts. Revocation sperrt neue API-Zugriffe sofort; beim Replay werden Inhalte anhand der aktuell gueltigen Freigabe geprueft. Neue Shares koennen zusaetzlich eine persistente `notifications.created`-Inbox-Nachricht erzeugen. Massgeblich [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 14. Transaktionsgrenzen und Konfliktverhalten
 
@@ -714,3 +730,24 @@ Fuer cloudOS gelten weiterhin die eigenen Regeln: zwei virtuelle Festplatten, pe
 ## 21. Zusammenfassung
 
 **Interne Freigaben** machen bestehende Dateien/Ordner fuer andere lokale Benutzer oder Gruppen zugaenglich, ohne sie zu kopieren oder die Home-Root-Grenzen aufzuheben. **Spaces** sind unabhaengige gemeinsame Dateibereiche mit stabilen IDs, dedizierten Rollen, Quotas und Lebenszyklus. Beide liegen auf der bereits existierenden zweiten virtuellen Festplatte. Das Root `/` des Benutzers bleibt sein Home; `Shared with me` und `Spaces` sind streng autorisierte Mount-Sichten. POSIX-Rechte, Share-/Space-Rollen, Konto-/Gruppenrichtlinien und signierte App-API-Allowlisten werden im Go-Core gemeinsam und serverseitig erzwungen.
+
+
+## 22. Desktop-Verknuepfungen zu Freigaben und Spaces
+
+Eine auf dem Desktop angelegte `.cloudlink`-Verknuepfung liegt als Datei im eigenen `/.desktop/`-Ordner des Benutzers und kann ein autorisiertes Share-/Space-Ziel referenzieren. Sie erzeugt **weder ein drittes Laufwerk noch einen zusaetzlichen Share-/Space-Grant**. Beim Oeffnen prueft der Go-Core Mitgliedschaft, ggf. Share-Grant, VFS-Mount, Dateirechte und die signierte Endpoint-Allowlist der gestarteten App erneut. Das Loeschen oder Verschieben des Shortcuts loescht **nicht** die geteilte Datei und nicht den Space. Ein widerrufenes Ziel darf auch bei vorhandenem Shortcut oder altem Browser-Cache nicht weiter lesbar sein. VFS-Aenderungen an der Shortcut-Datei fuehren ueber das Realtime-System zu einem aktualisierten Desktop **ohne Browser-Reload**. Details: [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+
+## 23. App-Verfügbarkeit bei Sharing und Spaces (v0.9)
+
+Ein Share- oder Space-Zugriff ist **keine automatische Freigabe zur Ausführung einer `.cloudApp`**. App-Installation ist global (`system:/apps/` auf der ersten virtuellen Festplatte), aber Start/Entdeckung einer zusätzlich installierten App sind zunächst auf die stabile lokale Gruppe **`Admin`** begrenzt und werden anschließend in `Apps.cloudApp` explizit pro Benutzer oder Gruppe zugewiesen. Space-Rollen können nicht ohne separate App-Assignment-Policy als App-Gruppenrechte interpretiert werden.
+
+Wird einem Benutzer die App-Zuweisung entzogen, verschwinden entsprechend auch „Öffnen mit“-Einträge für diese App, selbst wenn die Datei weiterhin durch einen Share oder Space zugänglich ist. Die Dateirechte bleiben unverändert. Die Änderungen werden über gefilterte Events und erneute autoritative App-Listenabfrage ohne Browser-Neuladen sichtbar. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 24. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+Sharing und Spaces sind fachlich getrennte Owner, im Standard aber Module **desselben Go-Core-Containers**. Bei späteren mehrfachen `sharing`- und `spaces`-Pods sind Space-Rollen, Memberships, Quotas und Datei-Freigaben ausschließlich in gemeinsamem autoritativen Speicher verankert; kein Pod besitzt ein eigenes, dauerhaft abweichendes Freigabeverzeichnis. Gleichzeitige Quota-Reservierungen, Rollenänderungen und Grant-Widerrufe werden transaktional/idempotent verarbeitet.
+
+Auch eine zweite Gateway-/Share-Replik darf die Home-Grenze `/` oder die POSIX-ACLs nicht umgehen. Berechtigungsänderungen propagieren sofort über DB-Revision/Outbox und gefilterte SSE-Deltas an alle Sitzungen. Ein Verlust des SSE-Streams ändert nicht die fachliche Autorisierung. Spaces bleiben logische Bereiche derselben zweiten virtuellen Festplatte und erfordern weiterhin **keine dritte Festplatte**.
+
+## Architektur-Ergänzung v0.12 – Auditing und Client-Dateien
+
+Space-/Share-Administrationsaktionen bleiben auch bei deaktiviertem Diagnose-Logging im Security Audit. Die vorinstallierte `Logs.cloudApp` kann diese nur mit expliziten `audit.view`-Rechten zeigen. Ein Client-USB-Dateipicker besitzt keine Fähigkeit, den systeminternen `system:/apps`-Paketstore oder fremde Space-Mounts direkt zu verändern; der Import/Export durchläuft den bestehenden File-/Sharing-Owner.

@@ -1,7 +1,16 @@
 # cloudOS - Desktop, Taskleiste, Startmenue und Live-Dateisystem
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Pfad:** `docs/DESKTOP_ENVIRONMENT.md`  
-> **Dokumentversion:** 0.1 (verbindliches Zielbild, noch nicht implementiert)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Branch `main`  
 > **Gepruefte Ausgangsbasis:** Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
@@ -175,7 +184,7 @@ Alle **direkten Kinder** von `/.desktop/` werden als Icons oder Ordner dargestel
 | Gewoehnliche Datei | Dateityp-Icon und Dateiname | Oeffnen mit installierter, berechtigter App |
 | Ordner | Ordner-Icon und Name | `FileExplorer.cloudApp` mit diesem Node starten |
 | `*.cloudlink` | Shortcut-Icon mit Verknuepfungsmarker | Kontrollierte Zielauflosung und ggf. App-Start |
-| `.cloudApp`-Archiv | Paketdatei, **keine** ausfuehrbare App | Admin-Kontextmenue kann Installer starten |
+| `.cloudApp`-Archiv | Paketdatei, **keine** ausführbare App | Doppelklick startet bei Adminberechtigung unmittelbar `Apps.cloudApp`-Preflight; kein Installations-Kontextmenü |
 | Unbekannter Typ | Generisches Datei-Icon | Dateitypauswahl oder Eigenschaften |
 | Verstecktes Kind `.*` | Standardmaessig nicht gezeichnet | Optionaler Modus 'Versteckte Dateien anzeigen' |
 
@@ -260,6 +269,9 @@ Die Core-App nutzt das gemeinsame Designsystem und implementiert mindestens:
 **Keine starre Fenster-Verschachtelung:** `StartMenu` ist UI-Bestandteil der Desktop-App und wird **nicht** als unabhaengige gestartete App behandelt. `Settings.cloudApp` und `FileExplorer.cloudApp` sind dagegen eigene gestartete App-Instanzen.
 
 ## 9. Taskleiste: Platzierung und Layout
+
+**Verbindliche Taskbar-/Window-Integration v0.12:** Jede gestartete GUI-App besitzt mindestens ein vom cloudOS-Framework erzeugtes Fenster; nur `Desktop.cloudApp` ist die Shell und benutzt selbst keinen zusätzlichen Desktop-Root-Window-Wrapper. Die Taskleiste bildet den **autorisierten Fenster-/App-Lifecycle-State** ab, nicht eine vom App-Code frei behauptete Running-Markierung. Links anklicken: starten/fokussieren/wiederherstellen, ggf. Fenstergruppe auswählen. Rechts anklicken: **Dieses Fenster schließen** oder **App beenden**, mit ungespeicherte-Arbeit-Dialog und ForceStop-Pfad. Minimieren beendet die App nicht. Beim Wechsel der Taskleistenposition (`top/bottom/left/right`) werden Maximized-/Snap-Bounds unmittelbar neu berechnet. Fachlich führend: [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md).
+
 
 ### 9.1 Vier verbindliche Positionen
 
@@ -409,21 +421,19 @@ sequenceDiagram
 
 **Datenquelle:** Bootstrap darf einen optimierten, serverseitig autorisierten Sammel-Endpunkt verwenden, aber dieser muss denselben File Service lesen und darf keine parallel gefuehrte Desktop-Inhaltsdatenbank einfuehren. Der Browser zeigt die UI auch bei temporaer unterbrochener Realtime-Verbindung mit den zuletzt erlaubten Snapshots, solange diese nicht widerrufen sind; fuer neue sicherheitskritische Aktionen bleibt die Core-Pruefung unverzichtbar.
 
-## 14. Live-Synchronisation: keine Seitenneuladung
+## 14. Live-Synchronisation ueber SSE: ohne Reload und ohne Client-Polling
 
-### 14.1 Autorisierte Verzeichnisbeobachtung
+### 14.1 Verbindliches Push-Abonnement
 
-Die Desktop-Shell abonniert die **stabile Node-ID** des eigenen `/.desktop/`-Ordners, nicht einen unvalidierten clientseitigen Pfad. Die Konfigurationsdateien werden analog ueber ihre Node-ID oder eine kontrollierte Home-Konfigurations-Subscription beobachtet.
+`Desktop.cloudApp` nutzt den privilegierten App Host mit einer authentifizierten **SSE-Verbindung** und abonniert ausschliesslich die erlaubte Home-/Desktop-Audience. Server und Projektor berechnen **direkt anwendbare Deltas**, die neue/umbenannte/verschobene/geloeschte Nodes und ihre erlaubten Anzeigeattribute enthalten. Es gibt keine periodischen REST-Abfragen und **keinen Nachlade-GET nach jedem Event**.
 
-1. **Snapshot laden** (`children`, `revision`, `snapshot_cursor`).
-2. **Subscription** mit autorisierter Home-/App-Instanz starten und einen vom Server validierten Cursor uebergeben.
-3. **Race vermeiden:** Aenderungen zwischen Snapshot und Subscription duerfen nicht verloren gehen. Die API muss Cursor-/Replay- oder atomare Snapshot-und-Subscribe-Semantik besitzen.
-4. Ereignis empfangen: passender File-Knoten/Ordner und gueltige Policy.
-5. **Resync:** Autoritative Kinderliste mit ETag oder Cursor erneut abfragen; Node-Diff anhand stabiler IDs berechnen.
-6. UI inkrementell aktualisieren, ohne das Browserdokument neu zu laden.
-7. Bei Reconnect, Cursor-Luecke, Queue-Overflow oder Policy-Revisionwechsel den autoritativen Snapshot vollstaendig neu laden.
-
-Ein WebSocket-Event ist eine **Invalidierung/Benachrichtigung**, nicht die einzige Wahrheit ueber Dateiinhalt, Berechtigung und Benennung. Das verhindert, dass Duplikate oder vertauschte Zustellungen falsche Icons erzeugen.
+1. Der App Host oeffnet `GET /api/v1/events/stream` und empfaengt den serverseitigen `stream.ready`-Cursor.
+2. Ein einzelner autorisierter Desktop-Bootstrap liefert den Ausgangszustand von `/.desktop/`, `/.taskbar.json` und `/.desktop-layout.json` und einen konsistenten Event-Watermark.
+3. Die Desktop-App installiert den Snapshot und wendet nur Ereignisse nach dem Watermark in Reihenfolge an.
+4. `files.node.changed` mit `add|update|remove|move` und passenden Node-IDs aendert die Iconliste direkt; Dateiinhalt wird nicht aus einem unautorisierten Push mitgeliefert.
+5. `desktop.taskbar.changed` aktualisiert die validierte Taskbar-Konfiguration; `desktop.layout.changed` aktualisiert Icon-Positionen.
+6. Bei SSE-Abbruch bleiben lokale Ansichten als degradierter Snapshot sichtbar, der Core kontrolliert aber alle folgenden Operationen. Reconnect verwendet `Last-Event-ID` und Replay.
+7. Bei Replay-Gap, unbekannter Schema-Version oder komplett neu geoeffneter Ansicht ist **eine** gezielte autorisierte Snapshot-Recovery erlaubt. Ein Timer zum regelmaessigen Neuladen ist verboten.
 
 ### 14.2 Beispiel: Datei wird im File Explorer geloescht
 
@@ -431,34 +441,37 @@ Ein WebSocket-Event ist eine **Invalidierung/Benachrichtigung**, nicht die einzi
 sequenceDiagram
     participant E as FileExplorer.cloudApp
     participant F as Go File Service
-    participant DB as PostgreSQL
-    participant N as NATS / Realtime
+    participant DB as PostgreSQL und Outbox
+    participant N as NATS JetStream
+    participant P as Push Projector
+    participant S as SSE Gateway
     participant D as Desktop.cloudApp
-    E->>F: DELETE /.desktop/Notizen.txt (Node-ID / ETag)
-    F->>F: Identitaet, POSIX, Mount, App-Allowlist pruefen
-    F->>DB: Datei als geloescht markieren + Outbox in einer Transaktion
+    E->>F: DELETE fuer Node-ID mit ETag
+    F->>F: Identity, POSIX, Mount, API-Allowlist pruefen
+    F->>DB: Datei und Outbox atomar committen
     DB-->>F: Commit
     F-->>E: 204 No Content
-    F->>N: files.node.deleted (autorisierter Hinweis)
-    N-->>D: Desktop-Ordner hat neue Revision
-    D->>F: GET children /.desktop/ mit Revision
-    F-->>D: Snapshot ohne Notizen.txt
-    D->>D: Icon nach Node-ID entfernen
+    DB->>N: Outbox Publisher
+    N->>P: files.node.deleted
+    P->>P: Autorisiertes Desktop-Delta projizieren
+    P->>S: remove(node_id, revision)
+    S-->>D: SSE files.node.changed / remove
+    D->>D: Icon sofort entfernen, kein GET/Reload
 ```
 
-Dasselbe gilt fuer `files.node.created`, `updated`, `moved`, `deleted` sowie fuer `files.permissions.changed`. Bei **Move aus `/.desktop/`** wird ein Entfernen, bei **Move hinein** ein Hinzufuegen erkannt. Aenderungen durch die Shell, ein anderes Tab oder eine berechtigte App funktionieren identisch.
+Dieselbe Push-Semantik gilt fuer `created`, `updated`, `moved`, `deleted`, Berechtigungen und gelockerte/getrennte Benutzer-/App-Zuweisungen. Eine nicht berechtigte App kann weder Desktopdaten abonnieren noch durch direkte Dateiknoten-IDs auslesen.
 
-### 14.3 Datei-Aenderung von Taskleisten-Einstellungen
+### 14.3 Taskleisten- und Layoutaenderungen
 
-1. Settings-App schreibt einen validierten neuen Inhalt nach `/.taskbar.json` mit `If-Match`.
-2. File Service committet Inhalt/Revision und Outbox atomar.
-3. Das Realtime-System signalisiert dem Desktop die Aenderung der Konfiguration.
-4. Desktop laedt die Datei neu, validiert sie und setzt die neue Panel-Position ohne Browser-Reload um.
-5. Jeder weitere angemeldete Tab desselben Benutzers uebernimmt den geaenderten Stand.
+1. `Settings.cloudApp` schreibt den validierten Inhalt nach `/.taskbar.json` mit `If-Match`.
+2. File Service speichert die Revision und erzeugt die Outbox-Nachricht.
+3. Der Projector bereitet `desktop.taskbar.changed` mit der fuer diesen User autorisierten Position `top|bottom|left|right` und den erlaubten Einstellungen auf.
+4. Alle Sitzungen erhalten den Delta ueber SSE und aktualisieren Taskleiste/Startfenster ohne Dateiread und ohne Browser-Reload.
+5. Icon-Layout folgt denselben Regeln ueber `desktop.layout.changed` und `/.desktop-layout.json`.
 
-### 14.4 Datenfluss und Datenschutz
+### 14.4 Datenschutz und Resync
 
-Events duerfen **nur** an Sessions mit gueltigem Home-Mount, Datei-Listenrecht und App-API-Berechtigung gesendet werden. Es gibt keine globale Topic-Sicht auf andere Home-Verzeichnisse. Bei Entzug von Rechten muss der Client den gesperrten Inhalt aus dem UI entfernen, statt ihn aus einem alten Cache weiter anzuzeigen.
+Der Realtime Service prueft Empfaenger und Policy-Epoch bei Projektion **und** Auslieferung/Replay. Bei Revoke ist das Entfernen geschuetzter Inhalte Pflicht. Fuer Replay-Luecken wird genau eine autorisierte Wiederherstellung angestossen, nicht ein periodischer Resync. Weitere Details und Tests enthaelt [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 15. API-Entwurf, Endpoint-Allowlist und Routing
 
@@ -476,7 +489,7 @@ Die folgenden Endpunkte/Operation-IDs sind **Entwuerfe**. Die finalen OpenAPI-Ve
 | `PUT /api/v1/files/{id}/content` | File Service | Taskbar-/Layout-Konfiguration atomar ersetzen |
 | `GET /api/v1/apps/available` | App Registry | Installierte, zugewiesene Apps fuer Startmenue/Pins |
 | `POST /api/v1/apps/{id}/launches` | App Lifecycle | Berechtigte App-Instanz starten |
-| `GET /api/v1/events/ws` | Realtime | Autorisierte Datei-/App-Subscriptions und Resync-Hinweise |
+| `GET /api/v1/events/stream` | Realtime | Authentifizierter SSE-Stream mit direkt anwendbaren, autorisierten Deltas |
 
 Fuer den Spezialfall `/.desktop` kann die File API nach erfolgreicher Home-Aufloesung eine serverseitige **well-known folder**-ID bereitstellen. Das ist kein zweiter Dateibaum und kein pauschaler Zugriff auf `system:/`.
 
@@ -558,10 +571,10 @@ Core-intern bleiben File Service, App Registry, Desktop/Window State und Realtim
 | Datei wird in Tab A geloescht | Tab B entfernt Icon nach Update ohne Reload |
 | Datei wird umbenannt | Node-ID bleibt erhalten, Position bleibt sofern moeglich |
 | Datei wird aus Desktop herausverschoben | Icon verschwindet; nur Layoutreferenz darf verwaisen |
-| Datei wird auf Desktop verschoben | Icon erscheint nach Commit/Resync |
+| Datei wird auf Desktop verschoben | Icon erscheint nach Commit durch autorisierten SSE-Delta |
 | Ein Share wird widerrufen | Shortcut bleibt ggf. als nicht nutzbar, aber Zielinhalt ist nicht zugreifbar |
 | Ein App-Paket wird entfernt | Startmenue/Pins werden aktualisiert; Shortcut ist nicht startbar |
-| WebSocket unterbrochen | UI zeigt sicheren Snapshot, resynchronisiert beim Reconnect |
+| SSE unterbrochen | UI meldet eingeschraenkten Zustand, replayt `Last-Event-ID`, bei Gap einmaliger Snapshot |
 | Event doppelt geliefert | Node-ID-/Revision-Diff ist idempotent |
 | Datei `/.taskbar.json` korrupt | Fallback-Position `bottom`, nachvollziehbarer Fehlerhinweis |
 | Ordner `/.desktop/` unerreichbar | Keine Daten aus anderen Roots; wiederholbare Recovery-Funktion |
@@ -661,7 +674,7 @@ Die **Persistenz der gewaehlten Position** kommt aus `/.taskbar.json`; ein Theme
 | DESK-17 | Datei via Shell angelegt | Icon erscheint ueber denselben Eventpfad |
 | DESK-18 | Datei via anderem Tab geloescht | Icon im ersten Tab entfernt |
 | DESK-19 | Datei verschwindet bei Rechteentzug | Keine veraltete, unberechtigte Anzeige |
-| DESK-20 | WebSocket faellt aus | Reconnect und REST-Resync korrigieren Icons |
+| DESK-20 | SSE faellt aus | Replay per `Last-Event-ID` oder gezielter einmaliger Snapshot korrigiert Icons ohne Polling |
 | DESK-21 | Event dupliziert oder vertauscht | Kein Phantom-Icon oder doppelter Eintrag |
 | DESK-22 | Snapshot/Subscribe-Race | Keine zwischenzeitliche Aenderung geht verloren |
 | DESK-23 | Shortcut auf installierte App | App startet kontrolliert ueber Registry |
@@ -734,3 +747,33 @@ Die ADR-Nummern sind Vorschlaege. Die zuletzt vorhandenen ADRs der Gesamtarchite
 ## 26. Zusammenfassung
 
 cloudOS stellt seinen Desktop als signierte und installierte `Desktop.cloudApp` bereit. Die Taskleiste besitzt einen Startknopf und ein Startfenster, ist durch den Benutzer an alle vier Bildschirmkanten verschiebbar und speichert ihre Einstellungen in der versteckten Datei `/.taskbar.json` im persoenlichen Home. Die tatsaechlich auf dem Desktop sichtbaren Dateien, Ordner und Verknuepfungen liegen ausschliesslich in `/.desktop/`. Der File Service ist die einzige Quelle fuer diese Inhalte. Realtime-Ereignisse sorgen zusammen mit autoritativen REST-Snapshots dafuer, dass Aenderungen unmittelbar und ohne Browser-Reload sichtbar werden, auch bei mehreren Tabs und unabhaengig davon, welche autorisierte Anwendung die Aenderung vorgenommen hat.
+
+## 27. App-Zuweisungen, Apps-Verwaltung und Live-Widerruf (v0.9)
+
+Die von `Desktop.cloudApp` dargestellten App-Einträge im Startmenü, im Taskleisten-Launcher, im App-Suchindex und auf dem Desktop sind **niemals** durch das globale Vorhandensein eines `.cloudApp`-Pakets unter `system:/apps/` legitimiert. Die UI verwendet ausschließlich die personalisierte, serverseitig gefilterte `GET /api/v1/apps/available`-Sicht. Zusätzliche Apps sind nach systemweiter Installation anfangs nur für die stabile Gruppe **`Admin`** start- und sichtbar; benutzer- oder gruppenbezogene Grants werden über `Apps.cloudApp` vergeben, die innerhalb von Settings erreichbar ist.
+
+Ein **Doppelklick** auf eine **nicht installierte** `.cloudApp`-Quelldatei in `/.desktop/` oder im File Explorer erzeugt bei administrativ berechtigten Benutzern den geschützten Installations-Intent und startet sofort `Apps.cloudApp` mit dem Paket-Preflight. Ein **Rechtsklick** auf die Paketdatei bietet **keine** Installationsaktion. Der eigentliche Installations-Commit erfordert signierte API-Endpoint-Freigaben und gegebenenfalls eine separate Selbstsignatur-Risikobestätigung. Ein Doppelklick auf eine **bereits installierte, berechtigt zugewiesene** App-Verknüpfung startet diese wie bisher über den Lifecycle Service.
+
+Die separate `AppStore.cloudApp` und die `Apps.cloudApp` erscheinen nur bei entsprechender aktueller Zuweisung im Startmenü. Der Store verwaltet ausschließlich selbst installierte Apps und kann zusätzliche geprüfte GitHub-Katalogquellen anzeigen.
+
+**Realtime:** Bei `apps.assignments.changed`, Änderungen einer Gruppe in lokaler/LDAP-synchronisierter Identity, Installation/Uninstall oder App-Sicherheitsblock aktualisiert Desktop seinen autorisierten App-Snapshot nach Event-Hinweis. Entfernte Grants blenden Startmenüeinträge, Taskleistenpins, Suche und ausführbare `.cloudlink`-Shortcuts sofort aus; die zugrunde liegende private `.cloudlink`-Datei in `/.desktop/` wird dabei **nicht** heimlich gelöscht. Alle direkten Launch- und App-Asset-Anfragen werden vom Core unabhängig vom Browserzustand gesperrt, und laufende Instanzen werden nach der festgelegten Revocation-Policy beendet. Verpasste Events werden durch Reconnect/ETag-Resync ausgeglichen. Fachlich führend: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 28. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+`Desktop.cloudApp` ist eine Browser-Anwendung und wird nicht als Kubernetes-Pod pro Benutzer gestartet. Im Standardbetrieb bedient **ein Core-Container** sämtliche Desktop-/VFS-/Push-Verträge; später können `desktop`, `files` und `realtime` unabhängig voneinander repliziert werden. `/.taskbar.json`, `/.desktop-layout.json` und `/.desktop/` bleiben ausschließlich im Benutzer-Home auf der zweiten virtuellen Festplatte verwaltet; ihre Inhalte sind keine lokalen Core-Pod-Dateien.
+
+Änderungen am Desktop erscheinen als autorisierte SSE-Deltas auf allen angemeldeten Tabs, selbst wenn sich der Stream nach einem Pod-Ausfall mit einer anderen Realtime-Replik verbindet. Die Events werden dauerhaft über Outbox/Delivery-Log abgesichert und nach `Last-Event-ID` wiedergegeben. Die Reihenfolge der File-/Layout-Revisionen bleibt verbindlich. Browser-Polling ist auch während eines Kubernetes-Rollouts keine zulässige Ersatzstrategie.
+
+## Architektur-Ergänzung v0.12 – Window Host und lokale Geräte
+
+Apps rendern ausschließlich in verwalteten Framework-Fenstern, darunter Web-/Rust-WASM-/Canvas-Apps. Startmenü und Taskleiste zeigen nur benutzer-/gruppenberechtigte Installationen; bei Rechteentzug werden Windows und Pins ohne Reload durch SSE revidiert. Das Systemmenü „App beenden“ führt einen Core-App-Lifecycle-Stop für **die eigene** App-Instanz aus. Device-Grant-Dialoge, Browser-Dateipicker und Systemabfragen sind vertrauenswürdige Framework-Oberflächen; kein fremdes iframe darf sie durch Raw-USB-Berechtigungen ersetzen.
+
+## Ergänzung v0.13 – Themes und animierte Desktop-Hintergründe
+
+`Desktop.cloudApp` rendert künftig einen eigenständigen, **nicht interaktiven Wallpaper-Layer unterhalb** von Icons, Fenstern und Taskbar. Die Wallpaper-Engine ist ein Teil der Desktop-Core-App und kein separates unkontrolliertes Fenster. Für Presets werden Web Worker/OffscreenCanvas bevorzugt; fehlende Browserfunktionen oder eingeschränkte Leistung führen zum Canvas-/Standbild-Fallback. Der Layer blockiert keine Klicks auf `/.desktop/`-Icons und keine Window-/Taskbar-Ereignisse.
+
+Das Desktop-Framework unterstützt sechs in [`THEMING.md`](THEMING.md) spezifizierte Themes: **Northstar, Cedar, Coast, Prism, Slate, RetroGlass**. Jede Variante stellt eine sichtbare Starttaste, Startmenü, laufende Fenster, Taskbar-Kontextaktionen und vier Taskbar-Positionen bereit. Es gilt die strikte Benutzerpriorität: `/.taskbar.json` und `/.desktop-layout.json` bleiben unverändert, wenn sich das Theme ändert; die tatsächlichen Desktop-Dateien bleiben in `/.desktop/`.
+
+Die wallpaperbezogene Konfiguration liegt gemeinsam mit der Theme-Präferenz in `/.config/cloudos/appearance.json` (`0600`). **Wallpaper und Theme sind unabhängig wählbar.** Bei einer expliziten Wallpaper-Auswahl darf ein Theme-Wechsel sie nicht ersetzen. Ohne explizite Auswahl liefert das Theme ein empfohlenes Preset. Eigene Bilder/Videos werden ausschließlich über berechtigte VFS-Datei-Handles gewählt; das `system`-Volume wird nicht eingebunden.
+
+Für die erste Version sind **Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landscape** sowie statische Bilder, stumme Videos und Slideshow geplant. Clientseitige Animationen benötigen **keine** Netzwerkabfragen pro Frame. Ein anderer Browser-Tab erhält Änderungen per SSE (`wallpapers.preference.changed`, `themes.active.changed`), ohne Polling und ohne Seiten-Reload. Die detaillierten Regeln zu Rendering, Energy Saver, Accessibility und Fallback sind in [`WALLPAPER_ENGINE.md`](WALLPAPER_ENGINE.md) festgelegt.

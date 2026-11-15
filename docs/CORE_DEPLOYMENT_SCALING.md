@@ -1,7 +1,12 @@
 # cloudOS – Core-Deployment, Microservice-Trennung und Kubernetes-Skalierung
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
 > **Dokument:** `docs/CORE_DEPLOYMENT_SCALING.md`  
-> **Version:** 0.1 – neues fachlich führendes Deployment-Konzept für cloudOS 0.11  
+> **Version:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Verifizierte GitHub-Basis:** `main`, Commit `e8c624242845907912ac0ff49969d7e251c51fe3`  
@@ -107,6 +112,9 @@ Die schematischen Pfeile stehen für definierte Contracts. **Kubernetes `Service
 
 ## 4. Servicekatalog als Quelle der Deployment-Generierung
 
+**Katalog-Update v0.12:** Zum bisherigen Dienstkatalog sind zwei eigenständige skalierbare HTTP-Rollen hinzugekommen: `logging` (diagnostische Logging-Policy und Logabfrage, nicht das obligatorische Security Audit) sowie `devices` (Device-Capability-Policy, App-/Session-Grants, Widerruf; physische USB-/HID-/Serial-Handles bleiben im Browser). Die Katalogsumme beträgt **22 statt 20**; der `distributed`-Generator erzeugt **22 Deployments und 18 CPU-HPA-Templates**. `combined` bleibt bei **genau einer Core-Replik/einem Core-Container**. Neue `CLOUDOS_LOG_LEVEL`- und `CLOUDOS_LOG_LEVEL_OVERRIDES`-Variablen steuern den stdout-JSON-Logger des Go-Bootstrap; die spätere, revisionierte zentrale Level-Policy ist noch nicht implementiert. Siehe [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md) und [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+
+
 Die Datei `core/internal/platform/services.json` ist die **maschinenlesbare Ausgangsliste des technischen Bootstrap**. Sie deklariert Namen, grobe Rolle, Skalierungsart, Mindest-/Maximalreplikate und CPU-HPA-Eignung. Sie ist noch **keine abschließende vollständige Fachverzeichnis-Spezifikation** und keine Autorisierungs-/App-API-Registry; die detaillierten Owner-Kontexte aus `SYSTEM_ARCHITECTURE.md` bleiben maßgeblich.
 
 | Technischer Core-Service | Aufgabenfeld | Last-/Replikationsstrategie | Anfangsbetrieb |
@@ -128,6 +136,8 @@ Die Datei `core/internal/platform/services.json` ist die **maschinenlesbare Ausg
 | `realtime` | SSE-Verbindungen, Replay, Backpressure | stream-bewusst, mehrere Replikate, später Custom Metrics | kombiniert |
 | `search` | Such-API und autorisierte Abfragen | stateless API, verteilte Search-Worker getrennt | kombiniert |
 | `audit` | auditierte Schreib-/Abfrage-API | stateless API, eigener Datenspeicher | kombiniert |
+| `logging` | Diagnose-Logpolicy, strukturierte Logs und adminautorisierte Logabfragen | stateless Policy-API; die zentrale Logablage bleibt ein eigenständiges Backend | kombiniert |
+| `devices` | Geräte-Capabilities, browsergebundene Grants, Widerruf und Audit | stateless Policy-API; physische Gerätehandles bleiben ausschließlich im Client | kombiniert |
 | `push-projector` | user-/app-spezifische Eventprojektion | durable Queue / Consumer Group; dedupliziert | kombiniert |
 | `ldap-sync` | externe LDAP-Verzeichnissynchronisation | **eine aktive Lease je LDAP-Quelle** | kombiniert |
 | `runtime-controller` | Job- und Runner-Orchestrierung | Work-Instance-Leases, exklusiver Job-Owner | kombiniert |
@@ -148,6 +158,10 @@ core/
     ├── server.go
     ├── server_test.go
     └── services.json
+
+core/internal/observability/
+├── logging.go              # JSON-Logging, Kategorie-Level und Schutz sensibler Felder
+└── logging_test.go         # Laufzeit-Level, Race- und Datenschutztests
 ```
 
 In der technischen Vorbereitung sind die Namen bereits einlesbar, beide Startmodi validiert und eine Prozess-/Container-Probe verfügbar. **Es gibt noch keine fertig implementierten Fachmodule**; ein Probe-`200` bedeutet ausschließlich, dass der Bootstrap-Prozess läuft, nicht dass Login, Datenbankzugriffe oder die File-API betriebsbereit sind. Die eigentlichen Module und gRPC-Ports werden in den Entwicklungsphasen ergänzt und durch zusätzliche Tests abgesichert.
@@ -361,7 +375,7 @@ docker compose -f deploy/compose/compose.yaml --profile infra up --build
 docker compose -f deploy/compose/compose.split.yaml up --build
 ```
 
-Dieses alternative Compose startet 20 Core-Container im Modus `split`; nur der Gateway-Testport ist an `127.0.0.1` gebunden. Die übrigen Container sind ausschließlich im Compose-Netz erreichbar. Es darf **nicht gleichzeitig mit `deploy/compose/compose.yaml`** denselben Port nutzen oder parallel als schreibender Core gegen dieselbe Datenbank betrieben werden. Die Datei wird aus dem Servicekatalog mit `scripts/generate_compose_split.py` erzeugt.
+Dieses alternative Compose startet 22 Core-Container im Modus `split`; nur der Gateway-Testport ist an `127.0.0.1` gebunden. Die übrigen Container sind ausschließlich im Compose-Netz erreichbar. Es darf **nicht gleichzeitig mit `deploy/compose/compose.yaml`** denselben Port nutzen oder parallel als schreibender Core gegen dieselbe Datenbank betrieben werden. Die Datei wird aus dem Servicekatalog mit `scripts/generate_compose_split.py` erzeugt.
 
 ## 14. Kubernetes-Kommandos (Opt-in)
 
@@ -634,3 +648,17 @@ Die bisherigen Entwurfs-ADRs bis einschließlich ADR-082 bleiben bestehen. Neue 
 **Jetzt vorbereitet und mit ersten echten Tests versehen:** ein gemeinsames Go-Core-Bootstrap, alternativ separat gestartete Go-Serviceprozesse, gemeinsame Servicekatalogquelle, Dockerfile, Compose-Standard mit genau einem Core-Container, zwei getrennte Kubernetes-Deploymentschemata, HPA für geeignete HTTP-Dienste, Sicherheitskontexte und Start-/Stop-Probes.
 
 **Später vollständig zu implementieren:** Go-Fachmodule, gRPC-Portadapter, Authentifizierung, Datenhaltung, echte SSE-Deltas/Replay, Signaturen, .cloudApp-Installation, Benutzer-/Gruppen- und VFS-Rechte, verteilte Worker-Koordination und produktionsreifes Cluster-Deployment. Die Architektur legt fest, wie diese Funktionen ohne erneute Deployment-Neukonstruktion hinzugefügt werden.
+
+## Architektur-Ergänzung v0.12 – verteilte Auth-, Logging- und Device-Rollen
+
+**Auth:** WebAuthn-/SSH-Challenges, Sessionbindung und Replay-Schutz benötigen gemeinsamen persistenten Zustand und koordinierte TTLs; mehrere `identity`-/`sessions`-Replikate dürfen dieselbe Challenge nicht doppelt erfolgreich konsumieren. **Logging:** Ein Core-Container liefert strukturierte stdout-Logs; K8s aggregiert später mehrere `logging`- und andere Fachreplikate über Collector und gemeinsamen Log-Backend-Service. **Devices:** Die Policy-Replikate sind skalierbar, Browser-Gerätehandles nicht – sie verbleiben in der aktuellen App-Host-Instanz. **Windows:** Die serverseitige `desktop`-Rolle kann repliziert werden, der tatsächliche Window Manager ist clientseitiger Bestandteil der `Desktop.cloudApp`.
+
+**Erste Tests:** unverändert `CLOUDOS_MODE=combined`, kein zusätzlicher Container für Logging oder Device Broker. **Opt-in:** `CLOUDOS_MODE=split`, 22 getrennte Deployments oder Kubernetes mit passenden Ressourcen. Konkrete Auth-/Browser-/Fach-Sicherheitsfunktionen sind erst nach Implementierung und Tests aktiv.
+
+## Ergänzung v0.13 – Skalierung von Themes und animierten Hintergründen
+
+Der Theme Service bleibt ein trennbares Go-Core-Fachmodul mit gemeinsamer Registry, benutzergebundenen Preferences und revisionsbasiertem SSE-Push. Der Standardmodus bleibt **ein Combined-Go-Core-Container**; ein späteres Kubernetes-Deployment kann den Service skalieren, ohne Benutzer-Theme-Wahrheiten pro Pod zu duplizieren.
+
+Die Wallpaper-Animation selbst wird **ausschließlich im Browser** berechnet. Daher entsteht **kein** zusätzlicher Wallpaper-Render-Microservice im Core, und die Anzahl der Desktop-Animationen verursacht keine Server-FPS-Last. Der Server liefert nur geprüfte Version-Assets, die aktiven Präferenzen und Änderungen per SSE. Asset-Caching/CDN kann später unabhängig von den Core-Replikaten skaliert werden; private Wallpaper-Dateien verbleiben unter VFS-ACLs.
+
+Fachlich führend sind [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md). Der Combined-Standard wird durch diese Ergänzung nicht verändert.

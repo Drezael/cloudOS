@@ -1,7 +1,14 @@
 # cloudOS - Push-, Realtime- und Benachrichtigungsarchitektur
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
 > **Datei:** `docs/PUSH_REALTIME.md`  
-> **Dokumentversion:** 0.1 (verbindliche Zielarchitektur zu cloudOS v0.10)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Gepruefte GitHub-Grundlage:** `main` bei Commit `3f8bfd2d8ccce826c587c6c5ebd98609631c90ba`  
@@ -83,9 +90,12 @@ flowchart TB
 | Notification Service | Dauerhafte Inbox, Lesen/Bestaetigen/Loeschen, Benachrichtigungspraeferenzen | Fach-Events als alleinige Quelle fuer Dateizugriff verwenden |
 | Browser App Host | Eine vertrauenswuerdige Verbindung koordinieren; gefilterte Events an App Bridges geben | Fremd-App-Origins den privilegierten Core-Eventstrom ueberlassen |
 
-Die Prozessaufteilung ist logisch. Fuer den MVP koennen Projector, Gateway und Notification Service in wenigen Go-Prozessen gebuendelt werden. Contracts, Owner- und Sicherheitsgrenzen bleiben unabhaengig von der Deployment-Zahl bestehen.
+Die Prozessaufteilung ist logisch. Im MVP **muessen Projector, Gateway und Notification Service mit allen weiteren Go-Core-Modulen in einem gemeinsamen Core-Prozess/Container laufen**; ihre Fach- und Sicherheitsgrenzen bleiben getrennt. Ein Split erfolgt spaeter optional. Contracts, Owner- und Sicherheitsgrenzen bleiben unabhaengig von der Deployment-Zahl bestehen.
 
 ## 4. Transport: SSE als einziger Standard-Updatekanal
+
+**Erweiterung v0.12:** Zusätzlich zu VFS-/App-/Taskbar-Änderungen werden `windows.opened`, `windows.state.changed`, `windows.closed`, `apps.instance.stopped`, `auth.credential.revoked`, `auth.session.revoked`, `logging.policy.updated`, `devices.grant.revoked` und `devices.policy.changed` als **serverseitig adressatengeprüfte, versionierte Ereignisse** vorgesehen. Der Browser reagiert auf aktive Pushed-Deltas, nicht durch periodisches Polling. **Browserlokale** USB-/Serial-`connect`/`disconnect`-Events entstehen dagegen unmittelbar im Device Broker; nur sicherheitsrelevante Grant-/Policy-Änderungen werden an den Server gemeldet und von dort gepusht. Aus einer widerrufenen App darf ein veraltetes SSE-Replay keine Window-/Device-Rechte wiederherstellen.
+
 
 **Oeffentlicher Endpunkt (Entwurf):** `GET /api/v1/events/stream` mit `Accept: text/event-stream`, Antwort `Content-Type: text/event-stream`, `Cache-Control: no-store, no-transform`, `X-Accel-Buffering: no`. Nur `https://` in Produktion. Kein proxieseitiges Response-Buffering, angemessene Idle-Timeouts.
 
@@ -335,7 +345,7 @@ SSE funktioniert nur bei offener, aktiver bzw. wiederverbundener Seite. Fuer ges
 - **Buffer:** Bounded pro Verbindung. Bei Ueberlast Client als `resync_required` markieren und mit begrenztem Reconnect entkoppeln, statt Speicher unkontrolliert wachsen zu lassen.
 - **Projektion:** Kleine Events direkt als Delta, grosse Diffs mit dokumentiertem `snapshot_required`-Typ. Keine stillen Umwandlungen in zeitgesteuertes Polling.
 - **Throttling:** UI-Frames duerfen mehrere unmittelbar eintreffende Events in einem Renderdurchlauf anwenden; fachliche Events werden nicht willkuerlich verworfen.
-- **Load Balancing:** Mehrere SSE-Gateway-Instanzen hinter Nginx, Konsistenz ueber Delivery Log und JetStream. Sticky Sessions sind keine notwendige Sicherheitsgarantie.
+- **Load Balancing:** Anfangs ein gemeinsamer Core-Container; spaeter mehrere SSE-Gateway-Instanzen hinter dem Kubernetes-Service/Ingress. Konsistenz ueber Delivery Log und JetStream. Sticky Sessions sind keine notwendige Sicherheitsgarantie.
 - **Leerlauf:** Keepalive-Kommentare unter der kleinsten Proxy-Idle-Frist, keine sinnlose permanente Benachrichtigungslast.
 - **Deploy/Shutdown:** Graceful Drain, Stream-Cursor behalten, `retry`/Backoff, nach Reconnect Replay.
 - **Observability:** Aktive Streams, publish-to-deliver p50/p95/p99, Replay-Rate, Cursor-Gaps, backlog, Revoke-Latenz, unautorisierte Abo-Versuche und Ressourcenauslastung. Keine Inhalte in Metrics-Labels.
@@ -534,3 +544,37 @@ Diese Datei ist eine **Architektur- und Implementierungsspezifikation**, nicht d
 Nichtziele fuer das erste MVP sind globale Echtzeitgarantien bei offline Clients, unlimitierte Eventaufbewahrung, `exactly once` als Netzwerklieferzusage, pauschaler Web-Push-Zwang bei geschlossenen Browsern und ein allgemeiner bidirektionaler Message-Bus fuer fremde Apps.
 
 **Verbindliches Ergebnis:** Ein offener cloudOS-Client bekommt autorisierte Zustandsaenderungen und Benachrichtigungen aktiv per SSE. Er fragt nicht in festen Abstaenden nach neuen Informationen. Nach Unterbrechung sorgen geordneter Replay-Cursor oder ein einmaliger Snapshot fuer eine vollstaendige, sichere und konsistente Wiederherstellung.
+
+## 24. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Clusterfestlegung:** Im **Standard** sind Push Projector, Delivery Log-Adapter, Notification Service und SSE-Gateway logische Module in dem **einen Core-Go-Container**. Das bedeutet nicht, dass der Browser pollt. Für die spätere horizontale Trennung gelten:
+
+1. `realtime` ist ein eigener, mehrfach replizierbarer SSE-Dienst hinter einem Kubernetes-`Service`. Jede Replik muss über den gemeinsamen dauerhaften Delivery Log ablaufende und verpasste Ereignisse prüfen können.
+2. Pod A und Pod B geben nur aktuell autorisierte Deltas aus; ein Rechteentzug ist auch dann wirksam, wenn das betroffene Event von einem anderen Pod committed wurde.
+3. Ein einzelner SSE-Stream bindet naturgemäß eine TCP/HTTP-Verbindung an ein Pod; Sticky Sessions sind für Korrektheit **nicht** erforderlich. Bei einem Pod-Ausfall verbindet sich der Client mit `Last-Event-ID` erneut und erhält durch eine beliebige gesunde Replik die noch zulässigen Ereignisse.
+4. `push-projector` darf erst dann mehrfach repliziert werden, wenn ein durable Queue-/Consumer-Group-Verfahren mit Deduplikation und Checkpointing implementiert und getestet ist.
+5. Für SSE braucht es getrennte Verbindungs-/Backpressure-/Fanout-Metriken. CPU-HPA ist als alleinige Metrik **nicht** ausreichend; im Kubernetes-Bootstrap hat `realtime` keinen CPU-HPA.
+6. Beim Deployment-Drain werden Readiness und Eventcursor synchronisiert, Streams geordnet beendet und Client-Reconnect ohne Polling getestet. HTTP-SIGTERM-Shutdown des technischen Go-Bootstraps ist noch **kein** fertiger SSE-Drain.
+
+Die vollständigen Verträge und das technische Kubernetes-Skelett sind in [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) enthalten.
+
+## Architektur-Ergänzung v0.12 – Window-/Credential-/Device-/Log-Ereignisse
+
+Logging-Policy-Aktualisierungen werden mit monotonen Revisionen an die betreffenden Go-Dienstreplikate verteilt; die Browser-Logs-App sieht nur autorisierte Metadaten oder ausdrücklich abonnierten Live-Log-Ausschnitt. Window- und Taskbar-Events tragen Session-/App-Instanzbindung; ein `apps.stop` eines Benutzers erreicht keine fremde Instanz. `auth.session.revoked` und `devices.grant.revoked` erzwingen die Rechte **serverseitig sofort**, selbst wenn die SSE-Verbindung unterbrochen ist. Weder Barcode-Rohwerte noch Passkey-/SSH-Assertion-Bytes dürfen im Push-Payload stehen.
+
+## Ergänzung v0.13 – Theme- und Wallpaper-Push statt Polling
+
+Der Push-Kanal aus dieser Spezifikation transportiert künftig auch **effektive Theme- und Wallpaper-Präferenzen**. Bei Theme-Wechsel, Wallpaper-Wechsel, Policy-/Asset-Katalogänderung oder nötigem Fallback verteilt der Core eine autorisierte Zustandsprojektion mit monotoner Revision an alle betroffenen SSE-Sitzungen. Der Client aktualisiert Desktop, Fenster, Taskbar, Einstellungen und Core-Apps **ohne Neu-Laden**.
+
+| Ereignis | Sichtbare Wirkung | Zugriffsregel |
+|---|---|---|
+| `themes.active.changed` | CSS-/Token-/Layout-Projektion und Window-Chrome atomar ändern | Nur eigene oder ausdrücklich berechtigte Sitzung |
+| `themes.registry.changed` | Theme-Katalog und Verfügbarkeit aktualisieren | Nur für die betreffenden Empfänger |
+| `wallpapers.preference.changed` | Aktiven Wallpaper-Renderer stoppen/wechseln/pausieren | Nur eigene Sitzung, keine fremden VFS-Handles |
+| `wallpapers.catalog.changed` | Neue/gesperrte Systempresets anzeigen | Nur berechtigtes Katalogsegment |
+
+**Keine Animationsdaten:** Die SSE-Verbindung überträgt weder Videoframes noch GPU-/Shader-Frames, sondern ausschließlich validierte Konfiguration und verifizierbare Asset-Referenzen. Renderframes entstehen lokal in `Desktop.cloudApp`. Die lokale Animation mit `requestAnimationFrame`/Worker bedeutet **kein Polling des Servers**.
+
+Beim ersten Login wird ein autorisierter Snapshot geladen; nach Netzwerkabbruch verarbeitet der Client geordnete Replay-Events oder einen einmaligen Recovery-Snapshot. Es gibt keinen festen REST-Timer für Theme- oder Wallpaperzustand. Ungültige/alte oder widerrufene Referenzen werden beim Empfänger nicht angewendet. Durch Benutzerpolicies entzogene Themes lösen ein sicheres Fallback aus.
+
+Das Browser-Theming, die Presets und die Wallpaper-Laufzeit sind beschrieben in [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).

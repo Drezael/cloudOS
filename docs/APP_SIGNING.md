@@ -1,7 +1,13 @@
 # cloudOS - App-Signierung, Zertifikate und Vertrauensmodell
 
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Pfad:** `docs/APP_SIGNING.md`  
-> **Dokumentversion:** 0.2 (mit signierter App-API-Allowlist und getrennten Freigaben)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Basis:** App-first-Architektur v0.4; `.cloudApp`-Paketformat, Go-Core und Zwei-Volume-VFS  
@@ -125,9 +131,15 @@ openssl req -new -x509 -sha256 -days 365 \
 
 ## 5. `.cloudApp`-Paketstruktur und Signaturdateien
 
+**Sicherheitsrelevante Erweiterung v0.12:** Das signierte `.cloudApp`-Paket muss neben `permissions/api-access.json` auch `permissions/device-access.json` (ggf. mit `"devices": []`) enthalten. Der SHA-512-Paketindex umfasst **beide**. Eine Änderung von Geräteklasse, Transport, Operationen, Device-Filtern oder der Fensterhost-Deklaration verändert den signierten Paketinhalt und erfordert eine erneute Signierung und Risikoprüfung. Ein Installer darf für die Geräteberechtigung nicht nur das Vertrauenslabel der Signatur anzeigen. Selbstsigniert bedeutet weiterhin erkennbar erhöhtes Herausgeberrisiko.
+
+
 ```text
 ExampleEditor-1.0.0.cloudApp  # ZIP-Container
 |-- cloudos.app.json
+|-- permissions/
+|   |-- api-access.json         # signierte Endpoint-Allowlist, ggf. leer
+|   `-- device-access.json      # signierte Gerätedeklaration, ggf. leer
 |-- META-INF/
 |   |-- package-index.json      # Hashliste und signierte Identitaet
 |   |-- signature.json          # X.509-Zertifikat/-Kette, Signatur
@@ -215,30 +227,33 @@ Eine Eigenschaft `publisher_verified` bedeutet **nur verifizierten Signaturschl�
 
 ## 7. Installation einer selbstsignierten `.cloudApp`
 
-### 7.1 User Experience: Rechtsklick in FileExplorer.cloudApp
+### 7.1 User Experience: Doppelklick oder Installation in Apps.cloudApp / AppStore.cloudApp
+
+Die bisherige Installation **per Rechtsklick** ist aufgehoben. Ein berechtigter Administrator kann eine heruntergeladene, noch nicht registrierte `.cloudApp` **doppelklicken**. Die File Association öffnet direkt `Apps.cloudApp` und startet die Vorprüfung. Alternativ wählt der Administrator in **Settings → Apps** das Paket aus. Ein Eintrag eines von `AppStore.cloudApp` abonnierten, moderierten GitHub-Katalogs führt denselben Signatur-/API-/Policy-Workflow aus.
 
 ```mermaid
 sequenceDiagram
     participant A as Administrator
     participant F as FileExplorer.cloudApp
-    participant I as AppInstaller.cloudApp
+    participant I as Apps.cloudApp oder AppStore.cloudApp
     participant C as Go Core / Package Verifier
     participant P as Permission + Trust Policy
-    participant V as system:/applications
-    A->>F: Rechtsklick auf Editor.cloudApp
-    F->>I: App installieren (File-Handle)
-    I->>C: Preview anfordern
-    C->>C: Signatur + Hashliste + Zertifikat prüfen
-    C->>P: Publisher-/Scope-Policy prüfen
-    P-->>C: self_signed_local (mit Risiko)
-    C-->>I: Preview mit Zertifikat-Fingerprint und Risikocode
-    I-->>A: Sichtbare Sicherheitswarnung / Rechte / Herausgeber
-    A->>I: Risiko explizit bestätigen (ggf. Step-up)
-    I->>C: Commit mit Preview-ID + Risikoentscheidung
-    C->>C: Unveränderlichen Digest und aktuelle Policy neu prüfen
-    C->>V: Geprüftes Paket ablegen
-    C-->>I: installierte App, Risiko dauerhaft sichtbar
+    participant V as system:/apps
+    A->>F: Doppelklick auf Editor.cloudApp
+    F->>I: Installation-Intent mit kurzlebigem File-Handle
+    I->>C: Signatur- und API-Preview starten
+    C->>C: SHA-512-Dateiliste und X.509-Signatur pruefen
+    C->>P: Herausgeber- / Endpoint- / Scope-Policy validieren
+    P-->>C: self_signed_local mit Risikohinweis
+    C-->>I: Gebundene Preview mit Fingerprint und vollstaendiger API-Liste
+    I-->>A: Sicherheitswarnung und API-Genehmigung
+    A->>I: API-Rechte + Selbstsignatur separat bestaetigen
+    I->>C: Digestgebundener Installations-Commit
+    C->>V: Gepruefte App-Datei unveraenderlich speichern
+    C-->>I: App global registriert; Defaultgrant nur Admin
 ```
+
+**Wesentlich:** Die Vorprüfung startet unmittelbar nach dem Doppelklick, aber der Commit niemals ohne die erforderlichen Bestätigungen. Eine geprüfte GitHub-Katalogquelle kann die Signatur-, Review- oder Berechtigungsdialoge nicht stillschweigend ersetzen. `AppStore.cloudApp` besitzt keine pauschalen Rechte auf fremde/manuell installierte Apps. Die vollständige Store-/Provenienz- und Defaultgruppenpolitik steht in [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
 
 ### 7.2 Verpflichtende Warnung im Installer
 
@@ -255,7 +270,7 @@ sequenceDiagram
 >
 > **Aktionen:** *Installation abbrechen* (primaer) oder *Risiko akzeptieren und installieren* (nach expliziter Bestätigung).
 
-**UI-Regeln:** deutliche Warnfarbe, keine vorausgewaehlte Zustimmung, keine Verschleierung hinter einer allgemeinen Lizenzcheckbox. Administrativer Step-up bei entsprechender Policy. Die Warnung wird in **AppInstaller.cloudApp** dargestellt, nicht in einer frei gestaltbaren Drittanbieter-App; deren UI kann diese Warnung nicht ersetzen. Bei späterer Anzeige unter den installierten Apps bleibt `Selbstsigniert` sichtbar.
+**UI-Regeln:** deutliche Warnfarbe, keine vorausgewaehlte Zustimmung, keine Verschleierung hinter einer allgemeinen Lizenzcheckbox. Administrativer Step-up bei entsprechender Policy. Die Warnung wird in **Apps.cloudApp** dargestellt, nicht in einer frei gestaltbaren Drittanbieter-App; deren UI kann diese Warnung nicht ersetzen. Bei späterer Anzeige unter den installierten Apps bleibt `Selbstsigniert` sichtbar.
 
 ### 7.3 Technische Bestätigung
 
@@ -376,7 +391,7 @@ Das Beispiel ist nicht als fertiges JSON-Schema freigegeben. **Ein autorisiertes
 |---|---|
 | App Package Service | Pakete lesen, Archivlimits, Index, Hashes, Signatur und Zertifikate technisch verifizieren |
 | **App Signing / Trust Service** | CloudOS-Root-Store, Publisherzertifikate, App-ID-Bindung, lokale Ausnahmeentscheidungen, Key-Rotation- und Revocation-Policy |
-| App Installer Service | Preview/Commit, unveränderlichen Digest, Adminrechte, atomare Aktivierung und Recovery sichern |
+| App Installation Service | Preview/Commit, unveränderlichen Digest, Adminrechte, atomare Aktivierung und Recovery sichern |
 | Permission Service | Recht zur Installation und zur getrennten Self-signed-Zustimmung prüfen |
 | App Registry Service | Installierte Version, laufzeitrelevanten Trust-Status, Zuweisungen und Updates verwalten |
 | Audit Service | Genehmigung, Warnungsbestätigung, Prüfergebnisse und Widerruf protokollieren |
@@ -429,7 +444,7 @@ Auditdaten enthalten Administratoridentitaet, App-ID/-Version, Paketdigest, Zert
 
 - `/Downloads/Editor.cloudApp` ist ein Paket **im Home des Benutzers** (`users`-Volume), kein installierter Programmcode.
 - Der Installer liest diese Datei ausschließlich über einen autorisierten, zeitlich begrenzten File-Handle und erstellt vor dem Prüfen einen unveränderlichen Staging-Snapshot.
-- Nach erfolgreicher Prüfung und Freigabe liegen versionierte Pakete im geschuetzten `system:/applications/packages/`.
+- Nach erfolgreicher Prüfung und Freigabe liegen versionierte Pakete im geschuetzten `system:/apps/packages/`.
 - **Kein selbstsigniertes Paket** darf direkt in die Pfade der Core-Baseline schreiben oder eine `io.cloudos.*`-App ersetzen.
 - Installierte Pakete sind unveränderlich. Der normale File Explorer darf auch im Adminmodus keinen Code oder `signature.json` in-place modifizieren.
 - Browser und Rust-/WASM-Apps erhalten nur freigegebene Assets über sichere App-Asset-APIs, keinen direkten Mount des Systemvolumes.
@@ -443,6 +458,10 @@ Die in `VIRTUAL_FILESYSTEM.md` festgelegten **genau zwei Volumes** und die Home-
 - Bei defekter Signatur oder ungültigem Core-Paket startet das Recovery nur mit zuvor freigegebenen Release-Artefakten; kein Selbstsignatur-Dialog erlaubt die Ersetzung.
 - Die Desktop- und Systemdialog-Apps rendern den Self-signed-Warndialog als vertrauenswuerdige UI mit cloudOS-eigenem Designsystem und kontrollierten Komponenten.
 - Kein Entwicklerschlüssel und keine Verifikation fremder Pakete liegt im systemkritischen Root-Signing-Schlüsselbereich.
+
+### 15.1 Signierte Event-Subscriptions und neue Risiken
+
+Ein `.cloudApp`-Paket darf nur die in `permissions/api-access.json` deklarierten und vom Administrator genehmigten Eventtypen/Scopes erhalten. Das neue versionierte Feld `event_subscriptions` wird wie das gesamte Manifest vom Paketindex mit SHA-512-Digests erfasst und X.509-gebunden signiert. Neue oder erweiterte Abonnements bei Updates benoetigen einen **erneuten Berechtigungsdialog** mit Datenkategorien und vom Core verifizierten Risikohinweisen. Ein gueltig selbstsigniertes Paket benoetigt zusaetzlich seine separate Herausgeberwarnung; eine Signatur ersetzt niemals eine Event-/User-ACL. Unerlaubte Abo-Themen bleiben blockiert. Weiterer Vertrag in [APP_API_ACCESS.md](APP_API_ACCESS.md) und [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 16. Automatische und manuelle Integritaetsprüfungen
 
@@ -496,7 +515,7 @@ Bei `INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE` oder `INVALID_SIGNATURE` wird d
 3. **App Package Service:** `package-index.json` und `signature.json` parsieren, SHA-512 und RSA-PSS in Go verifizieren; Testvektoren und Fuzzing.
 4. **App Trust Service:** CA-Store, App-ID-Scope, Fingerprints, Ablauf, lokale Self-signed-Ausnahmen und Audit.
 5. **Core-App-Baseline:** Release-Signing und getrennte Core-Release-Trust-Policy integrieren.
-6. **AppInstaller.cloudApp:** Admin-Warnung, Step-up, ausdrückliche Confirm-Aktion, permanente Self-signed-Kennzeichnung.
+6. **Apps.cloudApp:** Admin-Warnung, Step-up, ausdrückliche Confirm-Aktion, permanente Self-signed-Kennzeichnung.
 7. **Updatepfad:** Neue Bestätigung pro selbstsignierter Version, Widerruf, Schlüsselwechsel und Konflikterkennung.
 8. **Operational Hardening:** Integritaetsscans, Monitoring, Quarantäne, Backups und Restore.
 
@@ -513,3 +532,19 @@ Bei `INVALID_HASH`, `MISSING_FILE`, `EXTRA_FILE` oder `INVALID_SIGNATURE` wird d
 **Jede `.cloudApp` muss kryptografisch korrekt signiert sein.** Regulaere Publisher-Releases müssen eine anerkannte cloudOS-Vertrauenskette bestehen. **Selbstsignierte Releases duerfen nach deutlicher Warnung und ausdrücklicher Adminfreigabe installiert werden**, jedoch ausschließlich mit den normalen App-Rechten und für den konkret genehmigten unveränderlichen Paketdigest. **Defekte, unsignierte, manipulierte oder widerrufene Pakete bleiben gesperrt.** Die Release-Baseline der Core-Apps ist niemals durch Self-signed-Ausnahmen ersetzbar.
 
 **Dokumentstatus:** Vollständiger Architekturentwurf. CLI-Befehle, Endpunkte, JSON-Beispiele und Zertifikatsprofile beschreiben Zielverhalten; die cloudOS-Signing-Implementierung existiert noch nicht.
+
+## 21. Integration mit Apps.cloudApp und moderierten GitHub-Quellen v0.9
+
+Signaturprüfung gilt **unverändert** für manuelle Pakete und über `AppStore.cloudApp` abgerufene GitHub-Release-Dateien. Die kanonische Lagerung geprüfter Paketarchive lautet `system:/apps/` auf der **ersten** virtuellen Festplatte. Katalogsignatur und Review-Nachweis dienen als **zusätzliche** Vertrauensebene, aber ersetzen nicht die X.509-Paketsignatur, vollständige Hashprüfung und per Paketdigest genehmigte API-Zugriffsdatei.
+
+`Apps.cloudApp` wird aus **Settings → Apps** oder bei **Doppelklick auf ein nicht installiertes `.cloudApp`-Paket** gestartet. Die technische Vorprüfung beginnt direkt; die Installation wartet auf ausdrückliche API-Genehmigung und ggf. getrennte Self-signed-Risikoannahme. Eine Installation durch den App Store wird mit Store-Manager- und Source-Provenienz registriert; dieser Store darf nur seine eigenen Installationen verwalten. Systemweite zusätzliche Apps erhalten standardmäßig ausschließlich einen `discover`/`launch`-Grant an die vordefinierte Gruppe `Admin`. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+
+## 22. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+In `combined` und `split` wird **derselbe Signaturcode und derselbe Truststore-/Policy-Vertrag** verwendet. Ein mehrfach replizierter Package Service überprüft Zertifikatspfad, signierte Datei-Digests, App-ID, Publisher, Installationsfreigabe und Paket-Revision mit denselben Regeln. Ein erfolgreicher Check auf Pod A darf nicht als pauschaler Blankoschein auf Pod B gelten. Für gecachte Prüfergebnisse sind unveränderliche Bundle-Digests, Truststore-Version und Widerrufsstatus Bestandteil des Cache-Schlüssels.
+
+Signierte `.cloudApp`-Bundles werden in der gemeinsamen Ablage `system:/apps/` verifiziert publiziert, niemals als nur podlokale Dateien. Parallele Veröffentlichungen müssen atomar und idempotent sein. Privater Signing-Key, X.509-Trust-Anker und Revoke-Listen werden außerhalb der Images/Git verwaltet und sicher an berechtigte Dienste verteilt. Für selbstsignierte Pakete bleiben die zusätzliche Warnung und die getrennte Administratorfreigabe verpflichtend – unabhängig von Pod-/Kubernetes-Topologie.
+
+## Architektur-Ergänzung v0.12 – zusätzliche Vertrauensgrenzen
+
+Eine kryptographisch gültige App-Signatur verleiht weder Geräterecht noch privilegiertes Logging und macht aus einem fremden UI einen Systemdialog. Die vertrauenswürdige Desktop-/Window-Shell prüft die `window.mode=framework`-Deklaration und isoliert den App-Inhalt; die Device-API-Prüfung bindet Paketdigest, Instanz, Benutzer und Browserpermission. `Logs.cloudApp` und `AccountSecurity.cloudApp` werden ausschließlich durch die signierte Core-Baseline aktualisiert. Neue oder erweiterte Geräteberechtigungen erfordern bei jedem Update eine erneute administrative Bewertung.

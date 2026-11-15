@@ -1,5 +1,8 @@
 # cloudOS – Einheitliches Window Framework und Taskleisten-Integration
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
 > **Datei:** `docs/WINDOW_FRAMEWORK.md`  
 > **Version:** 0.1 – Architektur für cloudOS 0.12  
 > **Stand:** 15.11.2026  
@@ -321,3 +324,18 @@ Der Window Manager selbst ist **browserseitiger Teil der signierten Desktop-Core
 ## 21. Statusabgrenzung
 
 Das Dokument definiert **beabsichtigtes Laufzeitverhalten** und API-Verträge. Der bestehende Go-Deployment-Bootstrap implementiert noch keine Desktop-Oberfläche, keinen Window Host, keinen App Lifecycle und keine Browser-Taskleisten-UI.
+
+## Ergänzung v0.13 – OS-inspirierte Fensterdekoration
+
+Das **Window Framework ist der einzige vertrauenswürdige Host für sichtbare App-Fenster**, unabhängig vom gewählten Theme. Die sechs visuellen Presets aus [`THEMING.md`](THEMING.md) dürfen Titelleisten, Schatten, Rundungen, Fensterschaltflächenposition und geprüfte Snap-/Dock-Vorschauen verändern; sie dürfen keine eigenen alternativen Fensterprozesse oder direkten Host-APIs einführen.
+
+- **Northstar:** abgerundete Fenster und moderne Snap-Vorschauen.
+- **Cedar:** kompakte klassische Fenster mit klaren Rändern.
+- **Coast:** linke Window-Buttons, ruhige Toolbar-/Dock-Optik.
+- **Prism:** variantenreiche, aber geprüfte Dekorations- und Panel-Slots.
+- **Slate:** reduzierte Dekoration, zugängliche Controls.
+- **RetroGlass:** glasartige Ränder mit sofortigem Opaque-Fallback für Reduced Transparency.
+
+Jedes Theme muss Minimieren, Maximieren, Wiederherstellen, Fokus, Snap, Drag/Resize, Taskleisten-Vorschau und „App beenden“ per Taskbar-Rechtsklick unverändert unterstützen. Die Position einer Taskbar (`/.taskbar.json`) ist **Benutzerentscheidung, nicht Theme-Zwang**. Das Wallpaper wird unter allen Fenstern dargestellt und fängt keine Pointerereignisse ab; siehe [`WALLPAPER_ENGINE.md`](WALLPAPER_ENGINE.md).
+
+**Sicherheit:** Der Window Host zeichnet Berechtigungsdialoge und andere kritische UI in eindeutig vertrauenswürdiger Gestaltung. Ein Theme darf Warnstatus, Fokusindikator oder Bestätigungstext nicht manipulieren. Geöffnete Apps verlieren beim Themewechsel keine Instanz-/Fensteridentitäten.

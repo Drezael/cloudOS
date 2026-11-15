@@ -1,10 +1,19 @@
 # cloudOS – Technische Systemarchitektur
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
 > **Zielpfad:** `docs/SYSTEM_ARCHITECTURE.md`  
-> **Dokumentversion:** 0.7 (lokale Identity, optionale LDAP-/OIDC-Integration und Sharing/Spaces)
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
-> **Ausgangsbasis:** `main`, Commit `134ed30f78bda748e45a1f8c5c4fe77987e18b18`  
+> **Ausgangsbasis:** `main`, Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
 > **Übergeordnetes Dokument:** [`docs/CONCEPT.md`](CONCEPT.md)  
 
 > **API-Enforcement:** [`docs/APP_API_ACCESS.md`](APP_API_ACCESS.md) (signierter App-Endpoint-Contract, Installer-Dialog und serverseitige Allowlist)
@@ -33,7 +42,7 @@ cloudOS ist **kein eigener Betriebssystemkernel**, sondern eine über den Browse
 - **Festgelegt:** serverbasierte Variante B, API-first, Go als Sprache des **cloudOS Core**, funktionale Vollständigkeit des Core, versionierte APIs, serverseitige Berechtigungsprüfung, Mehrbenutzerbetrieb, Container-Deployment sowie grundsätzliche Unterstützung von Rust-Anwendungen und durchgängige Themebarkeit aller cloudOS-eigenen UI-Elemente.
 - **Architekturvorgabe:** Core als einziger Systemfunktionsanbieter; austauschbare Go-Core-Dienste, die untereinander über definierte Ports, gRPC und Events kommunizieren; **unvertrauenswürdiger App-Code läuft niemals im privilegierten Core-Prozess**. Änderungen erfordern einen ADR.
 - **Vorgesehen / zu bestätigen:** Vue 3, Vite, PostgreSQL, gRPC, NATS JetStream, OIDC-Provider, Nginx, App-Sandbox-Origin und Wasmtime als Server-WASI-Runtime. Browser-WASM ist das priorisierte Rust-GUI-Profil, WASI die vorgesehene Server-Komponentenlaufzeit. Einzelne Technologien und Browserkompatibilität werden in Phase 0 verifiziert.
-- **Nicht implementiert:** Alle hier gezeigten APIs, Datenmodelle, Ablaufdiagramme und Verzeichnisstrukturen sind zunächst Entwürfe. Das Repository enthält zum Ausgangszeitpunkt Dokumentation, noch keinen ausführbaren Systemkern.
+- **Teilweise technisch implementiert:** Deployment-Bootstrap mit Go-Startmodi, Service-Katalog, HTTP-Probes, Dockerfile und Kubernetes-/Compose-Manifeste. Die Fach-APIs, Fach-Datenmodelle, Authentifizierung, SSE-Live-Events und gRPC-Verträge bleiben Entwürfe und sind noch nicht implementiert.
 
 Bei Widersprüchen zwischen Dokumenten werden die Abweichung und ihre Auflösung in einem ADR dokumentiert; Änderungen dürfen nicht stillschweigend als implementiert gelten.
 
@@ -47,7 +56,7 @@ Bei Widersprüchen zwischen Dokumenten werden die Abweichung und ihre Auflösung
 4. Installation und Ausführung von Webanwendungen **und Rust-Anwendungen** (primär Browser-WASM; später serverseitiges WASI) über eine gemeinsame App-Schnittstelle.
 5. Öffentliche, dokumentierte REST-APIs und interne typisierte Dienstschnittstellen.
 6. Ereignisbasierte Aktualisierungen für mehrere gleichzeitig aktive Sitzungen.
-7. Docker-basierter Betrieb auf einem einzelnen Server; spätere horizontale Skalierung bleibt möglich.
+7. Standardmäßig ein Go-Core-Container, gleichzeitig von Anfang an separate Container- und Kubernetes-Replikation der logischen Core-Owner vorbereitet.
 8. Austauschbare Implementierungen für Dateispeicher und externe Integrationen.
 9. Alle cloudOS-Systemfunktionen gehören logisch zum cloudOS Core – auch wenn einzelne Teile in getrennten Go-Prozessen laufen.
 10. Eine App kann Core-Funktionen über eine kontrollierte API nutzen, aber niemals privilegierte Core-Implementierungen direkt laden oder überschreiben.
@@ -209,24 +218,19 @@ Die Diagrammkanten sind **logische Kommunikationswege**, keine Erlaubnis zu eine
 
 **Regel für Service-Abhängigkeiten:** Ein Owner ist die maßgebliche Datenquelle; andere Dienste erhalten Daten über API oder eigene, aus Events aufgebaute Projektionen. Zyklische synchrone Aufrufketten sind zu vermeiden und werden beim Design geprüft.
 
-### 4.4 Logischer Dienst versus Container
+### 4.4 Logischer Dienst versus Container – aktualisiertes Standarddeployment
 
-Die Zugehörigkeit zum Core ist **fachlich**, nicht über einen Containernamen definiert.
+**Verbindliche Änderung 0.11:** Sämtliche logischen Go-Core-Dienste laufen **anfangs gemeinsam in genau einem Core-Prozess und Core-Docker-Container**. Die bisherige frühe technische Aufteilung in eigenständige `gateway`-, `core`- und `files`-Container ist **kein MVP-Standard mehr**, sondern eine optionale spätere Trennung.
 
-| Prozess (MVP-Vorschlag) | Enthaltene logische Core-Dienste | Öffentlicher Port |
+| Profil | Prozess-/Container-Grenze | Anzahl laufender Core-Replikate zu Beginn |
 |---|---|---|
-| `gateway` | API Gateway, BFF, Session-Front, WebSocket-Gateway | Nein; nur intern hinter Edge |
-| `core` | System, Identity, Permissions, Desktop, Settings, Apps, Audit, Notifications | Nein |
-| `files` | VFS, Dateioperationen, Storage-Verwaltung, Upload-Sessions | Nein |
-| `postgres` | Getrennte Core-Schemas und Dienstkonten | Nein |
-| `nats` | JetStream und persistente Events | Nein |
-| `web` | Desktop-Bundles und vertrauenswürdige statische Assets | Nein |
-| `app-assets` | Signiert/validiert verteilte, isoliert gehostete App-Artefakte | Keine Core-API; nur über Edge/gesonderte Origin |
-| `identity-provider` | Optionaler externer OIDC-Provider | Nur bei konfigurierter IdP-Integration |
+| `combined` (Standard) | Ein Go-Binary enthält alle registrierten Core-Fachmodule | **1** |
+| `split` (optional) | Dasselbe Binary startet nur `CLOUDOS_SERVICE=<name>` | pro Dienst konfigurierbar |
+| `kubernetes-distributed` (optional) | Pro Go-Dienst Deployment und `ClusterIP`-Service | 1–N je Dienst, für HTTP-APIs HPA-Template |
 
-`core` ist in dieser Tabelle **nur die erste Laufzeitbündelung mehrerer Core-Dienste**. Fachlich enthält `cloudOS Core` auch `gateway` und `files`.
+Die technische Ausgangsvorbereitung verwendet `core/cmd/cloudos-core` mit einem maschinenlesbaren `services.json`-Katalog und generierten Kustomize-Overlays. Containeraufteilung hat **keinen Einfluss** auf Benutzer-/POSIX-ACLs, App-API-Allowlist, Daten-Owner und SSE-Push-Transport. Kubernetes wird erst bei expliziter Freigabe verwendet; der kombinierte Modus bleibt dauerhaft testbar. Fachliche Go-API-Handler und echte gRPC-Portadapter müssen im Verlauf implementiert werden. Das Deployment-Scaffold erfüllt noch nicht die Anforderungen an den fertigen Core.
 
-**Erweiterter Betrieb nach MVP:** `runtime-controller` als eigener Go-Dienst, `wasi-worker` als nicht privilegierter Wasmtime-Prozess, später `native-runner`. Ein Worker kann abstürzen oder neugestartet werden, ohne dass ein privilegierter Core-Dienst mit abstürzt.
+**Separat bleibende Infrastruktur:** PostgreSQL, NATS JetStream, Edge/Asset-Origins und isolierte Rust-/WASI-Runner sind nicht Bestandteil des gemeinsamen privilegierten Core-Containers. Für die genauen Skalierungs-, Session-, Lease- und Storage-Regeln ist [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) fachlich führend.
 
 ### 4.5 Vertrauenszonen und Kommunikationsgrenzen
 
@@ -251,16 +255,21 @@ Der Begriff "alle Funktionen im Core" bedeutet:
 - Anwendungen sind austauschbare Clients des Core und dürfen ihn **erweitern**, aber nicht unkontrolliert ersetzen.
 - Ein Ausfall einer App legt niemals den gesamten Core lahm.
 
-**Keine Pflicht zur Microservice-Vervielfachung:** Fachliche Core-Dienste werden einzeln modelliert, aber nur bei nachvollziehbarem Isolations-, Skalierungs- oder Release-Bedarf in getrennte Go-Prozesse ausgelagert.
+**Kein Zwang zu vielen Core-Containern:** Fachliche Core-Dienste werden einzeln modelliert und deren Split-/Replica-Betrieb technisch vorbereitet; **anfangs laufen alle Go-Fachmodule gemeinsam in genau einem Core-Prozess und einem Container**. Eine Auslagerung erfolgt später nur bei begründetem Bedarf oder ausdrücklicher Anweisung.
 
 ## 5. cloudOS Core: Fachkontexte, Servicegrenzen und Datenhoheit
+
+**Serviceverzeichnis v0.12:** Das technische Go-Bootstrap enthält nun **22** skalierungsfähige logische Katalogrollen statt 20. Neu sind `logging` (fein konfigurierbare Diagnostik-Policy, kontrollierter Logabruf/Export; Security Audit bleibt ein eigener fachlicher Owner) und `devices` (App-gebundene Gerätepolicy, kurzlebige Grants, Widerruf; **physischer** Gerätezugriff bleibt browserlokal im Framework Device Broker). Die bereits bestehenden `identity`, `sessions`, `permissions` und `desktop` übernehmen Credential-/Window-Ownership; es wird nicht für jede Fensteraktion ein neuer unabhängig schreibender Go-Service erfunden. Im `combined`-Modus laufen alle Rollen weiter **in einem Container**, während Kubernetes `distributed` jetzt 22 Deployments und 18 CPU-HPA-Templates vorbereitet. Das sind Bootstrap-Artefakte, keine fertigen Fachmodule.
+
+**UI-Vertrag:** Jede sichtbare `.cloudApp` wird vom vertrauenswürdigen Window Host gerendert. Taskleiste und Fenster erhalten denselben App-Lifecycle-State einschließlich Rechtsklick → **App beenden**. Der lokale Login-Bootstrap ist ausdrücklich die einzige vorgesehene UI-Ausnahme vor `Desktop.cloudApp`; Background-Jobs besitzen kein eigenes sichtbares Fenster. Die Go-Core-Dienste stellen Fenster-Lifecycle- und Device-Grant-Verträge bereit, ohne selbst Browser-DOM/USB zu kontrollieren.
+
 
 ### 5.1 Vollständiger Core-Servicekatalog
 
 | Core-Dienst | Core-Verantwortung / Besitz | Hauptschnittstellen | Ausbaustufe |
 |---|---|---|---|
 | **System Service** | Systemversion, Fähigkeiten, Host-/Mandantenkonfiguration, Wartungszustand | System REST / gRPC | MVP |
-| **API Gateway / BFF** | Öffentliche REST-Fassade, API-Versionierung, Sessions, CSRF, Zugriffssteuerung | REST, WebSocket, interne gRPC-Clients | MVP |
+| **API Gateway / BFF** | REST-Fassade, API-Versionierung, Sessions, CSRF, SSE/Origin-Zugriffssteuerung | REST, SSE, interne gRPC-Clients | MVP |
 | **Identity Service** | Lokale Identitaeten, UUID/UID/GID, Profile und Gruppen | Users / Groups | MVP |
 | **LDAP/IdP Adapter** | Optionales Directory-Sync und externe Authentifizierung | Identity Connectors | Spaeter |
 | **Share Service** | Datei-/Ordner-Grants an interne Benutzer/Gruppen | Shares | Nach VFS |
@@ -277,8 +286,10 @@ Der Begriff "alle Funktionen im Core" bedeutet:
 | **Package/Installation Service** | Installation, Updates, Rollback, Signatur-/Hashprüfung, Installation pro Benutzer/Mandant | Installations | MVP |
 | **App Lifecycle Service** | App-Instanzen, Start/Stop/Crash, Runtime-Auswahl, Fenster-/Prozessbeziehung | App Instances / Launches | MVP |
 | **Capability Broker** | App-Identität, kurzlebige Dateihandles/Grants, Bridge-Sitzungen, Widerruf | App Capabilities / Bridge | MVP |
-| **Realtime Service** | Verbindungsmanagement, berechtigte Events, Reconnect / Resync | WebSocket | MVP |
+| **Realtime Service** | SSE-Streams, autorisierte Deltas, per-Audience Delivery Log, Cursor/Replay/Gap-Recovery und Revoke | SSE, App-Host-Bridge | MVP |
 | **Audit Service** | Manipulationserschwerende Audit-Trails für privilegierte Aktionen | Audit internal / Admin | MVP |
+| **Logging Service** | Strukturierte Diagnoselog-Policy pro Komponente, Datensparsamkeit, autorisierte Logabfrage und Export; keine Abschaltbefugnis für Security Audit | Logs / Logging Policy | Bootstrap Logger, Owner später |
+| **Client Device Policy Service** | Installationsfreigaben und Widerruf von Geräte-Capabilities; clientseitige USB-/HID-/Serial-Handles bleiben beim Browser-Device-Broker | Devices / Grants | Policy-Entwurf, Browserintegration später |
 | **Notification Service** | Benachrichtigungen und Nutzerpräferenzen | Notifications | Ausbau |
 | **Search Service** | Indexierung, Rechtefilterung und Suche | Search | Ausbau |
 | **Shell Service** | Virtuelle Shell-Kommandos, Pfad-/Pipe-Semantik, Shell-Sitzungen | Shell Executions | Ausbau |
@@ -310,7 +321,7 @@ Jede Ebene nutzt die Dienste der anderen nur über definierte Ports. Die Core-AP
 | Sofortiges Ergebnis | gRPC / typisierte interne Ports | App Lifecycle prüft App Registry | Deadline, Statuscode, Retry nach Semantik |
 | Dauerhafte Änderung | Owner-DB-Transaktion | File Service verschiebt Datei | ETag, ACID lokal, Fehlercode |
 | Asynchrone Reaktion | Outbox → NATS JetStream | Dateiänderung aktualisiert Search | mindestens einmal, idempotent |
-| Nutzer-Echtzeit | WebSocket (nur Gateway) | neues Fenster / Datei geändert | begrenzter Puffer, REST-Resync |
+| Nutzer-Echtzeit | SSE (nur Gateway/BFF) | direkte, autorisierte Zustands-Deltas | bounded Buffer, persistenter Cursor, Replay, einmalige Gap-Recovery |
 | Langlaufende Aufgabe | Job Service + Runner | Rust-WASI-Konverter | Statusmaschine, Abbruch, Resource Policy |
 | Browser-App → Core | PostMessage/MessageChannel → Bridge/BFF | `files.open` / `files.save` | Capability und Nutzerrechte prüfen |
 | WASI-App → Core | explizite Runtime-Host-Funktionen | Lesen eines ausgewählten Dokuments | isoliertes Handle, kein freier Hostpfad |
@@ -447,7 +458,7 @@ Für einen langfristig stabilen App-SDK-Vertrag werden **fachliche Namen** defin
 | `POST` | `/api/v1/apps/{id}/launches` | Applications | App-Start anfordern |
 | `GET` | `/api/v1/settings` | Settings | Eigene Einstellungen |
 | `PATCH` | `/api/v1/settings` | Settings | Einstellungen ändern |
-| `GET` | `/api/v1/events/ws` | Realtime | Ereignisverbindung |
+| `GET` | `/api/v1/events/stream` | Realtime | Authentifizierter SSE-Stream fuer Push-Deltas und Replay |
 
 Dies ist ein **Vertragsentwurf**. Routen für Administration, Freigaben, App-Installation und Terminal werden vor ihrer jeweiligen Implementierungsphase ergänzt. Die genauen Request-/Response-Schemas sind Gegenstand von `contracts/openapi/v1/`.
 
@@ -542,7 +553,7 @@ Neue öffentliche API-Ressourcen, welche den Core als einheitliche System-API vo
 
 In der Core-API-Registry erhält jeder geschützte Endpoint eine stabile `operation_id`, exakte HTTP-Methode, kanonische Route, zulässige Ressourcenscopes und eine vertrauenswürdige Risikobeschreibung. Die App deklariert die Operationen in `permissions/api-access.json`, der signierte Paketindex schützt die Datei. Eine App-API-Operation ist nur erlaubt, wenn sie (a) deklariert, (b) in der administrativ freigegebenen Installation enthalten, (c) mit aktivem App-Kontext aufgerufen und (d) durch Benutzerrechte, App-Capabilities und Ressourcenscopes autorisiert ist.
 
-**API-Gateway/BFF dürfen keinen unbeschränkten App-Aufruf mit normalem Browser-Sessioncookie akzeptieren.** App und privilegierter Desktop-Kontext werden über Origins und einen vom Core gebundenen App-Bridge-/Instanzkontext getrennt. Für REST, WebSocket-Subscriptions, WASI-Hostfunktionen und interne Adapter gelten dieselben Default-Deny-Regeln. Der Dateimanager, Desktop und App Installer als Core-Apps haben **signierte Baseline-Deklarationen**, aber keine unbeschränkten Core-API-Rechte.
+**API-Gateway/BFF dürfen keinen unbeschränkten App-Aufruf mit normalem Browser-Sessioncookie akzeptieren.** App und privilegierter Desktop-Kontext werden über Origins und einen vom Core gebundenen App-Bridge-/Instanzkontext getrennt. Für REST, WebSocket-Subscriptions, WASI-Hostfunktionen und interne Adapter gelten dieselben Default-Deny-Regeln. Der Dateimanager, Desktop und `Apps.cloudApp` als Core-Apps haben **signierte Baseline-Deklarationen**, aber keine unbeschränkten Core-API-Rechte.
 
 Neue administrative Entwurfsendpunkte:
 
@@ -677,7 +688,7 @@ OIDC im BFF (Authorization Code + PKCE) kann unabhaengig von externem LDAP konfi
 
 ### 9.4 Sitzungs- und Dienstsicherheit
 
-- BFF-Cookies `Secure`, `HttpOnly`, geeignete `SameSite`; CSRF-Schutz und WebSocket-Origin-Check.
+- BFF-Cookies `Secure`, `HttpOnly`, geeignete `SameSite`; CSRF-Schutz fuer Mutationen und strikte Same-Origin-/Session-Pruefung am SSE-Stream.
 - Rate-Limits, Session-Rotation/Widerruf und lokale Policy-Revisionen bei Gruppen-/Share-/Space-Aenderung.
 - LDAP- und OIDC-Secrets ausschliesslich im sicheren serverseitigen Secret Store.
 - Workload-Identitaet fuer interne gRPC-/Core-Aufrufe, Timeouts, spaeter mTLS.
@@ -755,7 +766,7 @@ Eine PostgreSQL-Instanz reicht zunächst aus. Jeder Fachkontext erhält ein eige
 |---|---|---|
 | `identity` | `users`, `groups`, `group_memberships`, `external_identities` | Identity |
 | `permissions` | `roles`, `role_bindings`, `acl_entries`, `app_grants` | Permissions |
-| `desktop` | `desktops`, `window_layouts`, `desktop_shortcuts` | Desktop |
+| `desktop` | `desktops`, `window_layouts`, `window_restore_state` | Desktop |
 | `themes` | `theme_packages`, `theme_versions`, `active_theme_bindings`, `theme_overrides`, `theme_policy` | Theme |
 | `settings` | `settings` | Settings |
 | `files` | `nodes`, `blobs`, `file_versions`, `uploads`, `quota_usage`, `trash_entries` | Files |
@@ -794,7 +805,7 @@ Ein Dienst darf fremde Tabellen nicht lesen oder schreiben. Fachübergreifende I
 | `applications.apps` | App Registry | `app_id`, Publisher, Name, Trust-Level |
 | `applications.versions` | App Registry | `app_id`, Version, Manifest-Digest, API-Kompatibilität, Runtime-Matrix |
 | `applications.artifacts` | Package Service | Digest, Format, Quelle, Signaturstatus, Asset-Verweise |
-| `applications.installations` | Installation Service | Benutzer/Mandant, Version, Status, Policy-Revision |
+| `applications.installations` | Installation Service | Systemweite App-ID, aktive Version, Status, Provenienz, Policy-Revision |
 | `applications.instances` | Lifecycle Service | `app_instance_id`, User, Session, Runtime, Status, Window-Referenz |
 | `permissions.app_grants` | Permission Service | App-Instanz, Ressource, Operation, Ablauf, Widerruf |
 | `applications.app_api_declarations` | App Package Service | Signierter Deklarationsdigest, API-Contract, Operation-IDs, Methoden und Scopes |
@@ -834,7 +845,7 @@ users:/
 
 Der virtuelle Root-Pfad `/` einer angemeldeten Sitzung zeigt **ausschließlich das eigene Home**. Ein Administrator kann zusätzlich die beiden Volume-Ansichten öffnen; Sichtbarkeit eines Volumes ist nicht mit uneingeschränktem Lesen aller Benutzerdateien gleichzusetzen.
 
-`.cloudApp`-Pakete werden vom App Installer verifiziert und als **unveränderliche installierte Artefakte** im Systemvolume verwaltet. Der Dateimanager darf dort keine direkten manuellen Paketänderungen vornehmen. Ein vom Benutzer heruntergeladenes `.cloudApp` im eigenen Home ist ausschließlich eine normale Quelldatei, kein installierter Programmcode.
+`.cloudApp`-Pakete werden vom Core Package/Installation Service verifiziert und als **unveränderliche installierte Artefakte** im Systemvolume verwaltet. Der Dateimanager darf dort keine direkten manuellen Paketänderungen vornehmen. Ein vom Benutzer heruntergeladenes `.cloudApp` im eigenen Home ist ausschließlich eine normale Quelldatei, kein installierter Programmcode.
 
 Virtuelle Pfade sind eine **Sicht**, keine Host-Dateisystempfade. Alle Operationen arbeiten primär mit Ressourcen-IDs. Das Storage-Backend verwendet intern opake Objektschlüssel, niemals unvalidierte Dateinamen als direkte Hostpfade.
 
@@ -922,7 +933,7 @@ Rust-Web-Apps, auch browserfähige ArtCraft-Anwendungen, erhalten **keinen direk
 
 **Browserlokal:** Fenster ziehen, Resize-Vorschau, Hover, Auswahlrahmen, laufende Animationen, Fokus innerhalb einer Tab-Instanz.
 
-**Serverpersistiert:** Hintergrundbild, Desktop-Icons, konfigurierbare Taskleiste, bevorzugte Fensterpositionen, bekannte App-Instanzen und stabile Benutzereinstellungen.
+**Serverpersistiert:** Fensterzustand und App-Instanzen im Desktop/Window State Service; **Desktop-Dateien/-Ordner/-Verknuepfungen ausschliesslich im File Service unter `/.desktop/`**; Taskleisten-Einstellungen als private Home-Datei `/.taskbar.json`; Icon-Positionen bei Bedarf in `/.desktop-layout.json`. Ein `Desktop State Service` darf keine parallele autoritative Iconliste pflegen.
 
 Beide Ebenen sind nicht identisch: Ein zeitweilig geöffnetes Dialogfenster muss nicht automatisch nach einem erneuten Login erscheinen.
 
@@ -935,14 +946,9 @@ Vorgeschlagene Kerndaten:
   "desktop_id": "6e681ab2-3db9-4dc9-8556-fb359995e8ff",
   "revision": 17,
   "wallpaper": { "kind": "builtin", "value": "default" },
-  "shortcuts": [
-    {
-      "id": "shortcut-1",
-      "target_type": "application",
-      "target_id": "org.cloudos.fileexplorer",
-      "position": { "x": 24, "y": 32 }
-    }
-  ],
+  "desktop_content": { "source": "vfs", "well_known": "home.desktop" },
+  "taskbar_configuration": { "source": "vfs", "well_known": "home.taskbar" },
+  "icon_layout": { "source": "vfs", "well_known": "home.desktop_layout" },
   "windows": []
 }
 ```
@@ -969,6 +975,16 @@ Der Core speichert **Fenster-Metadaten**, nicht jeden gerenderten Frame einer Ru
 - Eine App-Instanz darf mehrere Fenster haben, wenn das Feature später explizit implementiert wird.
 - Beendigung eines Fensters beendet die App nur gemäß Lebenszykluspolicy (z. B. letztes Fenster geschlossen); ein verstecktes Fenster ist nicht automatisch ein gestoppter Serverjob.
 - Ein nach Login rekonstruiertes Fenster startet gegebenenfalls eine **neue App-Instanz** mit dokumentiertem Restore-State; gespeicherte Desktoppositionen sind keine Prozess-Memory-Snapshots.
+
+### 13.4a Verbindliche Desktop-/Taskbar-Datenquellen und vier Kanten
+
+**Fachlich fuehrend:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md). Die vorinstallierte `Desktop.cloudApp` ist die UI-Shell mit Start-Button/Startfenster und Taskleiste. Der Benutzer kann die Taskleiste ueber einen Settings-Deep-Link auf `top`, `bottom`, `left` oder `right` stellen. Die Konfiguration ist **privat und dateibasiert**: `/.taskbar.json` im eigenen Home. Die optionalen Icon-Positionen liegen separat in `/.desktop-layout.json`.
+
+Die angezeigten Dateien, Ordner und Verknuepfungen stammen **ausschliesslich** aus dem File-Service-Ordner `/.desktop/`. Der fruehere Home-Pfad `/Desktop/` ist nicht mehr kanonisch. Die Desktop State-/Window-Dienste speichern keine zweite autoritative Shortcut-Liste. `FileExplorer.cloudApp`, virtuelle Shell und berechtigte Apps veraendern diese VFS-Nodes ueber dieselben File-APIs.
+
+Bei jeder Datei-/Konfigurationsaenderung sendet der File Service nach dem DB-Commit ein autorisiertes Outbox-/Realtime-Invalidierungssignal. Die Desktop-App laedt den autoritativen Datei-/Config-Snapshot nach und aktualisiert das UI **ohne Browser-Reload**. Die Subscription muss Snapshot/Cursor-Races, Duplicate Events, Reconnect, mehrere Tabs und Rechteentzug abdecken. Die URL-/Node-Aufloesung findet ausschliesslich im Go File Service statt.
+
+`Settings.cloudApp` ist eine **eigene** gestartete App mit eigener signierter Endpoint-Allowlist. Der Taskleisten-Kontextmenuepunkt startet sie mit einer geprueften Route; er verleiht `Desktop.cloudApp` keine fremden Schreibrechte.
 
 ### 13.5 Verbindliche UI- und Theming-Architektur
 
@@ -1203,7 +1219,7 @@ const unsubscribe = cloudos.theme.subscribe((nextTheme) => {
 
 ### 13.6 Desktop und Systemoberflächen als Core-Apps
 
-Der normale Desktop wird **nicht fest in den Browser-Bootstrap eingebaut**. Die signierte, geschützte `Desktop.cloudApp` liefert die Desktop-Shell mit Taskleiste, Startmenü, Kontextmenüs, Fenster-Chrome und App-Host. File Explorer, Settings, App Installer, System Dialogs und Notification Center sind jeweils eigenständige, vorinstallierte `.cloudApp`-Core-Apps. Der Go-Core besitzt nur ihre Systemfunktionen (Registry, File Service, Fensterzustand, Theme Service, Rechte und Runtime). Eine minimale Authentifizierungs-/Recovery-Oberfläche vor dem Start der Desktop-App ist die eng begrenzte Ausnahme.
+Der normale Desktop wird **nicht fest in den Browser-Bootstrap eingebaut**. Die signierte, geschützte `Desktop.cloudApp` liefert die Desktop-Shell mit Taskleiste, Startmenü, Kontextmenüs, Fenster-Chrome und App-Host. File Explorer, Settings, Apps, App Store, System Dialogs und Notification Center sind jeweils eigenständige, vorinstallierte `.cloudApp`-Core-Apps. Der Go-Core besitzt nur ihre Systemfunktionen (Registry, File Service, Fensterzustand, Theme Service, Rechte und Runtime). Eine minimale Authentifizierungs-/Recovery-Oberfläche vor dem Start der Desktop-App ist die eng begrenzte Ausnahme.
 
 Die Core-Apps sind von Anfang an durchgängig themefähig und folgen den in Abschnitt 13.5 beschriebenen Designsystem-Kontrakten. Die Paket-/Baseline- und Core-App-Lifecycle-Regeln stehen in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md).
 
@@ -1426,7 +1442,7 @@ Ein selbstgehosteter Browser-WASM-Build kann Bild-/Dokumentdaten lokal im Browse
 
 ### 14.14 Verpflichtendes `.cloudApp`-Paket und Installationsgrenze
 
-**Verbindliche Ergänzung v0.4:** Jede reguläre, sichtbare Benutzeranwendung wird als `.cloudApp`-Paket ausgeliefert, vor Benutzung installiert und durch die App Registry zur Ausführung freigegeben. Das gilt gleichermaßen für Desktop, File Explorer, Settings, App Installer, System Dialogs, Notification Center und Drittanbieter-Apps. Ein bloßes `.cloudApp`-Archiv im VFS ist **nicht ausführbar**.
+**Verbindliche Ergänzung v0.4:** Jede reguläre, sichtbare Benutzeranwendung wird als `.cloudApp`-Paket ausgeliefert, vor Benutzung installiert und durch die App Registry zur Ausführung freigegeben. Das gilt gleichermaßen für Desktop, File Explorer, Settings, Apps, App Store, System Dialogs, Notification Center und Drittanbieter-Apps. Ein bloßes `.cloudApp`-Archiv im VFS ist **nicht ausführbar**.
 
 Das ZIP-basierte Paketformat v1 enthält ein `cloudos.app.json`, einen signierten Paketindex, geprüfte Publisher-Informationen sowie Web-/Rust-WASM- oder optionale serverseitige Runtime-Artefakte. Alle Dateiinhalte werden vor Installation in einer isolierten Staging-Umgebung validiert; keine ZIP-Inhalte oder dynamischen Einstiegspunkte dürfen ohne Prüfung gestartet werden. Bestehende Manifest-Skizzen in Abschnitt 14.5 sind **Teilentwürfe** und werden durch das konkrete Paketformat in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md) präzisiert.
 
@@ -1434,11 +1450,13 @@ Das ZIP-basierte Paketformat v1 enthält ein `cloudos.app.json`, einen signierte
 
 Pflicht-Core-Apps werden bei der Systeminitialisierung aus einer geschützten, signierten und versionsgebundenen cloudOS-Baseline automatisch installiert. Die Desktop-Core-App startet nach Login als Shell-App; andere Core-Apps werden bei Bedarf als eigene App-Instanzen gestartet. Die Kern-Dienste sind Infrastruktur, keine `.cloudApp`-Anwendungen. Normale Deinstallations-/Disable-Requests für Pflicht-Core-Apps werden auch für Administratoren verweigert; Änderungen erfolgen ausschließlich durch kontrollierte Release-/Recovery-Verfahren.
 
-### 14.16 Installieren per Rechtsklick und getrennte Berechtigungen
+### 14.16 Installation über Apps.cloudApp, Doppelklick und getrennte Berechtigungen
 
-Der `FileExplorer.cloudApp` zeigt Administratoren für valide `.cloudApp`-Pakete im Home die Aktion **App installieren**. Der `AppInstaller.cloudApp` zeigt Prüfergebnisse, Publisher, Version, Runtime, Abhängigkeiten, Capability-Anforderungen und Benutzer-/Gruppenzuweisungen. Nach Bestätigung verifiziert der Go-Core die Paketbytes erneut über einen digestgebundenen Installationsplan und legt die geprüfte Installation in `system:/applications` ab. Standardbenutzer dürfen im MVP keine Apps installieren.
+Die bisherige Rechtsklickinstallation ist **aufgehoben**. Jede zusätzliche `.cloudApp` wird systemweit unter **`system:/apps/`** auf Festplatte 1 installiert. Die signierte Pflicht-Core-App **`Apps.cloudApp`** ist unter **Settings → Apps** erreichbar und bietet manuelle Paketinstallation, Deinstallation, kontrolliertes Löschen referenzfreier Pakete sowie Benutzer-/Gruppenzuweisung. Ein Doppelklick auf ein unregistriertes `.cloudApp`-Archiv startet bei berechtigten Administratoren sofort die Apps-Installation samt Signatur-/API-Preflight, jedoch keinen Installations-Commit ohne ausdrückliche Pflichtfreigaben.
 
-**Vier getrennte Gates:** Paket ist installiert; Benutzer/Gruppe ist zugewiesen; App-Instanz ist autorisiert und gestartet; konkrete Ressourcenoperation ist durch Capability Grant und ACL erlaubt. Das versteckte Systemvolume wird bei normalen Benutzern nicht über die VFS-Laufwerksliste sichtbar, obwohl zugewiesene Apps ihre freigegebenen Assets laden dürfen.
+Die systemweite Installation wird von der Sichtbarkeit und Startberechtigung getrennt. **Neue Zusatz-Apps erhalten standardmäßig nur einen Grant an die eingebaute Gruppe `Admin`.** Der Permission Service verwaltet weitere Gruppen- und Benutzerzuweisungen, der Lifecycle Service verweigert Starts für Unberechtigte und beendet entprivilegierte Instanzen. Realtime-Hinweise plus autoritativer Resync aktualisieren Startmenü, Taskbar, Desktop und Suche ohne Browser-Reload. Core-App-Baseline-Installationen bleiben mit spezifischen Berechtigungen für alle berechtigten Benutzer geschützt.
+
+Die separate `AppStore.cloudApp` bedient moderierte, signierte GitHub-Kataloge aus einem eigenen Repository und optional weitere durch Administratoren konfigurierte Quellen. Der Store darf **nur seine eigenen** installierten Apps verwalten. Die unveränderliche Provenienz und Manager-ID werden durch den Go-Core festgelegt, nicht vom Browser geliefert. Ausführliche Referenz: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
 
 ### 14.17 Runtime- und Theme-Vertrag für `.cloudApp`
 
@@ -1456,7 +1474,7 @@ Der Package Service prueft Integritaet und Kryptografie; der Trust Service beurt
 - **Unsigniert, manipuliert, abgelaufen, widerrufen oder falsche App-ID:** Installation hart abgelehnt; kein Admin-Bypass.
 - **Updates:** Jede neue selbstsignierte Paketversion/Digest benoetigt erneute bewusste Zustimmung. Kein stilles Auto-Update oder implizite Aufnahme des Self-signed-Zertifikats als CA-Root.
 
-Alle von cloudOS gerenderten Warnungen sind themefaehig, bleiben jedoch als vertrauenswuerdige AppInstaller-/SystemDialog-UI klar von der fremden App getrennt. Nutzer-/Dateirechte werden trotz Signatur nur im Permission Service erteilt.
+Alle von cloudOS gerenderten Warnungen sind themefaehig, bleiben jedoch als vertrauenswuerdige Apps.cloudApp-/SystemDialog-UI klar von der fremden App getrennt. Nutzer-/Dateirechte werden trotz Signatur nur im Permission Service erteilt.
 
 Die vollstaendige Spezifikation inklusive Paketformat, Revocation, Risk-Confirmation-Flow, signierter Indexstruktur, Fehlercodes und Signaturtestmatrix ist in [`APP_SIGNING.md`](APP_SIGNING.md) dokumentiert.
 
@@ -1464,7 +1482,7 @@ Die vollstaendige Spezifikation inklusive Paketformat, Revocation, Risk-Confirma
 
 Jede `.cloudApp` enthält zusätzlich zum `cloudos.app.json` die Datei **`permissions/api-access.json`**, die durch `api_access.file` referenziert und im SHA-512-Paketindex signiert ist. Die Datei führt **jede** benötigte cloudOS-Core-API-Operation mit stabiler `operation_id`, HTTP-Methode, kanonischem Pfad und maximalem Ressourcenscope auf. Auch eine leere Liste muss vorhanden sein.
 
-Der App Package Service validiert die Datei, der Core API Contract Registry/Permission Service bewertet die Route und der App Installer erstellt eine gebundene Vorschau aller Endpunkte samt verständlicher Sicherheitsrisiken. Ein Administrator muss diese Endpoint-Liste vor **jeder** Installation oder Aktualisierung vollständig sehen und genehmigen. Bei gültiger Selbstsignatur ist **zusätzlich** die eigenständige Signaturwarnung zu bestätigen. Neu verlangte oder erweiterte Rechte dürfen nie stillschweigend hinzugefügt werden.
+Der App Package Service validiert die Datei, der Core API Contract Registry/Permission Service bewertet die Route und der Core Installation Service erstellt eine gebundene Vorschau aller Endpunkte samt verständlicher Sicherheitsrisiken. Ein Administrator muss diese Endpoint-Liste vor **jeder** Installation oder Aktualisierung vollständig sehen und genehmigen. Bei gültiger Selbstsignatur ist **zusätzlich** die eigenständige Signaturwarnung zu bestätigen. Neu verlangte oder erweiterte Rechte dürfen nie stillschweigend hinzugefügt werden.
 
 **Sicherheitsregel:** Die laufende App nutzt ausschließlich die wirksam genehmigten Endpunkte. Ein nicht deklarierter App-Aufruf wird am Go-Core serverseitig mit `403` verweigert; von der App veranlasste Zugriffe dürfen nicht über privilegierte Core-Apps oder eine gemeinsame Browser-Cookie-Session eskalieren. Dasselbe gilt für Rust-Browser-WASM, WASI und spätere native Runner. Für WebSockets wird jede Subscription separat geprüft. Die Unterscheidung zwischen API-Freigabe und Ressourcen-ACL bleibt bestehen.
 
@@ -1710,46 +1728,47 @@ Der Event-Envelope enthält eine stabile ID, ein versioniertes Ereignis, einen U
 - Wiederholungen, Backoff, Maximalversuche und Umgang mit nicht verarbeitbaren Ereignissen werden pro Consumer definiert.
 - Keine globale, dienstübergreifende Ereignisreihenfolge annehmen; bei Bedarf Revision pro Ressource vergleichen.
 
-### 16.3 Browser-Ereignisse
+### 16.3 Browser-Ereignisse und SSE-Push
 
-WebSocket-Nachrichten sind **Hinweise**, nicht die alleinige Datenquelle. Bei einer Nachricht wie `files.node.updated` lädt der Client gegebenenfalls aktuelle Metadaten über REST nach.
+Der Standardtransport fuer **alle** laufenden Browser- und App-Host-Aktualisierungen ist `GET /api/v1/events/stream` per authentifiziertem SSE (Server-Sent Events). Der Go-Core sendet **direkt anwendbare, nach Empfaenger und App-Berechtigung gefilterte Deltas**, z.B. `files.node.changed`, `desktop.taskbar.changed`, `applications.available.changed`, `notifications.created`, `sharing.received` und `spaces.member.changed`. **Keine periodischen Client-Statusabfragen und kein Long-Polling.**
 
-- Benutzer/Session beim Verbindungsaufbau authentifizieren.
-- Alle Subscriptions auf Zugriffsrechte prüfen, auch bei geänderten Freigaben.
-- Pings, Heartbeats, maximale Verbindungszahl und Backpressure definieren.
-- Bei Reconnect Zustand per REST neu laden; optional Cursor nur für geeignete, nicht sicherheitskritische Ereignisse.
-- Keine global sichtbaren Event-Payloads, aus denen andere Benutzer Datei- oder Profilinformationen ableiten könnten.
+- Owner Services schreiben Daten und Transactional Outbox atomar; NATS JetStream verteilt intern; der Push Projector erstellt pro Empfaenger eine sichere und geordnete Zustellung mit persistentem Delivery Log.
+- Die `Desktop.cloudApp` / der privilegierte App Host besitzt die Core-SSE-Verbindung. Fremde `.cloudApp`-Frames und Rust/WASM-Apps erhalten **nur** die in ihrer signierten `permissions/api-access.json` deklarierten `event_subscriptions` ueber eine scopegepruefte App Bridge.
+- `Last-Event-ID` und per-Audience/Policy-Epoch gebundene Cursor ermoeglichen Replay nach Verbindungsunterbrechungen. Nach einem Replay-Gap darf genau **ein** autorisierter Snapshot geladen werden; dies ist kein Polling.
+- Der Browser aktualisiert seine Views direkt aus den empfangenen Deltas. Ein REST-GET nach jedem Event ist nicht mehr Standard und darf nicht durch einen Timer ersetzt werden.
+- Beim ersten Login verknuepft ein Snapshot/Stream-Barrier-Protokoll Revisionen und Cursor, damit Aenderungen zwischen Verbindungsaufbau und UI-Bootstrap nicht verloren gehen.
+- Connection-Keepalives sind SSE-Kommentare, keine Client-Datenabfragen. Verbindungsabbruch fuehrt zu degradiertem Status, begrenztem Reconnect und Wiederherstellung, niemals zu regelmaessigen Status-GETs.
+- Alle API-/File-/App-/Space-Berechtigungen werden bei der eigentlichen Aktion erneut serverseitig geprueft. Ereignisse selbst verleihen keine Rechte und werden beim Replay erneut autorisiert.
+
+Das fachlich massgebliche Dokument ist [PUSH_REALTIME.md](PUSH_REALTIME.md). Die genauen Event-Schemas, Subscribe-Policy, Delivery-Log-Retention, Backpressure und Security-Tests werden dort definiert.
 
 ### 16.4 Beispiel: Datei erscheint in zweitem Browser
 
 ```mermaid
 sequenceDiagram
     participant A as Browser A
-    participant GW as Gateway
+    participant GW as Go Gateway
     participant F as File Service
-    participant DB as PostgreSQL
+    participant DB as PostgreSQL Outbox
     participant N as NATS JetStream
-    participant RT as Realtime
-    participant B as Browser B
-    A->>GW: Datei erstellen
-    GW->>F: CreateFile (gRPC)
-    F->>DB: Datei + Outbox in einer Transaktion
-    DB-->>F: Commit
+    participant P as Push Projector
+    participant S as SSE Gateway
+    participant B as Desktop Browser B
+    A->>GW: Autorisierte Datei erstellen
+    GW->>F: CreateFile
+    F->>DB: Datei und Outbox atomar committen
+    DB-->>F: Commit erfolgreich
     F-->>GW: Datei-ID und Revision
     GW-->>A: HTTP 201
-    F->>N: Outbox-Event publizieren
-    N->>RT: files.node.created
-    RT-->>B: Autorisierter Änderungs-Hinweis
-    B->>GW: Ordnerinhalt erneut laden
-    GW->>F: ListChildren (gRPC)
-    F-->>GW: Aktueller Zustand
-    GW-->>B: JSON-Liste
+    DB->>N: Outbox Publisher
+    N->>P: files.node.created
+    P->>P: Audience, ACL und UI-Delta pruefen
+    P->>S: Sequenziertes autorisiertes add(node)
+    S-->>B: SSE files.node.changed mit Metadaten
+    B->>B: Icon direkt anzeigen, ohne erneuten GET
 ```
 
-Die schematische Darstellung zeigt den Outbox-Publisher als Teil des File Service. In der Implementierung darf der Versand auch von einem eigenen Worker übernommen werden.
-
-
-**Theme-Ereignisse** verwenden dieselben Outbox-/JetStream-/Resync-Regeln wie andere Core-Aktionen. Vorgesehen sind `themes.package.installed`, `themes.package.disabled`, `themes.active.changed` und `themes.policy.updated`. Das Realtime-Signal enthaelt nur Benutzer-/Scope-Referenz, Theme-ID und Revision, keine ungeprüften CSS-/Asset-Daten. Clients rufen den autoritativen Snapshot über die Theme-API ab.
+**Themes und Einstellungen** verwenden dieselbe SSE-Push-Strecke. Es werden nur autorisierte Theme-Tokens oder sichere, unveraenderliche Assetreferenzen gesendet; keine nicht geprueften externen Skripte und keine sensiblen Metadaten.
 
 ### 16.5 Neue Core- und App-Ereignisse
 
@@ -1771,6 +1790,10 @@ runtime.worker.unavailable
 ```
 
 Die internen Subjects folgen den definierten JetStream-Namenskonventionen; obige Werte sind **logische Ereignistypen**. Events enthalten nur notwendige Referenzen und dürfen keine Dateiinhalte, Zugangstokens oder ungekürzten Crash-Dumps publizieren. Browserclients erhalten gefilterte Hinweise, keine unkontrollierte Spiegelung interner Topics.
+
+### 16.6 Push-Deployment und Notification Inbox
+
+Die logischen Komponenten `Notification Service`, `Push Projector`, `Realtime Gateway`, `Delivery Log`, `App Host Event Bridge` und `NATS JetStream` sind getrennte Sicherheitsrollen, koennen anfangs aber in wenigen Prozessen ausgefuehrt werden. Die persistenten Notification-Items leben in der Notification-Datenhaltung; das Delivery Log ist ein begrenztes Replaysystem und keine zweite Notification-Inbox. Nginx muss `text/event-stream` ohne Buffering uebertragen (`X-Accel-Buffering: no`, keine manipulative Kompression), Idle-Timeout und SSE-Keepalive muessen abgestimmt sein. Fremde App-Origins duerfen den privilegierten Core-SSE-Stream nicht direkt lesen. WebSocket bleibt allenfalls eine spaetere, separat genehmigte bidirektionale Erweiterung.
 
 ## 17. Deployment und Infrastruktur für Core und App Runtimes
 
@@ -1819,7 +1842,7 @@ flowchart TB
     Ctrl -.-> Native
 ```
 
-`AppAssets` darf statisch aus einem vom System kontrollierten Repository ausgeliefert werden; es darf **keine Core-Cookies** setzen oder mitbringen. Ein geeigneter Hostname und die konkrete Cookie-/Origin-Struktur sind Bestandteil eines Security-ADRs. Der Reverse-Proxy kann dieselbe öffentliche IP verwenden, aber die **Origins** müssen browserseitig unterscheidbar sein.
+`AppAssets` darf statisch aus einem vom System kontrollierten Repository ausgeliefert werden; es darf **keine Core-Cookies** setzen oder mitbringen. Ein geeigneter Hostname und die konkrete Cookie-/Origin-Struktur sind Bestandteil eines Security-ADRs. Der Reverse-Proxy kann dieselbe öffentliche IP verwenden, aber die **Origins** müssen browserseitig unterscheidbar sein. Das Diagramm ist eine **logische Zieltopologie für Split-Betrieb**; im ersten Betriebsmodus laufen `Gateway`, `Core`, `Files`, `Ctrl` und `Realtime` gemeinsam in einem einzigen Go-Core-Container, nicht in getrennten Prozessen.
 
 ### 17.2 Browser-App-Origins und Sicherheitsheader
 
@@ -1835,26 +1858,22 @@ Pflichten:
 6. COOP/COEP/CORP, CORS und Permissions Policy müssen mit WebAssembly-Threads/WebGPU-/Audio-Funktionen **konkret getestet** werden. Cross-Origin Isolation ist keine pauschal risikolose Konfiguration.
 7. `postMessage` nur mit genauem `targetOrigin`, Empfänger-Origin- und MessagePort-Prüfung, Replay-/Schema-Schutz.
 8. Wenn eine App in einem neuen Tab geöffnet werden kann, gelten dieselben Origin-/CSP-Grenzen; die iframe-Sandbox allein genügt nicht.
-9. Apps dürfen keinen allgemeinen Zugriff auf den WebSocket-Eventstrom erhalten; Abonnements erfolgen als autorisierte Core-Funktionen.
+9. Apps duerfen keinen allgemeinen Zugriff auf den privilegierten SSE-Eventstrom erhalten; nur signierte, genehmigte Event-Subscriptions gelangen durch die App-Host-Bridge.
 
-### 17.3 Erste Docker-Compose-Umgebung
+### 17.3 Docker-Compose-Standard und Kubernetes-Vorbereitung (v0.11)
 
-| Container | Verantwortungsbereich | Vertrauensniveau | Daten |
-|---|---|---|---|
-| `nginx` | HTTPS / WSS, Edge-Routing, Origins | Edge | Zertifikate / Konfigurationsmount |
-| `web` | Vertrauenswürdige Desktop-Oberfläche | Client Asset | keine Nutzerdaten |
-| `app-assets` | geprüfte App-Bundles als statische Inhalte | untrusted Content | immutable Paketreleases |
-| `gateway` | Core-BFF, REST, WebSocket | privilegierter Core | Sessions in DB oder dediziertem Session-Store |
-| `core` | Logische Systemdienste Identity, Permissions, Desktop, Apps, Settings, Audit | privilegierter Core | dienstspezifische DB-Schemas |
-| `files` | File/VFS mit Storage-Adapter | privilegierter Core | File-Metadaten + Blob-Store |
-| `postgres` | Metadaten und persistente Zustände | Daten | DB-Volume, WAL/Backup |
-| `nats` | asynchrone Core-Events | Daten | JetStream-Volume |
-| `identity-provider` | Optionale spaetere OIDC-Anmeldung | externer Vertrauensanker | separater IdP-Speicher |
-| `runtime-controller` | Launch-/Runtime-Policy, später separat | privilegierter Core | Prozess-/Job-Status in Core-DB |
-| `wasi-worker` | Untrusted Rust-WASI-Code | isolierte Ausführung | nur temporäre, autorisierte Dateien |
-| `native-runner` | Native Rust-CLI, spätere Option | isolierte Ausführung | ausschließlich Sandbox-Scratch |
+| Container / Komponente | Standardbetrieb | Hinweis |
+|---|---|---|
+| **`cloudos-core`** | **ein Core-Container**, alle Go-Fachmodule gemeinsam | `CLOUDOS_MODE=combined`, keine zweite Core-Replik im MVP |
+| `postgres` | separate Infrastruktur, optionales Compose-`infra`-Profil | spätere Owner-Schemas und Session-Persistenz |
+| `nats` | separate Infrastruktur, optionales Compose-`infra`-Profil | später JetStream/Outbox |
+| Edge/Web/App-Assets | nach eigener Implementierungsphase separat | Browser-Origins und TLS, keine unsichere Kopplung mit Core-Container |
+| externer IdP / LDAP | später optional | kein Zwang für lokale Benutzerverwaltung |
+| WASI/native Runner | später separat isoliert | niemals zusammen mit privilegiertem Core |
 
-MVP-Compose enthält zunächst die benötigten Core-/Web-Komponenten und statisches App-Hosting. **WASI-/native Worker werden nicht ohne fertiges Sandbox- und Sicherheitskonzept als unprivilegierte Runtime "simuliert".** Die Einführung eigener Worker gehört in die jeweiligen Entwicklungsphasen.
+**Technisch vorbereitet:** `core/Dockerfile`, `deploy/compose/compose.yaml`, `deploy/k8s/combined`, `deploy/k8s/distributed`, generierter Service-Katalog, Health-/Readiness-Handler und SIGTERM-Behandlung. Der Bootstrap implementiert noch **keine** Fach-APIs, VFS-Persistenz, Anmeldung, SSE oder echte gRPC-Services. `kubectl apply -k` wird nur auf Wunsch verwendet. Die getrennte Variante erzeugt 22 Deployments und 18 CPU-HPA-Templates; ein Go-Binary erlaubt je Dienst eine einzige logische Startrolle.
+
+**Infrastrukturgrenze:** Es bleibt bei **einem Core-Container**, selbst wenn externe PostgreSQL-/NATS-/Nginx-Komponenten als eigene Container laufen. Die manuelle Aufteilung von `gateway`, `files`, `realtime` usw. ist kein notwendiger Bestandteil der ersten Entwicklungs- und Testphasen. Weitere Details: [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 ### 17.4 Zugriffstrennung
 
@@ -1872,15 +1891,18 @@ MVP-Compose enthält zunächst die benötigten Core-/Web-Komponenten und statisc
 - Schlüsselrotation, Widerruf, Audit und Kompromittierungsverfahren vor Produktivbetrieb.
 - Build-Artefakte reproduzierbar und mit Versions-/Git-SHA-/Checksum-Metadaten versehen.
 
-### 17.6 Horizontaler Ausbau
+### 17.6 Horizontale Skalierung, Lastverteilung und Service-Ownership
 
-Ein mehrteiliger Core lässt sich gezielt skalieren:
+**Kubernetes-Skalierung ist ab dem ersten Core-Bootstrap vorbereitet, wird aber erst später aktiv verwendet.** Für mehrere identische Go-Serviceinstanzen sind `ClusterIP`, DNS/Service-Discovery, Deployment-Replikate, Readiness-Probes, Pod-Resources und HPA-Templates definiert. Der Go-Service-Katalog ist für den Generator verbindlich. Die Fach-APIs müssen eigene gemeinsame Datenhaltung, revisionssichere Berechtigungen und lokal/remote identische Contracts erhalten.
 
-- Gateway/Realtime: mehrere Replikate, geteilte Sessionvalidierung, NATS-basierte Eventfanout.
-- File Service: mehrere stateless API-Instanzen vor gemeinsamen konsistenten Storage-Backends.
-- Runtime Controller: eindeutige Ownership pro App-/Job-Instanz, Lease-/Heartbeat-Verfahren, damit ein Job nicht unkontrolliert mehrfach gestartet wird.
-- WASI-Worker-Pool: getrennte Ressourcenklasse, globale Quotas und fair scheduling.
-- Native Runner: eigene Hosts/MicroVMs mit deutlich stärkerer Isolation; nicht auf privilegierten Core-Hosts zusammengelegt, sofern untrusted workloads betrieben werden.
+- **Stateless HTTP-Dienste** (`gateway`, `files`, `identity`, `apps`, `sharing`, `spaces` usw.): mehrere Pods; gemeinsamer PostgreSQL-Owner-State und konsistenter Blob-Speicher statt lokaler Session-/Dateidaten.
+- **SSE/Realtime:** multiple Pods hinter einem Service; dauerhafter Replay-/Delivery-Log, Auth-Revisionen und Stream-Drain. **Kein Browser-Polling** und keine verpflichtenden Sticky Sessions.
+- **Outbox-/JetStream-Worker:** nur kontrolliert vervielfachen, wenn durable Queue-/Consumer-Group und Idempotenz validiert sind.
+- **LDAP-Sync und Runtime Controller:** Lease-/Fencing-/Ownership-Koordination; im Bootstrap zunächst eine Replik ohne HPA.
+- **CPU-HPA:** für 16 HTTP-Dienstklassen als YAML vorbereitet, aber Produktionswerte sind vorab zu messen; Realtime benötigt spätere Stream-/Backpressure-Metriken.
+- **Zuverlässigkeit:** Rolling Upgrades, Drain, Schema-Version-Skew, DB-/Storage-HA und sichere Compensations sind separat zu testen.
+
+Die Kubernetes-Manifeste sind **keine** Behauptung, dass Fachlogik bereits horizontal skaliert. Maßgeblich sind [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md), Vertrags-/Mehr-Pod-Tests und eine ausdrückliche Freigabe des Split-Modus.
 
 ### 17.7 Backup, Migration und Wiederanlauf
 
@@ -1900,7 +1922,7 @@ Zu sichern sind PostgreSQL-Fachdaten (einschließlich App-Installationen, Grants
 - Strukturierte JSON-Logs mit Timestamp, Dienst, Version, Schwere, Request-ID und Trace-ID.
 - Keine Tokens, Passwörter, Session-Cookies oder vollständigen sensiblen Dateiinhalte loggen.
 - OpenTelemetry für verteilte Traces, Prometheus-kompatible Metriken für Ressourcen und Latenzen.
-- Relevante Kennzahlen: HTTP/gRPC-Fehlerrate, p95-Latenz, DB-Pool, Uploadabbrüche, Outbox-Rückstand, JetStream-Consumer-Lag, aktive WebSockets, Storage-Auslastung.
+- Relevante Kennzahlen: HTTP/gRPC-Fehlerrate, p95-Latenz, DB-Pool, Uploadabbrüche, Outbox-Rückstand, JetStream-Consumer-Lag, aktive SSE-Streams, Delivery-Backlog, Replay-Gaps, Revoke-Latenz und Storage-Auslastung.
 
 ### 18.3 Backup und Restore
 
@@ -1927,7 +1949,7 @@ Runtime-Logs sind strikt nach App-Instanz, Nutzer und Trace-ID gefiltert. Admin-
 | PostgreSQL nicht verfügbar | Schreibende Operationen schlagen kontrolliert fehl; keine stillschweigenden lokalen Ersatzdaten. |
 | Dateispeicher nicht verfügbar | Dateiinhalt-Zugriffe kontrolliert fehlerhaft; Metadaten allein beweisen keinen erfolgreichen Upload. |
 | NATS nicht verfügbar | Fachliche DB-Transaktion und Outbox können weiterlaufen, solange das definierte Rückstands-/Kapazitätsbudget reicht. |
-| WebSocket getrennt | Client zeigt Verbindungsstatus, verbindet neu und lädt REST-Zustand nach. |
+| SSE getrennt | Client zeigt Verbindungsstatus, reconnectet mit `Last-Event-ID`; bei Gap einmaliger Snapshot statt Polling. |
 | Gateway-Neustart | Persistente Sessions werden wieder geprüft; temporäre Verbindungen neu aufgebaut. |
 | App reagiert nicht | App-Host kann das Fenster beenden, ohne Desktop oder andere Apps zu blockieren. |
 | Upload abgebrochen | Upload bleibt vorübergehend im Staging, wird abgebrochen oder bereinigt; kein halber sichtbarer Dateiinhalt. |
@@ -1968,7 +1990,7 @@ Bei nicht erreichbarem API-Katalog, fehlender signierter API-Deklaration, ungül
 | SSRF über Integration oder Vorschau | Egress-Policies, Zielvalidierung, Blockierung interner/Metadaten-Netze. |
 | Unsichere App-Updates | Signatur-/Hashprüfung, Herausgeberbindung, Freigaben und Update-Policy. |
 | Session-Diebstahl | HttpOnly/Secure-Cookies, kurze angemessene Sessionlaufzeit, Widerruf, Session-Rotation. |
-| WebSocket-Informationsleck | Origin-, Sitzungs- und Subscriptionsprüfung; Revoke-Handling. |
+| SSE-Informationsleck | Same-Origin/BFF, Sitzungs- und App-Subscriptionpruefung, Auslieferungs- und Replay-ACL; Revoke-Handling. |
 | Interne Dienst-Impersonation | Dienstidentität, Autorisierung, TLS/mTLS-Konzept. |
 | Host-Kompromittierung durch Job | Separate Sandbox, keine privilegierten Container und keine Host-Mounts. |
 | Datenverlust / Ransomware | Getrennte Berechtigungen, Versionen/Papierkorb und getestete Backups. |
@@ -2006,7 +2028,7 @@ Eine native oder in WASI ausgeführte Rust-Anwendung ist **nicht automatisch sic
 | End-to-End | Browser → Gateway → Dienst → Datenbank und zurück |
 | Security | IDOR, ACL, CSRF, Auth-/Session-Fehler, Upload- und App-Isolation |
 | Failure | Neustarts, Ausfälle, doppelte Events, konkurrierende Änderungen |
-| Performance | Last auf Datei-Listen, Uploads, Desktopzustand und WebSocket-Reconnect |
+| Performance | Last auf Datei-Listen, Uploads, SSE-Streaming, Fanout, Delivery Log und Reconnect |
 | Restore | Wiederherstellung konsistenter Daten aus Backup |
 
 ### 21.2 CI-Anforderungen
@@ -2081,6 +2103,7 @@ cloudOS/
 │   ├── SYSTEM_ARCHITECTURE.md
 │   ├── VIRTUAL_FILESYSTEM.md
 │   ├── APPLICATION_SYSTEM.md
+│   ├── CORE_DEPLOYMENT_SCALING.md
 │   ├── decisions/
 │   ├── api/
 │   ├── applications/
@@ -2103,12 +2126,15 @@ cloudOS/
 │   ├── manifests/v1/
 │   └── wit/cloudos/
 ├── core/
+│   ├── go.mod
+│   ├── Dockerfile
 │   ├── cmd/
-│   │   ├── gateway/
-│   │   ├── core/
-│   │   ├── files/
-│   │   └── runtime-controller/
+│   │   └── cloudos-core/           # gemeinsames Go-Binary, combined/split per env
 │   ├── internal/
+│   │   ├── platform/              # Service-Katalog, Deployment-Bootstrap
+│   │   │   ├── services.json
+│   │   │   ├── catalog.go
+│   │   │   └── server.go
 │   │   ├── system/
 │   │   ├── identity/
 │   │   ├── sessions/
@@ -2168,7 +2194,7 @@ cloudOS/
 │   │   ├── desktop/
 │   │   ├── file-explorer/
 │   │   ├── settings/
-│   │   ├── app-installer/
+│   │   ├── apps-management/
 │   │   ├── system-dialogs/
 │   │   └── notifications/
 │   ├── bundled/
@@ -2178,7 +2204,8 @@ cloudOS/
 │       ├── rust-wasm-file-editor/
 │       └── rust-wasi-converter/
 ├── deploy/
-│   ├── compose/
+│   ├── compose/                  # Standard ein Core-Container, Split optional
+│   ├── k8s/                      # combined und distributed Kustomize
 │   ├── nginx/
 │   ├── app-origins/
 │   └── policies/
@@ -2198,7 +2225,7 @@ cloudOS/
 └── Makefile
 ```
 
-Dies ist eine **Zielstruktur, kein Ist-Inventar**. Im am 15.11.2026 geprüften Branch `main` (Commit `3846c80a`) liegen `README.md`, `docs/CONCEPT.md`, `docs/SYSTEM_ARCHITECTURE.md`, `docs/VIRTUAL_FILESYSTEM.md`, `docs/APPLICATION_SYSTEM.md` und `docs/APP_SIGNING.md`. Das neu spezifizierte `docs/APP_API_ACCESS.md` und die hier bereitgestellten neuen Dokumentversionen sind noch nicht auf GitHub committed. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
+Dies ist eine **Zielstruktur, kein Ist-Inventar**. Als Grundlage für die Architektur v0.9 wurde GitHub `Drezael/cloudOS`, Branch `main`, Commit `b44579d5cfa4d85a4cc21e44d12f2003d5a2a6fa` am 15.11.2026 geprüft. Dort liegen die bisherigen Fachkonzepte einschließlich `docs/DESKTOP_ENVIRONMENT.md`; die in diesem Paket überarbeiteten Dateien sind als neue Versionen zur Übernahme vorbereitet. Unbenutzte Verzeichnisse werden nicht als leere Platzhalter erzeugt.
 
 **Go-Packageregel:** In `core/internal/<fachkontext>` liegen die Implementierungen hinter Ports/Interfaces. Nur ausdrücklich freigegebene, versionierte Contract-/Client-Pakete dürfen von anderen Fachkontexten importiert werden. Eine Umstrukturierung in einzelne Deployments erfordert dadurch keinen Wechsel der öffentlichen API.
 
@@ -2319,7 +2346,7 @@ Die Theming-Arbeit ist ein fester Bestandteil der bestehenden 19 Entwicklungspha
 1. Der Go-Core initialisiert das Systemvolume und gleicht die signierte Baseline der Pflicht-Core-Apps ab.
 2. Der Browser authentifiziert den Benutzer und fragt den erlaubten Desktop-Launch über die Core Registry ab.
 3. `Desktop.cloudApp` startet als autorisierte Shell-App; `FileExplorer.cloudApp` startet separat aus der App Registry.
-4. Der Administrator rechtsklickt auf ein `.cloudApp`-Paket im eigenen Home und öffnet `AppInstaller.cloudApp`.
+4. Der Administrator **doppelklickt** auf ein `.cloudApp`-Paket im eigenen Home; `Apps.cloudApp` öffnet sich sofort und startet den Signatur-/API-Preflight.
 5. Der Core validiert Archiv, Publisher, Signatur, Abhängigkeiten und beantragte Capabilities; der Administrator bestätigt den Installationsplan.
 6. Das Paket wird unveränderlich auf `system:/` installiert und ausgewählten Benutzern/Gruppen zugewiesen.
 7. Der zugewiesene Nutzer kann es aus dem Desktop starten; nicht zugewiesene Nutzer können es weder auflisten noch starten.
@@ -2373,7 +2400,7 @@ Die Phasen 0–9 müssen ihre Aufgaben so ordnen, dass Baseline, minimale Regist
 ### 24.1 Weitere ADRs: App-API-Scopes und Installationsrisiken
 
 - **ADR-037:** Signierter `permissions/api-access.json`-Contract, Core-API-Katalog und Operation-ID-Versionierung.
-- **ADR-038:** Default-Deny-Enforcement an App-Bridge, REST, gRPC, WebSocket und WASI-Grenzen.
+- **ADR-038:** Default-Deny-Enforcement an App-Bridge, REST, gRPC, SSE-Subscriptions und WASI-Grenzen.
 - **ADR-039:** Risikomodell und vollständiger Sicherheitsdialog für alle Endpoint-Zugriffe.
 - **ADR-040:** Freigabe-/Widerrufs-/Update-Diff-Modell und Policy-Caches.
 - **ADR-041:** Separates App-Egress-/externes Netzwerkberechtigungsmodell.
@@ -2398,7 +2425,7 @@ Phase 0 ist erst abgeschlossen, wenn mindestens folgende Ergebnisse vorliegen:
 
 - Der Begriff **cloudOS Core** ist in Repository und API-Dokumentation einheitlich definiert.
 - Für **jede** cloudOS-Systemfunktion ist ein Core-Owner benannt; Apps ersetzen keine Owner-Logik.
-- Erste Prozessgrenzen (`gateway`, `core`, `files`, App Host, isolierte App-Origin) sind entschieden.
+- Erste **fachliche** Grenzen von Gateway, Identity, File, Apps, Realtime und weiteren Ownern sind entschieden; physisch läuft der Go-Core initial in einem Prozess/Container. Die separate Ausführung bleibt als Deployment-Alternative vorbereitet.
 - `web-wasm` ist das priorisierte GUI-Runtime-Profil; Server-WASI und native Ausführung sind **separat** bewertet.
 - Ein App-Manifest-Schema und ein Bridge-v1-Protokollentwurf liegen vor.
 - Sicherheitsgrenzen, Origin-/CSP-Policy und Berechtigungsfluss besitzen testbare Negativfälle.
@@ -2536,7 +2563,7 @@ Eine Rust-Testanwendung mit Theme-Adapter wird zweimal gestartet (Light und Dark
 
 ---
 
-**Änderungsvermerk 0.4 (15.11.2026):** Das bisherige App-Konzept wurde durch eine zwingende `.cloudApp`-Paket-/Installationsarchitektur ergänzt. Desktop und sämtliche weiteren sichtbaren Systemfunktionen sind installierte Core-Apps. Details zu Paketformat, Admin-Rechtsklick, Pflicht-Core-Apps, Zuweisung, Installer-Transaktionen, Rust-Laufzeiten und Recovery stehen verbindlich in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Das VFS verwendet nach [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md) genau zwei virtuelle Volumes.
+**Änderungsvermerk 0.4 (15.11.2026):** Das bisherige App-Konzept wurde durch eine zwingende `.cloudApp`-Paket-/Installationsarchitektur ergänzt. Desktop und sämtliche weiteren sichtbaren Systemfunktionen sind installierte Core-Apps. Der frühere **Admin-Rechtsklick** wurde in v0.9 durch den **Doppelklick-Preflight** ersetzt. Details zu Paketformat, Pflicht-Core-Apps, Zuweisung, Installer-Transaktionen, Rust-Laufzeiten und Recovery stehen verbindlich in [`docs/APPLICATION_SYSTEM.md`](APPLICATION_SYSTEM.md). Das VFS verwendet nach [`docs/VIRTUAL_FILESYSTEM.md`](VIRTUAL_FILESYSTEM.md) genau zwei virtuelle Volumes.
 
 
 ---
@@ -2562,3 +2589,59 @@ Lokaler Directory-/Session-Betrieb ist der MVP-Standard. Externe LDAP-Synchronis
 Sharing und Spaces werden ueber eigene, signierte `Sharing.cloudApp`/`Spaces.cloudApp` bereitgestellt. Settings kann separate Administrator-Apps fuer externe LDAP-Connectoren und OIDC-Provider starten. Kein eingebetteter Dialog erbt automatisch die Endpoint-Allowlist des Aufrufers. Alle neuen Apps sind themefaehig. Ihre neuen Operationen benoetigen eine im Core-Release definierte Risikoklassifikation, ausdrueckliche administrative Freigabe und passende Benutzer-/Space-Rolle.
 
 Fachliche Spezifikationen und Abnahmematrizen: [SHARING_SPACES.md](SHARING_SPACES.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [APP_API_ACCESS.md](APP_API_ACCESS.md). Interne Shares und ein funktionierender Basis-Space folgen auf den sicheren VFS; externe Verzeichnis-/Login-Adapter koennen spaeter kommen. **Diese Version ist ein Entwurf und beschreibt keine bereits implementierten Go-Endpunkte oder .cloudApp-Pakete.**
+
+
+---
+
+## 28. Desktop-/Taskbar-Vertraege und Realtime als VFS-Projektion
+
+Die detaillierten Endpunkte, JSON-Schemas, Event-Flows, Sicherheitsfaelle und Abnahmetests stehen in [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md). Auf Core-Ebene ist eine strikte Trennung Pflicht: **File Service** besitzt `/.desktop/`, `/.taskbar.json` und `/.desktop-layout.json`; **App Registry/Lifecycle** besitzt installierte und startberechtigte Anwendungen; **Desktop/Window State** besitzt laufende Fenster-/UI-Zustandsdaten; **Realtime** uebermittelt autorisierte Invalidierungen und Cursor-/Reconnect-Hinweise. Eine App darf diese Grenzen weder durch einen Browser-Cache noch durch direkten Speicherzugriff umgehen.
+
+## 29. Systemweite App-Pakete, Apps.cloudApp und modularer GitHub-App-Store (v0.9)
+
+Dieses Kapitel ergänzt und ersetzt ältere Pfad-/Installations- und Sichtbarkeitsregeln. Die Datei **[APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md)** ist fachlich führend.
+
+- **Dateisystem:** Die erste virtuelle Festplatte `system` enthält alle installierten Paketdateien unter **`system:/apps/`**. Die zweite virtuelle Festplatte `users` bleibt ausschließlich für Home-Daten; ein dort abgelegtes `.cloudApp`-Archiv ist nicht installiert. Der Package Service ist einziger geschützter Schreib-Owner der produktiven Pakete.
+- **Frontend:** Unter **Settings → Apps** startet die eigene, geschützte `Apps.cloudApp`. Sie verwaltet manuelle Installationen, Updates, globale Deinstallation, separates Paket-Delete und Nutzer-/Gruppenzuweisungen. Ein **Doppelklick** auf eine nicht installierte `.cloudApp` startet sofort den signierten Installations-Preflight in Apps. **Rechtsklickinstallation entfällt vollständig.**
+- **App Store:** `AppStore.cloudApp` liefert nachweisbar moderierte Kataloge aus einem separaten GitHub-Repository und erlaubt zusätzliche explizit konfigurierte GitHub-Katalogquellen. Der Store darf ausschließlich durch seine eigene vertrauenswürdige Manager-Identität installierte Apps aktualisieren/deinstallieren; keine Übernahme manueller oder fremder Store-Installationen. Katalogsignatur/Review sind zusätzlich zu App-Signatur und vollständig genehmigter Endpoint-Allowlist zu prüfen.
+- **Berechtigung:** App-Installation ist **global**, `discover`/`launch` aber getrennt. Für zusätzliche Apps erhält zunächst ausschließlich der stabile POSIX-artige Gruppen-Principal **`Admin`** die Start-/Sichtberechtigung. Die eigentlichen Core-RBAC-Administrationsrechte und Berechtigungen der App-APIs werden davon nicht implizit abgeleitet. Notwendige Baseline-Core-Apps sind über einen kontrollierten Release-Ausnahmeweg allen berechtigten Benutzern verfügbar.
+- **Dynamik:** Der Permission/Assignment Service erhöht jede relevante Policy-Revision und publiziert per DB-Outbox autorisierte App-Invalidierungen. `Desktop.cloudApp`, Startmenü, Taskbar, Dateiverknüpfungen und alle offenen Sessions laden die gefilterte App-Liste erneut, **ohne Reload**. Neue Launches sowie alte App-Capabilities werden **sofort serverseitig** gegen den revidierten Status geprüft; widerrufene Instanzen werden kontrolliert beendet.
+- **Lifecycle:** Die Registry speichert immutable Paketdigest, aktive Version, `provenance`, `management_owner_app_id`, ggf. `catalog_source_id` und Default-/wirksame Grants. Deinstallation ist von Paketartefaktlöschung und privaten Home-Daten zu trennen. Die Entfernung einer Katalogquelle löscht keine installierten Apps.
+
+Im Core-Servicekatalog sind hierfür `App Assignment`/`Permission`, `Package/Installation`, `App Registry`, `Store Source`, `Trust/Signing`, `API Policy`, `File/VFS`, `Realtime` und `Audit` als logische Owner-/Portgrenzen zu spezifizieren. Ein eigener Prozess für jeden Dienst ist nicht erforderlich. Neue Betriebssystem-Routen und Store-Operationen werden erst nach ADR und OpenAPI-/gRPC-Vertrag implementiert.
+
+## 30. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Initial:** alle Core-Module gemeinsam in einem Go-Container; später split-/Kubernetes-fähig. Siehe [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+
+## Architektur-Ergänzung v0.12 – Auth, Logs, Fenster und Geräte
+
+- **Authentication:** Passwort per Benutzername/verifizierter E-Mail, WebAuthn-Passkey, YubiKey als FIDO2-Sicherheitsschlüssel, SSH-Key via `sshsig` + kontrolliertem lokalem Companion; Sessionrotation, frische Step-up-Policies, persistierte Challenges und integrierte Local-/LDAP-/IdP-Identität.
+- **Logging:** `logging` Core-Rolle, pro Dienst/Untermodul live konfigurierbares `TRACE/DEBUG/INFO/WARN/ERROR/OFF`, strukturierte Logs, Datenschutz-Redaction, separater unverzichtbarer Audit Owner, vorinstallierte Admin-`Logs.cloudApp` in Settings.
+- **Window Host:** Alle GUI-Anwendungen laufen in signierten Framework-Fenstern; Trusted Chrome, Fokus/Z-Order, Min/Max/Snap, Taskleisten-Gruppierung, Rechtsklick-Fenster schließen/App beenden, Graceful Close, Unsaved/ForceStop und SSE-State-Updates.
+- **Clientgeräte:** Zusätzlich zu `permissions/api-access.json` wird `permissions/device-access.json` signiert und bei Installation mit Risiken angezeigt; nach lokalem User-/Browsergrant vermitteln WebSerial/WebHID/WebUSB oder File Picker die jeweilige Nutzung. Keine Client-Gerätemounts im Core/Kubernetes.
+- **Code:** Ein tatsächlicher, getesteter Go-Logging-Bootstrap mit benannten Loggern, Level-Overrides und Redaction ist enthalten; Authentifizierung, Gerätezugriffe und die grafische Fensterschale selbst sind noch nicht implementiert. `CLOUDOS_MODE=combined` bleibt voreingestellt.
+
+Die fachlich führenden Verträge sind [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md) und [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+
+## Ergänzung v0.13 – Theme-Presets und Wallpaper-Engine
+
+Das bisherige Theme-Service-/Designsystem-Konzept bleibt fachlich und technisch maßgeblich. Die ergänzenden Konzepte [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) legen nun sechs konkrete OS-inspirierte Core-Themes und sechs dynamische Hintergründe als verbindliches MVP-Ziel fest. Es wird **kein zweiter Theme Service** eingeführt.
+
+| Ebene | Owner / Zuständigkeit | Skalierungsregel |
+|---|---|---|
+| Theme Registry / Policies / Tokenversionsbindung | Go Theme Service | Zunächst Combined-Core; später replizierbar mit gemeinsamer Datenbasis |
+| Benutzer-Theme/-Wallpaper-Präferenz | Theme Service mit Home-Backing `/.config/cloudos/appearance.json` | Validierte, revisionsgebundene Policy, keine pro-Pod-Wahrheit |
+| Individuelle Taskbar | File Service, `/.taskbar.json` | Theme-Vorschläge dürfen Position nicht überschreiben |
+| Wallpaper-VFS-Handles | File Service / Permission Enforcer | Keine fremden Homes und kein allgemeines System-Volume-Listing |
+| Browser Theme Resolver / Design System | Desktop-/App Host | Clientseitig, ohne zweite Persistenzautorität |
+| Wallpaper Controller / Renderer | `Desktop.cloudApp` | Nur clientseitige Frames, Worker/OffscreenCanvas bevorzugt |
+| Realtime-Zustellung | SSE Push Service | `themes.active.changed`, `wallpapers.preference.changed`, `wallpapers.catalog.changed` mit Autorisierungsfilter und Replay |
+
+Die sechs Themes sind **Northstar, Cedar, Coast, Prism, Slate und RetroGlass**. Sie gestalten alle CloudOS-Core-Oberflächen einschließlich des systemeigenen Fensterrahmens über Tokens und geprüfte Varianten. Eingebettete Drittanbieter-Apps verwenden ihre eigenen Oberflächen; ein optionaler Theme-Bridge-Adapter ermöglicht dort zusätzliche Integration, darf jedoch keine App-/API-Rechte ausweiten.
+
+Die Presets **Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landscape** werden ausschließlich über autorisierte Systemassets und originale, geprüfte Grafiken realisiert. Fallback und Reduced Motion sind verpflichtend. Der Server sendet **niemals Animationsframes** über den Push-Kanal. Ein Theme-Preset darf das vom Benutzer gewählte Wallpaper oder die Taskleistenposition nicht überschreiben.
+
+Die Theme-Auslieferung verwendet `system:/themes/builtin/` und kontrollierte Asset-APIs; eventuelle `.cloudApp`-Theme-Resource-Pakete werden später ausschließlich über `Apps.cloudApp` und dessen Signatur-/Endpoint-Allowlist-Pipeline installiert. Der normale Benutzer erhält keinen freien Zugriff auf `system:/`.
+
+**Konzeptstatus:** Alle beschriebenen Renderer, APIs, Schemata und Events sind Zielverträge, nicht bereits implementierte Produktfunktionen.

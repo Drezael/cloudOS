@@ -1,7 +1,16 @@
 # cloudOS – Apps-Verwaltung, systemweite Installation und moderierter App Store
 
+> **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
+
+
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+
+> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+
+> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+
 > **Datei:** `docs/APP_MANAGEMENT_STORE.md`  
-> **Dokumentversion:** 0.1 (neuer verbindlicher Fachentwurf zu Architekturstand v0.9)  
+> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), Ausgangsbasis `main`, Commit `b44579d5cfa4d85a4cc21e44d12f2003d5a2a6fa`  
 > **Fachlich führend für:** Installation und Entfernen von `.cloudApp`, Apps.cloudApp, AppStore.cloudApp, GitHub-Katalogquellen, globale Installationen, Benutzer-/Gruppenzuweisungen und Echtzeit-Widerruf  
@@ -21,7 +30,7 @@ Diese Fassung legt verbindlich fest:
 6. **GitHub als Store-Quellenmodell:** Der offizielle Katalog wird in einem **separaten GitHub-Repository** verwaltet. Weitere kompatible GitHub-Katalogrepositories können Administratoren hinzufügen, deaktivieren oder entfernen. Quellenvertrauen und Moderation werden getrennt beurteilt.
 7. **Globale Installation, private Sicht:** Eine Installation erzeugt genau eine systemweite aktive App-Version für die Installation (MVP); Nutzer sehen und starten die App nur bei einer expliziten, aktuellen Benutzer- oder Gruppenzuweisung.
 8. **Defaultgruppe `Admin`:** Nach manueller oder Store-Installation einer zusätzlichen App wird zunächst ausschließlich die vordefinierte lokale Gruppe `Admin` zur Ausführung berechtigt. Weitere Benutzer und Gruppen erhalten erst durch eine ausdrückliche Freigabe Rechte.
-9. **Dynamik:** Änderungen an App-Zuweisungen, Gruppenmitgliedschaften, App-Installationsstatus und App-Store-Quellen werden ohne Browser-Neuladen in Startmenü, Desktop, Taskleiste, Suche, Dateizuordnungen und Apps-Oberflächen wirksam. Der Core autorisiert jeden Start und jeden API-Aufruf erneut gegen gültige Policies.
+9. **Dynamik:** Änderungen an App-Zuweisungen, Gruppenmitgliedschaften, App-Installationsstatus und App-Store-Quellen werden als direkt anwendbare SSE-Deltas ohne Browser-Neuladen in Startmenü, Desktop, Taskleiste, Suche, Dateizuordnungen und Apps-Oberflächen wirksam. Der Core autorisiert jeden Start und jeden API-Aufruf erneut gegen gültige Policies.
 10. **Signaturen und API-Endpunkte:** Jede App bleibt nach [APP_SIGNING.md](APP_SIGNING.md) geprüft; `permissions/api-access.json` ist signiert, vollständig anzuzeigen und serverseitig bindend. Ein Store hebt weder das Signaturvertrauen noch die API-Allowlist auf.
 
 **Geltungsbereich:** Diese Anforderungen präzisieren und ersetzen alle früheren Aussagen zur App-Installation per Rechtsklick, zum alten Pfad `system:/applications/packages/` und zur Bezeichnung `AppInstaller.cloudApp` als eigenständige Pflicht-Oberfläche. Der Go-App-Installer-Dienst bleibt als Backendfunktion bestehen; seine reguläre Oberfläche ist nun **`Apps.cloudApp`**.
@@ -186,6 +195,11 @@ Ein Start erfordert `VISIBLE` **plus** `launch`, gültige Sitzung, kein App-Verb
 - Ein gültiger Admin-Grant eines anderen Benutzers erteilt keine Rechte und darf nicht durch die Browser-UI herbeigeführt werden.
 
 ## 6. Die Pflicht-Core-App `Apps.cloudApp`
+
+**Zusätzliche Installationsanzeige v0.12:** Die Apps-Verwaltung zeigt für jede `.cloudApp` weiterhin sämtliche signierten API-Endpunkte und das Signatur-/Publisher-Risiko. Neu hinzu kommt die vollständige Liste aller signierten **Client-Device-Capabilities** aus `permissions/device-access.json`, getrennt nach Keyboard-Wedge, WebSerial, WebHID, WebUSB und Dateipickern sowie Lese-/Schreib- und Benutzerauswahlrechten. Eine App darf nur nach den bereits vereinbarten Admin-Bestätigungen und danach je Gerät nach sichtbarer Nutzerfreigabe zugreifen. Gerätezugriffe dürfen beim Update nicht stillschweigend erweitert werden.
+
+**System-Apps:** `Logs.cloudApp` (Administrator-Logansicht) und `AccountSecurity.cloudApp` (Credential-/Sessionverwaltung) werden zu den vorbereiteten, signierten Core-Apps. `Logs.cloudApp` ist standardmäßig nur für `Admin` sichtbar, während `AccountSecurity.cloudApp` eigene Nutzer-Credentials verwalten darf. Beide Apps nutzen das Window Framework und bekommen ihre Endpunkte über die signierte Release-Baseline, nicht über einen unkontrollierten Berechtigungssonderweg.
+
 
 `Apps.cloudApp` ersetzt die bisher eigenständige Oberfläche `AppInstaller.cloudApp`. Sie ist ab dem ersten unterstützten cloudOS-Release eine **geschützte, signierte, vorinstallierte Core-App** und enthält die zentralen Funktionen für die Appverwaltung.
 
@@ -593,8 +607,8 @@ sequenceDiagram
     D-->>P: Commit, neue Revision
     P-->>M: 200, neue Revision
     P->>O: apps.assignments.changed (ohne fremde Datendetails)
-    O-->>W: Scoped Resync-Hinweis
-    W->>W: GET /api/v1/apps/available mit ETag
+    O-->>W: Scoped SSE applications.available.changed Delta
+    W->>W: SSE Delta apply (added/removed; kein GET)
     W->>W: Startmenue/Taskleiste/Suche/Shortcuts aktualisieren
     P->>L: Ausfuehrungsgenehmigungen invalidieren
     L->>L: Entzogene App-Instanzen stoppen, Handles widerrufen
@@ -603,10 +617,10 @@ sequenceDiagram
 ### 15.1 Technische Garantien
 
 - Die DB-Transaktion ist die maßgebliche Wahrheit. Realtime-Events enthalten minimale Hinweise, keine autoritative Berechtigungsliste.
-- Bei Grant-Änderung werden betroffene User-/Group-/App-Revisionsnummern erhöht. Offene Tabs und WebSocket-Sitzungen erhalten **scopegefilterte** Events, rufen dann die personalisierte App-Liste neu ab und aktualisieren die UI.
+- Bei Grant-Änderung werden betroffene User-/Group-/App-Revisionsnummern erhöht. Offene Tabs erhalten **scopegefilterte SSE-Deltas** mit hinzugefuegten/entfernten Apps, aktualisieren unmittelbar die UI und rufen die App-Liste nicht periodisch oder nach jedem Event erneut ab.
 - Das Startmenü, angeheftete Taskleistenicons, Desktop-Verknüpfungen und App-Finder verwenden **dieselbe** autorisierte App-Liste. Unzugewiesene Einträge werden entfernt/ausgeblendet, nicht nur ausgegraut.
 - Wird ein `launch`-Grant entzogen, verhindert der Server **ab Commit** neue Launches. Laufende Instanzen werden nach definierter Sicherheits-Policy gestoppt und alle weiterhin aktiven API-/Datei-/Realtime-Capabilities unmittelbar entzogen. **UI-Wartezeit darf niemals ein Sicherheitsfenster schaffen.**
-- WebSocket-Ausfall, verpasste Events, Tab-Sleep und Browser-Reconnect lösen einen voll autorisierten Snapshot-Resync aus. Zusätzliche Revisionsprüfung auf jedem sicherheitsrelevanten API-Call verhindert endlos stale Grants.
+- SSE-Ausfall, verpasste Events, Tab-Sleep und Browser-Reconnect loesen einen `Last-Event-ID`-Replay oder bei Cursor-Luecke **einen einmaligen** autorisierten Snapshot aus. Zusätzliche Revisionsprüfung auf jedem sicherheitsrelevanten API-Call verhindert endlos stale Grants.
 - Änderungen an der lokalen Gruppe `Admin`, an LDAP-synchronisierten Gruppen und an Benutzer-Deaktivierungen invalidieren dieselben App-Zuweisungen; App-Berechtigungen sind dynamisch aus stabilen Gruppen-IDs abgeleitet.
 - Installation und Deinstallation erzeugen entsprechend `apps.installed`, `apps.uninstalled` oder `apps.availability.changed`, ebenfalls ohne private Benutzerdaten an Unberechtigte zu leaken.
 - Löschungen oder geänderte Zugriffrechte für `.cloudlink`-Dateien bleiben VFS-Ereignisse; beide Synchronisationswege werden getrennt ausgewertet und am Ende zusammengeführt.
@@ -614,6 +628,10 @@ sequenceDiagram
 ### 15.2 Ein eigenes UI-Berechtigungsmodell reicht nicht aus
 
 `GET /api/v1/apps/available` ist nur ein gefilterter Leseendpunkt. Ein Browsernutzer, der eine App-ID errät, darf weder deren Dateien abrufen noch Launches starten oder einen `runtime-assets`-Pfad herunterladen, falls die App ihm nicht zugewiesen wurde. Das Gateway/Asset Delivery prüft die tatsächliche Installation und die aktuelle Zuweisung. Bereits in einen Browser geladene JS-/WASM-Bytes können nach Widerruf möglicherweise weiter im Browsercache liegen; cloudOS kann deren bereits ausgelieferte Bytes nicht zurückrufen, muss aber **alle zukünftigen Core-Zugriffe und Laufzeitaktionen** zuverlässig sperren.
+
+### 15.3 Push-only bei App-Zuweisungen und App-Store-Aktualisierungen
+
+Die global installierten Apps werden **nicht** durch regelmaessige Browser-Abfragen sichtbar gemacht. Nach jeder erfolgreichen lokalen Installation, Deinstallation, per User/Group bearbeiteten Freigabe oder serverseitigen GitHub-Katalogsynchronisation erzeugt der Owner ein Outbox-Ereignis. Der Projector erstellt den **bereits nach aktuellem Benutzerkontext gefilterten** Delta (`applications.available.changed`, `applications.installation.changed`, `appstores.catalog.changed`) und sendet ihn per SSE an alle berechtigten Tabs. Startmenue, Taskleiste, Suche, `Apps.cloudApp` und `AppStore.cloudApp` uebernehmen diesen Delta unmittelbar. Eine entfernte App verschwindet ohne Reload; neue Launches und API-Aufrufe werden bereits ab Berechtigungs-Commit verweigert. Nur initialer Bootstrap und nachgewiesener Replay-Gap berechtigen zu einem einmaligen erneuten API-Snapshot. Die System-Store-Provenienz wird durch Push nicht veraendert. Siehe [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 16. Security: Bedrohungen und Schutzmaßnahmen
 
@@ -734,8 +752,8 @@ Die Schritte werden mit den übergeordneten cloudOS-Phasen synchronisiert. Ungep
 | AM-T44 | Paketlöschung nach sicherem Uninstall bereinigt nur referenzfreie Version |
 | AM-T45 | Originaldatei in `/Downloads` bleibt bei Installation standardmäßig bestehen |
 | AM-T46 | Originaldatei kann über autorisierte normale VFS-Operation separat gelöscht werden |
-| AM-T47 | Zweiter Tab erhält App-Zuweisungsänderung per Resync |
-| AM-T48 | WebSocket-Ausfall wird nach Reconnect mit korrekten Grants aufgeholt |
+| AM-T47 | Zweiter Tab erhält App-Zuweisungsänderung als sofort anwendbaren SSE-Delta |
+| AM-T48 | SSE-Ausfall wird per Replay oder einmaligem Recovery-Snapshot mit korrekten Grants aufgeholt |
 | AM-T49 | App-Runtime lädt keine nicht zugewiesenen Package-Assets durch direkte URL |
 | AM-T50 | Update mit neuer Endpoint-Anforderung braucht neue Genehmigung |
 | AM-T51 | Provenienz kann nicht über JSON/Header des Browserclients überschrieben werden |
@@ -794,3 +812,21 @@ Die nachfolgenden IDs sind vorläufige Fortsetzung des cloudOS-ADR-Backlogs (kei
 ## 24. Verbindliche Zusammenfassung
 
 Installierte Apps liegen ausschließlich auf der ersten virtuellen Festplatte unter **`system:/apps/`**. Das reguläre Installations-UI ist **`Apps.cloudApp`** unter **Settings → Apps**; per **Doppelklick** auf eine unregistrierte `.cloudApp` öffnet es sofort den Installationsworkflow, niemals per Rechtsklick. Die Installation ist global, die Nutzbarkeit jedoch benutzer-/gruppenabhängig. Neue zusätzliche Apps sind anfangs nur für die stabile lokale Gruppe **`Admin`** sichtbar und ausführbar. Das UI bietet spätere Benutzer-/Gruppenfreigaben mit sofortiger Realtime-Aktualisierung ohne Reload. Der moderierte **`AppStore.cloudApp`** bezieht Kataloge aus einem separaten offiziellen GitHub-Repository und optional weiteren administrativ konfigurierten GitHub-Quellen; er darf nur **seine eigenen** Store-Installationen verwalten. Jeder Installations-, Update- und Uninstall-Vorgang unterliegt weiterhin serverseitigen Rollen-, Signatur-, API-Allowlist-, Versions-, Provenienz- und Auditprüfungen.
+
+## 25. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
+
+**Systemweite Installation statt Pod-spezifischer Kopie:** `Apps.cloudApp` und `AppStore.cloudApp` sprechen den logischen Apps/Store-Owner über die Core-API an. Installierte `.cloudApp`-Pakete liegen für alle Replikate auf `system:/apps/`. Das im ersten Schritt allein gültige Standarddeployment ist **ein gemeinsamer Go-Core-Container**, mit optionalem Kubernetes-Split über getrennte `apps`, `packages` und `appstore`-Pods.
+
+Mehrere Serviceinstanzen dürfen ein Paket nicht gleichzeitig mit widersprüchlichen Provenienz-/Signature-/User-Grants veröffentlichen: Upload-Staging, Paket-Digest, Installations-ID und Quota-Reservierung sind transaktional/idempotent. Store-Provenienz bleibt unveränderlich und global. Freigaben gelten weiterhin standardmäßig nur für Gruppe `Admin`, werden danach gezielt je Benutzer/Gruppe geändert und per autorisiertem SSE-Deltastrom ohne Browser-Reload synchronisiert. Die Store-Quelle darf weder per neuem Pod noch durch Reinstallation die Managementhoheit über fremde Installationen gewinnen.
+
+## Architektur-Ergänzung v0.12 – Gerätebewertung und neue Core-Apps
+
+Installationsherkunft bleibt unverändert: `Apps.cloudApp` verwaltet manuelle Pakete, `AppStore.cloudApp` ausschließlich seine selbst installierten Apps; zusätzliche Logging-/Security-Core-Apps werden ausschließlich über die signierte Systembaseline ausgerollt. Alle App-GUI-Funktionen laufen in Framework-Fenstern; auch ein Installer- oder Gerätedialog wird vom vertrauten Fensterframework gerendert. App-/Benutzerzuweisungen, Window-Running-Status und Device-Grant-Revoke werden per SSE ohne Polling an die berechtigten Clients verteilt.
+
+## Ergänzung v0.13 – Theme- und Wallpaper-Pakete
+
+Die sechs initialen OS-inspirierten Themes (**Northstar, Cedar, Coast, Prism, Slate, RetroGlass**) sowie sechs dynamische Wallpaper-Presets kommen aus der **geprüften und signierten cloudOS-Release-Baseline**. Ein Benutzer wählt sie in `Settings.cloudApp` unter Personalisierung, nicht über einen zweiten App-Store-Installer.
+
+Soll später ein Theme oder Wallpaper als Ressourcenanteil eines Drittanbieter-`.cloudApp`-Pakets verteilt werden, bleiben Installation, Aktualisierung, Rechtefreigabe und Deinstallation **ausschließlich Aufgabe von `Apps.cloudApp` bzw. des originären installierenden App Stores**. Alle ausführbaren App-Pakete liegen weiterhin unter `system:/apps/`, bleiben signiert und deklarieren ihre Endpoint-Rechte. Der Store darf keinerlei fremde Installationen verwalten; Theme-Assets begründen keinen Sonderzugriff.
+
+Ein reines Theme darf keinen ausführbaren, frei vom Browser nachgeladenen Code, kein unkontrolliertes CSS und keine freien externen Asset-URLs enthalten. Der Theme Service referenziert nur geprüfte, versionierte Ressourcen. Siehe [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).
