@@ -1,5 +1,7 @@
 # cloudOS – Core-Deployment, Microservice-Trennung und Kubernetes-Skalierung
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
 
 
@@ -395,14 +397,32 @@ kubectl -n cloudos get hpa,deployments,services,pods
 
 In der realen späteren Migration ist ein verwalteter Cutover mit Stop/Drain, DB-Migration, Routingänderung und Rollback erforderlich. *Nicht* gleichzeitig ein schreibender `combined`- und ein schreibender `split`-Owner derselben Ressource.
 
-## 15. Rolling Updates, Drain und Zero-Downtime-Ziele
+## 15. Core-Upgrades, Wartungsstopp und Replica-Fehlerfaelle (Entscheidung 15.11.2026)
 
-- Deployments verwenden für mehrere Pods einen Rolling-Update-Ansatz mit Readiness-Probes. Neue Pod-Instanzen müssen vollständig hochfahren und ihren Owner-Vertrag akzeptieren, bevor Traffic umgestellt wird.
-- Die Go-Bootstrap-App verarbeitet `SIGTERM` und führt `http.Server.Shutdown` mit einem Timeout durch. Sie implementiert aber noch **keinen echten SSE-Drain, keine DB-Transaktionsbeendigung und kein Lease-Fencing**. Das wird vor Produktionsbetrieb ergänzt.
-- Lang laufende SSE-Streams benötigen ausdrücklich ein Drain-Signal, definierte maximale Stream-Dauer, Replay-Cursor und ein ausreichend langes Shutdown-Budget. Die vorhandene HTTP-Abschaltlogik allein garantiert kein verlustfreies Realtime-Update.
-- Versionierte gRPC-/OpenAPI-/Event-Schemas werden mindestens während des Rolling-Update-Fensters rückwärts-/vorwärtskompatibel gehalten oder mit kontrollierter Doppelregistrierung migriert.
-- DB-Migrationen folgen **Expand → Migrate → Contract**, damit alte und neue Service-Replikate gleichzeitig gültige Schemata lesen können. Irreversible Schemamigrationen können nicht allein durch Rückrollen eines Container-Images rückgängig gemacht werden.
-- Rollout-Fenster, `maxSurge`, `maxUnavailable`, `PodDisruptionBudget` und zulässige Pod-Kapazität werden an der echten Last geprüft.
+**Verbindlicher Core-Releaseablauf:** Ein Core-Upgrade wird ausschliesslich
+administrativ gestartet. Der Edge schaltet in den vom Core unabhaengigen
+Wartungsmodus; Core und laufende Anfragen, SSE-Streams sowie Jobs werden
+vollstaendig angehalten. Nach signierter Artefakt-/Schema-/Security-Pruefung,
+Owner-Migrationen und vollstaendiger Installation wird die neue Version
+funktional getestet. Erst danach gibt ein berechtigter Administrator den
+produktiven Betrieb wieder frei. Kein verpflichtendes Rolling/Canary-
+Core-Release, kein automatischer Download und kein automatischer Rollback.
+
+**Replica-/Pod-Ausfaelle im normalen Betrieb:** Die vorbereiteten Rolling-
+und Drain-Funktionen duerfen fuer kontrollierte Replica-Ersetzung und
+Wiederverbindung verwendet werden, begruenden aber keine abweichende
+Core-Releasepolitik. SSE-Streams brauchen autorisierte Cursor-/Replay-/Resync-
+Mechanismen. In-Flight-Operationen und unklare externe Seiteneffekte duerfen
+nicht blind wiederholt werden.
+
+**Datenbankmigrationen:** Owner-gebundene, zentral koordinierte Migrationen
+verwenden Expand -> Migrate -> Contract, Checkpoints, Versions-/Hashpruefungen
+und blockieren die Freigabe bei Fehlern. Die alte Container-Version kann
+irreversible Schemaaenderungen nicht automatisch rueckgaengig machen.
+
+**Topologiewechsel Combined-to-Split:** Volle Wartung und Stop der alten
+Owner, eindeutiger Schreib-Owner-Wechsel, abgesicherte neue Workload-
+Identitaeten und manuelle Wiederfreigabe. Keine Live-Doppel-Owner.
 
 ## 16. Autoscaling-Strategie und Kapazitätsmodelle
 
@@ -602,30 +622,32 @@ Die statischen YAML-Dateien sind bereits aus dem Go-Service-Katalog generiert. D
 
 ## 25. Architekturentscheidungen und ADR-Backlog
 
+**Statusabgleich 15.11.2026:** Siehe [ADR_REGISTER.md](ADR_REGISTER.md) und [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die folgenden Architektur-ADRs sind fachlich beschlossen; die technischen Metriken, Werte und Tests bleiben offen.
+
 Die bisherigen Entwurfs-ADRs bis einschließlich ADR-082 bleiben bestehen. Neue Themen:
 
 | ADR | Thema | Status |
 |---|---|---|
-| ADR-083 | Ein Core-Prozess als Default, Split- und K8s-Mode opt-in | Zu beschließen |
-| ADR-084 | Gemeinsamer Service-Katalog und identischer Go-Build | Zu beschließen |
-| ADR-085 | Lokale Portadapter vs. remote gRPC-Ports | Zu beschließen |
-| ADR-086 | Kubernetes-Service-Discovery, DNS, Retry-/Deadline-Budgets | Zu beschließen |
-| ADR-087 | Shared State, Owner-Schemas, Pooling und Cache-Revisionen | Zu beschließen |
-| ADR-088 | Worker-Queues, Leases, Fencing und Idempotenz | Zu beschließen |
-| ADR-089 | SSE-Fanout, Replay, Drain und Stream-Replikation | Zu beschließen |
-| ADR-090 | Autoscaling-Strategie CPU / Custom Metrics / KEDA | Zu beschließen |
-| ADR-091 | Pod-/Workload-Identität, mTLS, Internal API Boundaries | Zu beschließen |
-| ADR-092 | Storage-Backend und systemweite immutable Pakete | Zu beschließen |
-| ADR-093 | DB-Migrationsstrategie und Version-Skew bei Rollouts | Zu beschließen |
-| ADR-094 | K8s-Produktionshärtung, Secrets und NetworkPolicies | Zu beschließen |
-| ADR-095 | Combined-to-Split-Migrationsprotokoll ohne doppelte Owner | Zu beschließen |
-| ADR-096 | Health/Readiness-Semantik und Ausfallmodi | Zu beschließen |
-| ADR-097 | Service Observability, HPA-SLOs und Load-Test-Budgets | Zu beschließen |
-| ADR-098 | Helm/Kustomize/Operator-Tooling für späteren Produktivbetrieb | Zu beschließen |
+| ADR-083 | Ein Core-Prozess als Default, Split- und K8s-Mode opt-in | Beschlossen (Architektur) |
+| ADR-084 | Gemeinsamer Service-Katalog und identischer Go-Build | Beschlossen (Architektur) |
+| ADR-085 | Lokale Portadapter vs. remote gRPC-Ports | Beschlossen (Architektur) |
+| ADR-086 | Kubernetes-Service-Discovery, DNS, Retry-/Deadline-Budgets | Beschlossen (Architektur) |
+| ADR-087 | Shared State, Owner-Schemas, Pooling und Cache-Revisionen | Beschlossen (Architektur) |
+| ADR-088 | Worker-Queues, Leases, Fencing und Idempotenz | Beschlossen (Architektur) |
+| ADR-089 | SSE-Fanout, Replay, Drain und Stream-Replikation | Beschlossen (Architektur) |
+| ADR-090 | Autoscaling-Strategie CPU / Custom Metrics / KEDA | Beschlossen (Architektur) |
+| ADR-091 | Pod-/Workload-Identität, mTLS, Internal API Boundaries | Beschlossen (Architektur) |
+| ADR-092 | Storage-Backend und systemweite immutable Pakete | Beschlossen (Architektur) |
+| ADR-093 | DB-Migrationsstrategie und Version-Skew bei Rollouts | Beschlossen (Architektur) |
+| ADR-094 | K8s-Produktionshärtung, Secrets und NetworkPolicies | Teilweise festgelegt; Details offen |
+| ADR-095 | Combined-to-Split-Migrationsprotokoll ohne doppelte Owner | Beschlossen (Architektur) |
+| ADR-096 | Health/Readiness-Semantik und Ausfallmodi | Beschlossen (Architektur) |
+| ADR-097 | Service Observability, HPA-SLOs und Load-Test-Budgets | Beschlossen (Architektur) |
+| ADR-098 | Helm/Kustomize/Operator-Tooling für späteren Produktivbetrieb | Beschlossen (Architektur) |
 
 ## 26. Offene Entscheidungen und fachliche Grenzen
 
-- Festgelegt ist **die Fähigkeit**, Dienste getrennt und mehrfach repliziert auszuführen, sowie die Standardwahl `combined`. Noch offen ist, welche Module zuerst real als eigene Deployments ausgelagert werden.
+- **Entschieden:** Auslagerung erfolgt ausschliesslich bedarfsgesteuert und nach gemessenem Nutzen; Realtime, Gateway und File sind moegliche Kandidaten ohne feste Reihenfolge. Der Combined-Core bleibt Standard.
 - Die vollständige SQL-/gRPC-/NATS-Integration existiert noch nicht. gRPC-Contracts sind als Architekturziel festgelegt, nicht durch den HTTP-Bootstrap ersetzt.
 - Keine PostgreSQL-/NATS-HA-Produktionskonfiguration wird durch die Core-Manifeste impliziert.
 - HPA wird für HTTP-Bootstraps **syntaktisch** vorbereitet. Die HPA-Schwellen sind erste Konfigurationswerte, keine gemessenen optimalen Produktionsparameter.
@@ -662,3 +684,25 @@ Der Theme Service bleibt ein trennbares Go-Core-Fachmodul mit gemeinsamer Regist
 Die Wallpaper-Animation selbst wird **ausschließlich im Browser** berechnet. Daher entsteht **kein** zusätzlicher Wallpaper-Render-Microservice im Core, und die Anzahl der Desktop-Animationen verursacht keine Server-FPS-Last. Der Server liefert nur geprüfte Version-Assets, die aktiven Präferenzen und Änderungen per SSE. Asset-Caching/CDN kann später unabhängig von den Core-Replikaten skaliert werden; private Wallpaper-Dateien verbleiben unter VFS-ACLs.
 
 Fachlich führend sind [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md). Der Combined-Standard wird durch diese Ergänzung nicht verändert.
+
+## 29. Verbindliche Betriebs- und Infrastrukturpraezisierungen (15.11.2026)
+
+### 29.1 Bedarfsgesteuerte Split-Topologien
+
+Die Auslagerung einzelner Dienste folgt nachvollziehbaren Last-/SLO-Messungen und freigegebenen Servicevertraegen. Realtime, Gateway und File sind moegliche Kandidaten, jedoch keine verpflichtende Reihenfolge. Eine Mischform ist zulaessig, wenn alle Owner eindeutig geroutet sind. Der Wechsel erfordert kompletten Core-Wartungsstopp; kein automatischer Last-getriggerter Split und kein gleichzeitiger schreibender Combined-/Split-Owner.
+
+### 29.2 Extern verwaltete HA-Abhaengigkeiten
+
+PostgreSQL und JetStream werden infrastrukturseitig mit passenden HA-/Quorum- und Sicherheitsprofilen betrieben; cloudOS fuehrt keine eigene globale Clusterverwaltung ein. DB-Failover darf keine Doppelprimaeritaet oder veraltete Autorisierungspruefung erzeugen. Unklare Commits werden geprueft statt blind wiederholt. Nicht erfolgreich veroeffentlichte Ereignisse bleiben in der Owner-Outbox. Ein lokaler HA-Failover ist vom eigenstaendigen DR-Verfahren zu trennen.
+
+### 29.3 JetStream, Consumer, Retention und Outbox
+
+Streams sind nach Fachklasse getrennt; Consumer-Vertraege und Berechtigungen sind versioniert. Durable Consumer verwalten ihren Fortschritt separat, wiederholen begrenzt, nutzen Quarantaene und sind idempotent. Event-Retention ist eventklassenspezifisch; abgelaufene Historie fuehrt zu explicit Gap-Recovery anhand autoritativer Owner-Snapshots oder sicherem Anhalten. Outbox-Publisher akzeptieren nur bestaetigte JetStream-Persistenz, dokumentieren Acks und bereinigen nach einer freigegebenen Recovery-Frist. Es gibt keine globale Exactly-once-Wirkung.
+
+### 29.4 Storage, Secrets und Edge
+
+Eine Backend-Migration von lokalem Blob-Speicher zu gemeinsamem Storage erfolgt offline nach vollstaendigem Core-Stopp mit gemeinsamem PostgreSQL-/Manifest-/Key-Konsistenzpunkt und voller Integritaetspruefung. Runtime-Secrets kommen aus geschuetzten, providerunabhaengigen Quellen; Rotation ist kontrolliert und auditierbar. Nginx bleibt Compose-Standard. Andere Ingress-Controller oder Unternehmens-Proxys sind zulassig, wenn HTTPS, TLS-/mTLS-Grenzen, vertrauenswuerdige Forwarded-Header, Origin-Isolation, SSE und Core-unabhaengiger Wartungsmodus gleichwertig sind.
+
+### 29.5 Deployment-Werkzeuge und Qualitaetsgates
+
+Kustomize ist Kubernetes-Referenz, Helm optional bei semantischer Gleichwertigkeit, Operator nur nach separater Sicherheitsfreigabe. Infrastruktur-Autoscaling darf keine Core-Softwareversion installieren oder den Wartungsstopp bei Core-Releases umgehen. Vor Produktionsbetrieb sind die konkreten SLOs, Pool-/Replika-Grenzen, CNI/NetworkPolicies, Secret-/TLS-Provider, JetStream-Consumer-Schemas, Storage-Vertraege und dokumentierte Failover-/Restore-Tests verbindlich zu verifizieren.

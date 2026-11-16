@@ -1,5 +1,7 @@
 # cloudOS – API-Verträge, SDK-, Sicherheits-, Synchronisierungs- und Speicherverträge
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Datei:** `docs/API_CONTRACTS.md`  
 > **Dokumentversion:** 1.0 (verbindliches Fach- und Architekturkonzept)  
 > **Stand:** 15.11.2026  
@@ -954,3 +956,29 @@ Das vorliegende **Konzeptdokument** gilt als konsolidiert, wenn alle folgenden P
 ---
 
 **Ende des API-Vertragskonzepts – 74/74 Entscheidungen erfasst.**
+
+## 23. Verbindliche Infrastruktur- und Event-Vertraege (Entscheidungen 15.11.2026)
+
+Fachlich fuehrend fuer Betriebsprofile ist [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die nachfolgenden Vertraege ergaenzen die bestehenden REST-, gRPC-, CloudEvents-, SSE- und Saga-Vorgaben und sind **konzeptionell beschlossen, nicht implementiert**.
+
+### 23.1 Ereignis- und Consumer-Vertraege
+
+- Ein Core-Owner erzeugt seine Mutation und einen eindeutig identifizierten Outbox-Eintrag in derselben lokalen PostgreSQL-Transaktion. Ein fremder Owner liest oder manipuliert dessen Tabellen nicht direkt.
+- Der Publisher uebernimmt Outbox-Eintraege mit atomarem Claim und begrenzter Lease. Die Uebertragung gilt erst nach gueltiger JetStream-Persistenzbestaetigung als abgeschlossen. Unklarer Ack nach Crash erlaubt dieselbe Event-ID erneut zu publizieren.
+- Jeder Eventtyp besitzt fachlichen Owner, stabile `event_id`, CloudEvents-Schema und Versionsinformation. Stream- und Subject-Zuordnung werden zentral validiert, fachlich getrennt und mit Zugriffspolitiken versehen.
+- Durable Consumer verfolgen unabhaengige fachliche Positionen; Replikate desselben logischen Consumers koordinieren eine gemeinsame Workqueue. Doppelte Lieferung ist normal und darf keine zweite wirksame Mutation ausloesen.
+- Consumer-Acks erfolgen erst nach abgeschlossener oder nachweislich dauerhaft uebernommener Arbeit. Wiederholungsbudget, Quarantaene, Sichtbarkeit des Fehlers und Reprocessing-Regeln sind verbindlich.
+- Die Outbox-Retention ist nicht an die Ack-Position jedes einzelnen Consumers gekoppelt. Nach bestaetigter Uebertragung bleiben Eintraege fuer eine eventklassenspezifische Sicherheits-/Recovery-Frist erhalten.
+- Retention-Luecken werden explizit erkannt. Rekonstruierbare Projektionen koennen aus einem konsistenten Owner-Snapshot samt revisionssicherem Uebergang neu aufgebaut werden; nicht sicher rekonstruierbare Seiteneffekte werden blockiert statt blind wiederholt.
+
+### 23.2 Infrastruktur-Failover und konsistente Autorisierung
+
+PostgreSQL-HA und JetStream-HA werden extern beziehungsweise infrastrukturseitig verwaltet. cloudOS prueft eindeutige schreibende Primaritaet, durable Zustellbestaetigungen, sichere Wiederverbindungen und einen unklaren Commit-Status. Sicherheitskritische Rechtepruefungen verwenden keinen unzureichend aktuellen Replika-Zustand. Ein lokaler HA-Failover ist kein DR-Failback.
+
+### 23.3 Core-Release und Kommunikation
+
+Produktive Core-Updates erfolgen nur manuell autorisiert unter vollstaendigem Wartungsstopp; eine neue Readiness allein aktiviert nicht die öffentliche API. Kein Canary-, Rolling- oder automatischer Release-Rollback als Standard. Bei normalem Replika-Ausfall koennen SSE-Streams mit geschuetztem Cursor und Replay wiederhergestellt werden. Interne Remote-Ports erfordern mTLS und Workload-gebundene Service-Capabilities; Compose combined bleibt der Standard.
+
+### 23.4 Offene Zahlenwerte
+
+Ack-Fristen, Retention-Dauer, Idempotenzfenster, Retry-Budgets, Poollimits, RTO/RPO, p95-/p99-Ziele und die konkreten Protokoll-/Kryptografieprofile werden erst im jeweiligen Implementierungs-/Abnahmedokument nach Messung bzw. Sicherheitsbewertung festgelegt. Diese Detailwerte sind nicht durch pauschale Beispiele als produktive Defaults genehmigt.

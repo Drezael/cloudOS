@@ -1,5 +1,7 @@
 # cloudOS – Technische Systemarchitektur
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
 
 
@@ -2645,3 +2647,27 @@ Die Presets **Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landsc
 Die Theme-Auslieferung verwendet `system:/themes/builtin/` und kontrollierte Asset-APIs; eventuelle `.cloudApp`-Theme-Resource-Pakete werden später ausschließlich über `Apps.cloudApp` und dessen Signatur-/Endpoint-Allowlist-Pipeline installiert. Der normale Benutzer erhält keinen freien Zugriff auf `system:/`.
 
 **Konzeptstatus:** Alle beschriebenen Renderer, APIs, Schemata und Events sind Zielverträge, nicht bereits implementierte Produktfunktionen.
+
+## 29. Verbindliche Infrastruktur-Architektur und Betriebsprofile (15.11.2026)
+
+Die am 15.11.2026 ausdruecklich bestaetigten Entscheidungen sind in [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md) fachlich fuehrend dokumentiert und in [ADR_REGISTER.md](ADR_REGISTER.md) referenziert.
+
+### 29.1 Betriebs- und Sicherheitsgrenzen
+
+- Ein Go-Core-Container mit allen logischen Ownern bleibt der Standard. PostgreSQL, NATS JetStream und Edge laufen weiterhin ausserhalb dieses Containers. Split/Kubernetes bleiben opt-in und nur nach nachweisbarem Vorteil zulaessig.
+- Logische fachliche Owner-Grenzen gelten unabhaengig von der Zahl der Core-Prozesse. Jeder fachliche Zustand besitzt einen eindeutigen schreibenden Owner; fremde Owner duerfen dessen SQL-Schema nicht direkt beschreiben.
+- Produktive Core-Releases und Topologiewechsel verwenden einen vollstaendigen Core-Wartungsstopp, kontrollierte Migrationen, Integritaets-/Securitytests und ausdrueckliche administrative Wiederfreigabe. Weder Pod-Readiness noch ein Helm-Upgrade duerfen den Wartungsmodus eigenstaendig beenden.
+- Ein normales Infrastruktur-Failover innerhalb einer autorisierten HA-Domaene ist vom manuellen, separaten Disaster-Recovery-Verfahren abzugrenzen. Automatisches globales DR-Fencing und DR-Failback sind nicht Bestandteil der Architektur.
+- Kustomize ist die verbindliche Kubernetes-Referenz, Helm darf nur bei nachgewiesener semantischer Gleichwertigkeit optional eingesetzt werden. Ein Operator benoetigt eine eigene Sicherheitsentscheidung und hat keine pauschalen Core-Release-, DBA- oder Schluesselrechte.
+
+### 29.2 Daten- und Event-Infrastruktur
+
+PostgreSQL/JetStream-HA wird infrastrukturseitig verwaltet. Fachliche Owner committen Mutation und Outbox atomar. JetStream-Streams werden nach Fach- und Schutzklasse getrennt und Consumer mit langlebigen eigenen Zustaenden sowie begrenzten Wiederholungsbudgets betrieben. Nach Retention-Luecken werden abgeleitete Projektionen nur ueber konsistente Snapshot-/Revisionsbarrieren repariert. Unklare irreversible Seiteneffekte werden angehalten und geprueft. Die Sicherheits- und Audit-Persistenz ist eigenstaendig.
+
+### 29.3 Storage, Secrets und Edge
+
+Lokale persistente Storage-Adapter sind fuer den Combined-Start zulaessig; mehrere File-Replikate benoetigen nachweisbar gemeinsamen konsistenten Speicher. Ein Wechsel zwischen Storage-Backends ist ein expliziter Offline-Migrationsvorgang mit Vollstopp, konsistentem PostgreSQL-/Blob-/Key-Stand und vollstaendiger Verifikation. Betriebs-Secrets kommen aus providerunabhaengig angebundenen, geschuetzten Quellen mit kontrollierter Rotation. Nginx ist der Compose-Standard; externe Enterprise-Proxys und Kubernetes-Ingress-Controller sind nur bei identischen TLS-, Trusted-Proxy-, App-Origin-, SSE- und Wartungsgarantien zulaessig.
+
+### 29.4 Verbindliche Abnahmen
+
+Release- und K8s-Produktionsreife benoetigen erfolgreiche Durchgaengigkeitstests fuer TLS/mTLS, Rechteentzug, Publish-Ack, Reconciliation, Event-Gaps, Fileintegritaet, Ausfall von PostgreSQL/NATS/Storage, Recovery, Lastprofile und die manuelle Wartungsfreigabe. Eine vorhandene YAML-Datei oder ein Go-Bootstrap-Endpunkt ist kein Fachimplementierungsnachweis.

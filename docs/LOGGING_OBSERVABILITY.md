@@ -1,5 +1,7 @@
 # cloudOS – Feingranulares Logging, Audit und Logs.cloudApp
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Datei:** `docs/LOGGING_OBSERVABILITY.md`  
 > **Version:** 0.1 – Architektur und Go-Bootstrap für cloudOS 0.12  
 > **Stand:** 15.11.2026  
@@ -292,3 +294,13 @@ Die Tage sind **Illustrationswerte**; tatsächliche Retention/Datenschutzregelun
 ## 20. Status
 
 Die geplante `Logs.cloudApp`, die Admin-Logging-API, das Audit-Backend und ein verteiltes Log-Backend sind **noch nicht implementiert**. Der im Paket enthaltene Go-Code liefert den überprüfbaren Grundbaustein für strukturierte und feingranular einstellbare Bootstrap-Logs.
+
+## 21. Infrastruktur-Health, SLOs und Ausfallbeobachtung (15.11.2026)
+
+**Mehrstufige Health-Semantik:** Startup, Liveness, Readiness und Functional Health werden getrennt erfasst. Jeder Owner ordnet zwingende und optionale Abhaengigkeiten zu. Ein Service mit gestörter Diagnosefunktion ist nicht automatisch fuer alle Fachoperationen nicht bereit; eine fehlende kritische Rechte- oder Konsistenzpruefung ist dagegen Fail-Closed. Fehlende Messwerte werden nicht als gesunder Zustand berichtet. Der Combined-Modus darf keine Prozessisolation vorgaukeln.
+
+**Owner-spezifische SLOs:** Latenzen (p95/p99), Fehlerraten, Durchsatz, CPU/RAM, Queue- und Outbox-Lag, JetStream-Retry/Quarantaene, Datenbankpool, SSE-Streams, Revoke-Latenz, Storage-Integritaet und Wiederherstellungszeit werden getrennt erfasst und mit einer Referenzlast geprueft. Zielwerte entstehen aus Testprofilen und Betriebsanforderungen; CPU allein ist keine ausreichende Skalierungsmetrik fuer Realtime oder Worker.
+
+**Sicheres Incident-Verhalten:** Datenbank-Primarwechsel, JetStream-Clusterstoerungen, Replay-Luecken, Storage-Migrationen, Secret-Rotation und Core-unabhaengige Wartung liefern Status-/Alarmdaten ohne Secret- oder Dateiinhalt-Leakage. Automatische Betriebsreaktionen bleiben innerhalb freigegebener Grenzen; kein automatisches Core-Release, kein automatischer Combined-to-Split-Wechsel und kein selbsttaetiges DR-Failback. Der verpflichtende Security Audit bleibt unabhaengig von Diagnoselogs und deren OFF-Level.
+
+**Abnahme:** Reproduzierbare Baseline-, Stress-, Soak-, Chaos-/Failover- und Restore-Tests samt nachgewiesenen Abhaengigkeitsgrenzen. Parameter und Verweis: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).

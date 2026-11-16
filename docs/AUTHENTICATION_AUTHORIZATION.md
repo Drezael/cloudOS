@@ -1,16 +1,18 @@
 # cloudOS – Authentifizierung, Benutzer, Gruppen und Autorisierung
 
-> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md). Die vier Dokumente sind führend für die neuen Loginmethoden, Logs.cloudApp, das einheitliche Fensterframework und Client-Gerätefreigaben.
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
 
-> **Core-Deployment und Kubernetes:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) (verbindlich: ein Core-Container als Standard, separater Split-/Replica-Modus nur opt-in)  
+> **Fachkonzepte v0.12:** [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
 
-> **Push-/Realtime-Fachvertrag:** [PUSH_REALTIME.md](PUSH_REALTIME.md) (verbindlich fuer SSE-Transport, Events, Replay, sicherheitsgefilterte Zustellung und das Verbot periodischer Client-Statusabfragen)  
+> **Core-Deployment:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md) - combined als Standard, split optional.
+
+> **Push-/Realtime:** [PUSH_REALTIME.md](PUSH_REALTIME.md) - SSE statt Browser-Polling.
 
 > **Pfad im Repository:** `docs/AUTHENTICATION_AUTHORIZATION.md`  
-> **Dokumentversion:** 0.12 – Loginmethoden, Logging, Window Framework und Client-Geräte (Core-Deployment bleibt combined)
+> **Dokumentversion:** 0.12 - externe LDAP-/IdP-Optionen, interne Shares und Spaces
 > **Stand:** 15.11.2026  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS)  
-> **Verifizierte Ausgangsbasis:** `main`, Commit `4662323f1b2b8f5d262bc3d1f7b8689eccdefdc1`  
+> **Verifizierte Ausgangsbasis:** `main`; GitHub-Stand mit den spaeteren Login-/SSE-/Replica-Ergaenzungen zusammengefuehrt  
 > **Status:** Neue fachliche Anforderungen sind verbindlich; technisch offene Detailentscheidungen sind ausdrücklich gekennzeichnet.  
 > **Verwandte Dokumente:** [CONCEPT.md](CONCEPT.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [APP_SIGNING.md](APP_SIGNING.md), [APP_API_ACCESS.md](APP_API_ACCESS.md), [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [SHARING_SPACES.md](SHARING_SPACES.md).
 
@@ -64,12 +66,11 @@ Die sichtbare cloudOS-Shell ist keine allgemeine Linux-Login-Shell. `chmod`, `ch
 - Das Linux-Setuid-/Setgid-Verhalten für ausführbare Binärdateien wird **nicht** übernommen. Insbesondere erzeugt ein Setuid-Bit keine Root- oder Core-Privilegien.
 - Der Core lässt sich nicht dadurch umgehen, dass ein Client direkt eine bekannte Node-ID, UID, GID oder einen LDAP-DN verwendet.
 
+**Erweiterung v0.12 - mehrere Loginmethoden:** Der lokale Directory Service ist weiterhin die autoritative Quelle fuer Benutzer, Gruppen, UID/GID und POSIX-/cloudOS-Berechtigungen. Die Credential-Verifikation wird ueber einen eigenen fachlichen Owner-Port erbracht. Als unterstuetzte Zielprofile sind Benutzername oder verifizierte E-Mail mit Passwort, WebAuthn-Passkeys, SSH-`sshsig`-Challenges und Hardware-Sicherheitsschluessel ueber FIDO2/WebAuthn vereinbart. Ein normaler Browser erhaelt weder freien SSH-Agent-Zugang noch unkontrollierten Raw-USB-Zugriff. Fuer SSH-Key-Anmeldung ausserhalb nativer Browsermechanismen ist ein kontrollierter lokaler Companion erforderlich. Der YubiKey stellt durch seine WebAuthn-Assertion nicht automatisch einen zusaetzlichen unabhaengigen Faktor bereit. Fachlich fuehrend ist [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+
+**Security Audit fuer Credential-Vorgaenge:** Loginversuche, Schluesselregistrierungen, Widerrufe, relevante Policy-Aenderungen und privilegierte Recovery-Schritte werden unabhaengig von der gewaehlten Diagnoselog-Stufe protokolliert. `Logs.cloudApp` besitzt keine Sonderrechte zum Auslesen privater Credentials und kann die Auditpflicht nicht abschalten. `AccountSecurity.cloudApp` verwendet genehmigte signierte API-Capabilities zur Verwaltung von Methoden und Sitzungen. Fachlich fuehrend ist [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md).
+
 ## 3. Logische Zielarchitektur
-
-**Erweiterung v0.12 – mehrere Loginmethoden:** Der lokale Directory Service ist weiterhin die Quelle der Benutzer, Gruppen, UID/GID und der POSIX-/CloudOS-Autorisierung. Credential-Verifikation wird als eigener Owner/Port im Go-Core modelliert und unterstützt künftig **Benutzername oder verifizierte E-Mail + Passwort, WebAuthn-Passkeys, SSH-`sshsig`-Challenges und YubiKeys über FIDO2/WebAuthn**. Der Browser besitzt keinen generellen SSH-Agent-/Raw-USB-Zugriff; bei klassischem SSH-Key-Login ist ein vertrauenswürdiger lokaler Companion nötig. Hardware-YubiKeys zählen nicht als eigenständiger Faktor zusätzlich zu der von ihnen gelieferten WebAuthn-Assertion. Die komplette Vertragsspezifikation steht in [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
-
-**Security-Audit:** Loginversuche, Key-Registrierungen, Widerrufe und Policyänderungen werden unabhängig vom konfigurierbaren Diagnoselevel auditiert. Die administrative `Logs.cloudApp` darf weder Credential-Geheimnisse abrufen noch die Auditpflicht deaktivieren. `AccountSecurity.cloudApp` bietet Methoden-/Sessionverwaltung über signierte und autorisierte App-APIs. Siehe [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md).
-
 
 ```mermaid
 flowchart TB
@@ -354,7 +355,7 @@ Siehe [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/ch
 - Session-Cookie: `Secure`, `HttpOnly`, angemessene `SameSite`-Policy und möglichst `__Host-`-Präfix.
 - Server-Session-ID wird zufällig und ausreichend entropiereich generiert, nicht aus UID/Username abgeleitet.
 - Session wird bei Login, Passwortwechsel, sensibler Rollenänderung und Step-up rotiert beziehungsweise neu validiert.
-- CSRF-Schutz fuer cookie-authentifizierte Schreibaktionen; SSE-Streams nur aus authentifizierten BFF-Sitzungen mit strikter Same-Origin-/Fetch-Metadata-Pruefung.
+- CSRF-Schutz für cookie-authentifizierte Schreibaktionen; SSE-Streams ausschliesslich mit authentifizierter BFF-Sitzung und strikter Same-Origin-/Fetch-Metadata-Pruefung.
 - Idle-Timeout, absolute Lebensdauer, „von allen Geräten abmelden“ und administrative Sitzungssperre sind als Policies vorgesehen.
 - Browser erhält keine langlebigen allgemeinen Access-Tokens; Drittanbieter-Apps bekommen nur instanzgebundene und begrenzte App-Bridge-Berechtigungen.
 - Backend-Caches von Gruppen und Rollen werden durch Revisionsprüfung oder explizite Widerrufsereignisse aktuell gehalten; ein Event-Ausfall darf alte Rechte nicht unbegrenzt erhalten.
@@ -814,7 +815,7 @@ Wenn eine Gruppe entzogen wird, muss eine App mit bereits geöffnetem Datei-Hand
 
 ### 15.1 Security Push bei Benutzer-, Gruppen- und App-Rechten
 
-Identitaets- und Membership-Aenderungen werden im lokalen Go-Owner zuerst verbindlich gespeichert; der Permission Service aktualisiert die autoritativen Revokationsrevisionen. Der Realtime Projector sendet `identity.membership.changed`, `identity.session.revoked`, `applications.available.changed` und betroffene Share-/Space-Mount-Deltas **ueber SSE** an die jeweils berechtigten Browser. Clients fuehren **kein periodisches Rechte-Polling** aus. Bei deaktivierten Konten wird der Stream beendet; nach abgelaufenem Replay-Cursor kann ein einzelner autorisierter Snapshot erfolgen. Weder Verlust einer Push-Verbindung noch die Verzoegerung im Browser koennen den serverseitigen Rechteentzug aufheben. Fachlich massgeblich [PUSH_REALTIME.md](PUSH_REALTIME.md).
+Aenderungen an Identitaet, Gruppenmitgliedschaften, Kontostatus und App-Zuweisungen werden zuerst im zustaendigen lokalen Core-Owner committet. Der Permission Service invalidiert die wirksame Berechtigungsrevision; der Realtime Projector stellt ausschliesslich fuer autorisierte Audiences `identity.membership.changed`, `identity.session.revoked`, `applications.available.changed` und betroffene Share-/Space-Mount-Deltas per SSE bereit. Es gibt kein periodisches Browser-Rechte-Polling. Bei Konto-Deaktivierung wird der Stream beendet; bei abgelaufener Cursor-Historie darf ein einzelner autorisierter Snapshot folgen. Ausgefallene oder verzogerte SSE-Hinweise lockern niemals den bereits wirksamen serverseitigen Rechteentzug. Fachlich fuehrend ist [PUSH_REALTIME.md](PUSH_REALTIME.md).
 
 ## 16. Sicherheitsmaßnahmen und Bedrohungsmodell
 
@@ -1143,28 +1144,38 @@ Share Grants geben bewusst ausgewaehlten internen Benutzern/Gruppen Zugriff auf 
 Die verbindliche Fach-/API-/VFS- und Testarchitektur steht in [SHARING_SPACES.md](SHARING_SPACES.md). Eine neue LDAP-Gruppe kann darin nur ueber die stabile lokale Gruppen-UUID referenziert werden, nicht ueber ihren DN.
 
 
-## 27. Berechtigungen fuer persoenlichen Desktop und Taskleiste
+## 27. Berechtigungen fuer persoenlichen Desktop und Taskleiste (v0.9)
 
-Der Desktop des angemeldeten Benutzers ist **kein globales Systemverzeichnis**. Der File Service loest `/.desktop/` und `/.taskbar.json` ausschliesslich relativ zum authentifizierten Home-Root auf. Als sichere Defaults gelten `0700` fuer den reservierten Desktop-Ordner und `0600` fuer private Konfigurationsdateien `/.taskbar.json` sowie `/.desktop-layout.json`. Eigene Datei-/Ordnerkinder unter `/.desktop/` unterliegen ihren POSIX-Modi und allen sonstigen VFS-Regeln. Ein Administratorkonto besitzt nicht automatisch ein Leserecht auf fremde Desktop-Dateien.
+Der Desktop des angemeldeten Benutzers ist kein globales Systemverzeichnis. Der File Service loest `/.desktop/`, `/.taskbar.json` und `/.desktop-layout.json` ausschliesslich relativ zum authentifizierten Home-Root auf. Als sichere Defaults gelten `0700` fuer den reservierten Desktop-Ordner und `0600` fuer private Konfigurationsdateien. Ein Administratorkonto erhaelt dadurch kein pauschales Leserecht auf fremde Desktop-Dateien.
 
-`Desktop.cloudApp` und `Settings.cloudApp` sind **verschiedene** installierte App-Identitaeten mit jeweils eigenen signierten Endpoint-Allowlists. Der Settings-Deep-Link von der Taskleiste enthaelt keine Credentials oder API-Rechte. VFS-Autorisierung prueft nach wie vor Identitaet, UID/GID/POSIX, Mount-Root, ggf. Share-/Space-Grant, App-Instanz und effektiven API-Scope. Datei-Aenderungsereignisse werden nur an autorisierte Home-Subscriptions gesendet; bei einer Sitzungssperre oder Rechteaenderung sind Cache und Subscription zu invalidieren. Das Daten- und UI-Modell steht in [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+`Desktop.cloudApp` und `Settings.cloudApp` sind verschiedene installierte App-Identitaeten mit eigenen signierten Endpoint-Allowlists. Ein Deep Link aus der Taskleiste uebertraegt keine Zugangsdaten oder API-Rechte. Jede Dateioperation prueft die authentifizierte Identitaet, den VFS-Mount-Root, POSIX-Rechte, zulaessige Share-/Space-Grants, App-Instanz und konkrete Operation. Dateiereignisse duerfen nur autorisierte Home-Subscriptions erreichen; nach Widerruf sind abhaengige Caches und Subscriptions zu invalidieren.
+
+Fachlich fuehrend: [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
 
 ## 28. Administratorgruppe, systemweite App-Zuweisung und Realtime-Widerruf (v0.9)
 
-cloudOS hat eine **stabile, reservierte lokale Gruppe `Admin`**. Für eine neue zusätzliche global installierte `.cloudApp` erhält standardmäßig **nur diese Gruppe** die Berechtigungen `discover` und `launch`. Gruppenmitgliedschaft wird über stabile `group_id`- und `user_id`-IDs aus der lokalen Directory-/Identity-Verwaltung aufgelöst. Das ältere Gruppenbeispiel `cloudos-admins` ist in der Migration als Alias bzw. definierte Bestandsgruppe zu behandeln: Eine beliebige fremde LDAP-Gruppe mit demselben Anzeigenamen darf **niemals** ohne ausdrückliche, administrative Mapping-Policy zum eingebauten Admin-Principal werden.
+cloudOS besitzt eine stabile, reservierte lokale Gruppe `Admin`. Fuer eine neu installierte zusaetzliche `.cloudApp` erhalten standardmaessig nur Mitglieder dieser Gruppe `discover`- und `launch`-Zuweisungen. Die Gruppe wird ueber stabile lokale `group_id`/`user_id` aufgeloest; der blosse Name einer externen LDAP-Gruppe erzeugt keine Administratorrolle.
 
-**Wichtig:** Die App-Startzuweisung an Gruppe `Admin` und die Core-RBAC-Berechtigungen `apps.install`, `apps.assign`, `apps.remove`, `apps.package.delete` und `appstores.sources.manage` sind **getrennte Sicherheitsentscheidungen**. Eine Gruppenmitgliedschaft allein bewirkt keine systemweite Installations- oder API-Superuserrolle. Die zentralen Benutzer-/Gruppensettings werden weiterhin über eigenständige `.cloudApp`-Core-Apps dargestellt; die App-Rechteverwaltung erfolgt in `Apps.cloudApp` (Settings → Apps).
+App-Sichtbarkeit und -Startrecht sind von den Core-RBAC-Operationen `apps.install`, `apps.assign`, `apps.remove`, `apps.package.delete` und `appstores.sources.manage` getrennt. Gruppenmitgliedschaft ist keine allgemeine Installations- oder API-Superuserberechtigung. App-Grants und Gruppen-/Kontostatus werden vom Permission Service nach einem Commit revisionssicher invalidiert; der Core verweigert unzulaessige Starts und App-API-Aufrufe sofort. Die Desktop-Oberflaeche erhaelt adressatengepruefte SSE-Hinweise ohne Browser-Reload. Verpflichtende Core-Apps behalten geschuetzte Baseline-Zuweisungen.
 
-Bei jeder Änderung von Mitgliedschaften, Kontostatus oder App-Grants invalidiert der Permission Service die effektiven Zuweisungsrevisionen. Der Desktop ruft seine autorisierte App-Liste nach einem scoped Event erneut ab und entfernt oder ergänzt Apps **ohne Browser-Neuladen**; der Core verweigert neue Launches und App-API-Aufrufe ab Commit. Das gilt ebenfalls nach späterer LDAP-Synchronisation. Notwendige Pflicht-Core-Apps haben eigene geschützte Baseline-Zuweisungen, damit der Desktop für normale Nutzer weiterhin erreichbar bleibt. Siehe [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
+Fachlich fuehrend: [APP_MANAGEMENT_STORE.md](APP_MANAGEMENT_STORE.md).
 
 ## 29. Core-Deployment, Replica-Sicherheit und Kubernetes-Vorbereitung (v0.11)
 
-Der lokale Directory-Service bleibt die initiale Identitätsquelle. `identity`, `sessions` und `permissions` sind **im Standard in einem gemeinsamen Go-Core-Container enthalten**, können später aber mehrfach replizierte, voneinander getrennte Dienste sein. Das erfordert gemeinsame autoritative Benutzer-/Gruppen-, UID-/GID- und Sessiondaten und ein einheitliches, versioniertes Berechtigungsmodell. Neue UIDs/GIDs werden durch Transaktionen und eindeutige Constraints vergeben, nie durch einzelne lokale Prozesszähler.
+Im Standard laufen `identity`, `sessions` und `permissions` zusammen mit allen anderen logischen Diensten in einem Go-Core-Prozess. In einer spaeteren freigegebenen Split-Topologie duerfen sie separat und gegebenenfalls mehrfach repliziert werden. Hierfuer sind gemeinsame autoritative Benutzer-, Gruppen-, UID-/GID-, Session- und Berechtigungsdaten erforderlich. Eindeutige Constraints und Transaktionen ersetzen prozesslokale Zaehler bei der Identifier-Vergabe.
 
-Ein Kubernetes-Pod ist kein cloudOS-Administrator. Interne Go-Calls tragen prüfbar gebundene Dienst- und Endbenutzeridentität; `X-User-Id`-Header, Pod-IP und Service-DNS ersetzen keine Authentifizierung. Änderungen an Nutzerstatus oder Gruppenmitgliedschaft machen bestehende Sessions/Grants nach spezifizierter Revision unverzüglich ungültig. Jede Permission-Replik muss denselben `rwx`-/ACL-/App-API-Entscheid liefern; im Zweifel gilt **deny**. SSE-Revoke-Events aktualisieren die Oberfläche, sind aber keine Voraussetzung für den tatsächlichen Sicherheitsentzug.
+Ein Kubernetes-Pod ist kein cloudOS-Administrator. Pod-IP, Containername, Service-DNS und ein behaupteter `X-User-Id`-Header begruenden keine Berechtigung. Interne Aufrufe tragen verifizierte Workload- und Benutzeridentitaeten sowie passende Service-Capabilities. Konten- und Gruppenwiderrufe gelten nach Policy-Commit serverseitig; SSE sorgt nur fuer zeitnahe UI-Aktualisierung. Jede Replica prueft denselben gueltigen Policy-Stand; im Zweifel gilt Default Deny.
 
-## Architektur-Ergänzung v0.12 – Credential Assurance und App-/Device-Trennung
+## Architektur-Ergaenzung v0.12 - Credential Assurance und App-/Device-Trennung
 
-Für jede Authentifizierung werden authentifizierte Methoden, Assurance-Level, Zeitpunkt des letzten frischen Step-up und Sessionrevision **serverseitig** persistiert. Die verwendete Loginmethode verleiht keine Ausnahme von POSIX-/ACL-/App-API-Rechten und ermöglicht keinen Zugriff auf fremde Home-Verzeichnisse. Ein Administrator kann für Hochrisikoaktionen einen frischen phishingresistenten Faktor fordern. `Login.cloudApp` als normal gestartete Drittanbieter-App ist nicht erlaubt: Login ist die eng begrenzte Plattform-Bootstrap-Ausnahme.
+Loginmethode, Assurance-Level, letzter frischer Step-up und Sessionrevision werden serverseitig gespeichert. Eine erfolgreiche starke Anmeldung veraendert nicht automatisch Dateirechte oder App-/API-Capabilities. Hochrisiko-Administrationsaktionen koennen frische phishingresistente Authentifizierung erfordern. Login ist die eng begrenzte Bootstrap-Ausnahme und keine gewoehnliche externe `Login.cloudApp`.
 
-Ein Device Grant im laufenden Browser folgt einer anderen Policy als die WebAuthn-Anmeldung. Selbst ein erfolgreiches YubiKey-Login autorisiert keine WebUSB-Zugriffe einer App. Window-/Taskbar-Requests haben zusätzlich die `app_instance_id`, `window_id`, Benutzer- und Sessionbindung. Nutzerbezogene Auditereignisse sind selbst bei Diagnoselevel `OFF` verpflichtend.
+Device Grants im Browser haben eine eigene Policy. Eine WebAuthn-Anmeldung oder YubiKey-Nutzung autorisiert keinen WebUSB-/WebHID-/WebSerial-Zugriff einer App. Window- und Taskbar-Operationen sind an Benutzer, Sitzung, App-Instanz und Fenster gebunden. Sicherheitsrelevante Auditereignisse bleiben selbst bei abgeschalteter Diagnostik verpflichtend.
+
+## 30. Infrastruktur-Secrets und Edge-Vertrauen (15.11.2026)
+
+Runtime-Zugangsdaten fuer PostgreSQL, JetStream, Service-Zertifikate und externe Infrastrukturdienste kommen aus gesicherten, providerunabhaengig angebundenen Secret-Quellen. Sie stehen weder normalen Browser-Apps noch App-Sandboxen, allgemeinen Diagnoselogs, Git-Konfigurationen oder zugaenglichen VFS-Systemdateien zur Verfuegung. Im Combined-Modus sind logische Dienstgrenzen keine echten OS-Prozessgrenzen; im Split-Modus werden die minimalen Geheimnisrechte pro Workload technisch isoliert. Eine Rotation wird vorbereitet, verifiziert und erst danach wird die alte Version widerrufen.
+
+Nur autorisierte Edge-Proxys duerfen wirksame Forwarded-/Host-/Client-IP-Informationen vermitteln. Client-Header werden nicht als Identitaets- oder Privilegnachweis akzeptiert. Produktionszugriffe erfordern HTTPS und sichere Cookies; App-Origins bleiben strikt getrennt. Im Split-Modus sind interne Dienstverbindungen ueber mTLS, Workload Identity und minimale Service-Capabilities zu schuetzen. Der Proxy allein ist keine zweite unkontrollierte Autorisierungsquelle. Bei Core-Wartung wird der BFF-Zugang nicht unsicher ersetzt: APIs liefern definierte Nichtverfuegbarkeit und die Wartungsseite enthaelt keine privilegierten App-/Sitzungsdaten.
+
+Fachlich fuehrend: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).

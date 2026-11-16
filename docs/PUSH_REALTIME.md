@@ -1,5 +1,7 @@
 # cloudOS - Push-, Realtime- und Benachrichtigungsarchitektur
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
 
 
@@ -578,3 +580,15 @@ Der Push-Kanal aus dieser Spezifikation transportiert künftig auch **effektive 
 Beim ersten Login wird ein autorisierter Snapshot geladen; nach Netzwerkabbruch verarbeitet der Client geordnete Replay-Events oder einen einmaligen Recovery-Snapshot. Es gibt keinen festen REST-Timer für Theme- oder Wallpaperzustand. Ungültige/alte oder widerrufene Referenzen werden beim Empfänger nicht angewendet. Durch Benutzerpolicies entzogene Themes lösen ein sicheres Fallback aus.
 
 Das Browser-Theming, die Presets und die Wallpaper-Laufzeit sind beschrieben in [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).
+
+## 25. Verbindliche JetStream-, Outbox- und Replay-Ergaenzung (15.11.2026)
+
+Die vorgelagerten Owner-Events werden nach fachlichen Klassen auf geeignete JetStream-Streams verteilt. Ein zentrales versioniertes Consumer-Verzeichnis definiert Owner, zugelassene Subjects, Durable-Consumer-Identitaet, Berechtigungen, Ack-Frist, Reprocessing- und Aufbewahrungsregeln. Keine globale Ereignisordnung ueber alle Owner; erforderliche Reihenfolge pro Ressource beziehungsweise autorisierter Audience bleibt verbindlich.
+
+Ein Owner-Commit speichert Nutzdaten und Outbox atomar. Der Publisher dokumentiert eine bestaetigte JetStream-Uebergabe persistent und darf denselben Event-Identifier bei unklarem Ergebnis erneut senden. Doppelte Zustellung darf keine doppelten fachlichen Effekte ausloesen. Die Outbox wird nach erfolgreicher Publikation und nur nach einer klassenspezifischen Recovery-/Schutzfrist bereinigt; sie wartet nicht auf alle Verbraucher.
+
+Alle Consumer erkennen drohende und eingetretene Retention-Luecken. Bei rekonstruierbaren Projektionen wird eine konsistente autorisierte Snapshot-/Revision-Barriere mit anschliessender Delta-Nachverarbeitung verwendet. Der Suchindex wird bei unbekannter Vollstaendigkeit als unvollstaendig gekennzeichnet; irreversible Seiteneffekte werden bei unbekanntem Ausfuehrungsstand nicht wiederholt. Dauerhaft fehlgeschlagene Nachrichten unterliegen kontrollierter Quarantaene und erneuter Sicherheitspruefung.
+
+**Abgrenzung zum Browser:** JetStream-Subjects und interne Consumer-Daten sind keine freigeschalteten Browser-Subscriptions. SSE wird weiterhin aus einer eigenen dauerhaften, nach Nutzer/Audience autorisierten Delivery-Schicht erstellt. Bei SSE-Reconnect und Retention-Gap gelten `Last-Event-ID`, Rechtepruefung, gezielte Snapshot-Wiederherstellung und kein periodisches Browser-Polling. Security Audit bleibt eigenstaendig.
+
+Ein Core-Upgrade stoppt den Core und setzt den geschuetzten Edge-Wartungsmodus; es nutzt keine verpflichtende Rolling-Core-Release-Strategie. Ausgefallene Realtime-Replikate im normalen Split-Betrieb duerfen nach Reconnect einen gesicherten Replay-/Resync-Ablauf verwenden. Verbindliche Festlegungen und offene konkrete Budgetwerte: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).

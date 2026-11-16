@@ -1,5 +1,7 @@
 # cloudOS - Architektur des virtuellen Dateisystems (VFS)
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
 
 
@@ -1064,3 +1066,21 @@ Die neue persönliche Konfigurationsdatei `/.config/cloudos/appearance.json` lie
 `/.taskbar.json` bleibt die kanonische Datei für Taskbar-Position und -Pins; `/.desktop-layout.json` für Iconpositionen; `/.desktop/` für tatsächliche sichtbare Desktop-Dateien, Ordner und `.cloudlink`-Verknüpfungen. Wallpaper-/Theme-Wechsel dürfen keine dieser Daten erzeugen, löschen oder verändern.
 
 Persönliche Bilder/Videos werden durch die bestehende Dateiauswahl mit opaken VFS-Handles verknüpft. Ein Theme darf daraus keinen freien Zugriff auf fremde Home-Dateien, geschützte Spaces oder `system:/` ableiten. Eventuelle Zugriffsverluste führen zu einem statischen Fallback, nicht zu einem Rights-Bypass. Details: [THEMING.md](THEMING.md), [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).
+
+## 26. Kontrollierte Migration zwischen Storage-Backends (Entscheidung 15.11.2026)
+
+Der physische Storage-Adapter des File Service kann ausgetauscht werden, ohne die logischen VFS-Laufwerke `system:/` und `users:/`, deren Sicherheitsgrenzen und die autoritativen Dateirevisionen zu veraendern. Fuer einen einzelnen Combined-Core kann ein lokales persistentes Backend verwendet werden. Fuer einen Split mit mehreren File-Pods auf verschiedenen Hosts ist ein gemeinsam konsistentes, geeignet geprueftes Backend erforderlich, beispielsweise S3-kompatibler Objektspeicher oder ein verifiziertes Shared Filesystem.
+
+### 26.1 Verpflichtender Offline-Cutover
+
+1. Administrativ genehmigte Migration mit Preflight fuer Kapazitaet, Integritaet, Zugriff, Verschluesselung, Schluesselgenerationen und Wiederherstellung.
+2. Core-unabhaengige Wartungsseite aktivieren und alle produktiven Core-Prozesse beenden. Es gibt kein paralleles Dual-Write.
+3. Einen zusammengehoerigen, konsistenten PostgreSQL-Metadaten-/Manifest-/Block-/Key-Wiederherstellungspunkt festhalten.
+4. Referenzierte unveraenderliche Blobs mit opaken Storage-IDs, getrennter System-/User-Domaene und kontrollierten Checksummen ins Ziel migrieren.
+5. Vor dem Umschalten Datenvollstaendigkeit, Integritaet, wirksame Namespace-Trennung, gueltige Schluesselgenerationen, Dateiversionen und Quotas verifizieren.
+6. Zielzuordnung als eine kontrollierte atomare bzw. gegen parallele Betriebsfreigabe geschuetzte Konfigurationsgeneration aktivieren und File-/App-/Theme-/Recovery-Tests ausfuehren.
+7. Produktive Freigabe erst nach bestandenem Abnahmesatz. Alte Quellobjekte bis zum Ablauf der notwendigen Aufbewahrungs-/Recovery-Fristen unveraendert geschuetzt erhalten.
+
+### 26.2 Fehler- und Sicherheitsverhalten
+
+Bei Teilfehlern bleibt die Migration geparkt; keine unvollstaendige Zielversion wird produktiv. Eine Rueckumstellung ist eine gesonderte pruefpflichtige Datenmigration, kein blindes DR-Failback. Geloeschte, widerrufene oder gesperrte Daten duerfen aus der Quelle nicht erneut aktiv werden. Die Metadaten-/Blob-Konsistenz wird nach den bestehenden Revisions-, Retention-, Verschluesselungs- und Owner-Regeln geprueft. Die zugehoerigen offenen technischen Parameter werden in [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md) aufgefuehrt.

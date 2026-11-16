@@ -1,5 +1,7 @@
 # cloudOS – App-API-Berechtigungen, Endpoint-Allowlist und Installationsfreigaben
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Theming und dynamische Wallpapers v0.13:** [THEMING.md](THEMING.md) – sechs OS-inspirierte Themes und einheitliche Theme-Tokens; [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) – Milky Way, Waves, Hexells, Matrix 2D/3D, Coastal Landscape. Beide Dokumente definieren ausschließlich Konzepte, keine implementierten Dienste.
 
 
@@ -766,3 +768,11 @@ Vorgeschlagene Operation-IDs (noch keine implementierten APIs): `themes.catalog.
 Vorgeschlagene, per Push autorisierte Events: `themes.active.changed`, `themes.registry.changed`, `wallpapers.preference.changed`, `wallpapers.catalog.changed`. Keine globalen Wildcard-Subscriptions, keine Cross-User-Asset-Handles und keine Übertragung von Frames. Ein Theme oder Wallpaper darf keine ungenannten APIs, WebUSB-/WebHID-/WebSerial-Rechte oder freie Netzwerkausgänge erhalten.
 
 Die Sicherheitsvorschau bei einer künftigen Theme-Resource-App-Installation zeigt wie bei allen Apps die API-Endpunkte und vertrauenswürdigen Risikobewertungen. Das Framework rendert alle kritischen Freigabedialoge selbst; ein Theme darf die Darstellung sicherheitskritischer Schaltflächen nur innerhalb geprüfter Accessibility-Regeln verändern.
+
+## Verbindliche Edge-, Origin- und Betriebssecret-Abgrenzung (15.11.2026)
+
+Die providerunabhaengige Edge-Architektur aendert keine App-Berechtigungen. Fremde `.cloudApp`-Origins erhalten keine gemeinsamen privilegierten BFF-Cookies, keinen direkten Zugriff auf interne Serviceports, PostgreSQL, JetStream, Runtime-Secrets, KMS-Schluessel oder API-Operationen ausserhalb der signierten freigegebenen Allowlist. Ein aenderbarer Reverse-Proxy kann diese App-/API-Sicherheitsentscheidung nicht umgehen.
+
+Ein vertrauenswuerdiger Edge akzeptiert Forwarded-, Host- und Client-IP-Angaben nur aus explizit autorisierten Proxy-Grenzen und erzwingt HTTPS, die notwendige Origin-/CSP-/CORS-/CSRF-Semantik sowie SSE ohne schaedliches Buffering. Das gilt fuer Nginx/Compose ebenso wie fuer einen freigegebenen Unternehmens-Proxy oder Kubernetes-Ingress. Interne Split-Dienstaufrufe erfordern mTLS und kontextgebundene Service-Capabilities; Workload-DNS oder Proxy-Header sind keine Benutzerberechtigung.
+
+Betriebliche Credentials werden providerunabhaengig bereitgestellt, jedoch niemals einer gewoehnlichen App-Bridge weitergereicht. Wechsel und Widerrufe erfolgen kontrolliert. Waehren eines vollstaendigen Core-Wartungsstopps gibt es keine freigeschalteten App-APIs; eine geschuetzte Wartungsseite ist kein Ersatz fuer eine BFF-Session. Verbindliche Entscheidung und Detailparameter: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).

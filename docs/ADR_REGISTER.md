@@ -1,11 +1,13 @@
 # cloudOS – Zentrales Architecture Decision Record (ADR) Register
 
+> **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
+
 > **Datei:** `docs/ADR_REGISTER.md`  
-> **Dokumentversion:** 1.0 – quellengestützte Erstkonsolidierung  
+> **Dokumentversion:** 1.1 – quellengestützte Erstkonsolidierung  
 > **Stand:** 15.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), geprüfter `main`-Dokumentenbestand  
 > **Status:** Verbindliches Organisations- und Entscheidungsregister; technische ADR-Statusangaben beschreiben **fachliche Architekturfestlegungen**, keine implementierte Software.  
-> **Umfang:** 20 geprüfte Ausgangsdokumente, 121 ältere globale ADR-Kandidaten, 9 unbelegte reservierte Nummern, 41 ältere Fach-ADR-Aliase, 51 neu zugeordnete globale ADRs, 74 abgeglichene Entscheidungen aus `API_CONTRACTS.md`.  
+> **Umfang:** 20 geprüfte Ausgangsdokumente, 121 ältere globale ADR-Kandidaten, 9 unbelegte reservierte Nummern, 41 ältere Fach-ADR-Aliase, 51 neu zugeordnete globale ADRs, 8 spaeter bestaetigte Infrastruktur-ADRs, 74 abgeglichene Entscheidungen aus `API_CONTRACTS.md`.  
 > **Änderungshoheit:** Neue fachliche Entscheidungen und Änderungen akzeptierter Entscheidungen benötigen ausdrücklich die Zustimmung des Projektverantwortlichen; rein redaktionelle Updates nicht.
 
 **Hinweis zur Nummernvergabe:** Von den 130 älteren numerischen IDs sind 121 belegt und `ADR-042` bis `ADR-050` nicht zugeordnet. Dieses Register erhält ihre Historie und führt 51 zusätzliche IDs (`ADR-131` bis `ADR-181`) aus eindeutig unterscheidbaren Fachthemen und den API-Entscheidungen ein. Die ID-Vergabe ist Dokumentationsorganisation, **keine neue technische Architekturentscheidung**. Alle 41 fachlichen Altkennungen bleiben über Aliaszeilen auffindbar; einige Aliase verweisen auf mehrere bereits existierende ADRs.
@@ -98,9 +100,10 @@ Eine jüngere **ungenehmigte** Textänderung allein darf einen `Accepted`-ADR ni
 | Ältere globale ADR-Kandidaten (`001–041`, `051–130`) | 121 |
 | Historische Lücke (`042–050`), reserviert | 9 |
 | Zusätzlich eindeutig konsolidierte Themen (`131–181`) | 51 |
-| **Erfasste globale Architektur-ADRs** | **172** |
-| Davon `Accepted` (fachlich) | 141 |
-| Davon `Proposed` | 31 |
+| Neue am 15.11.2026 entschiedene Infrastruktur-ADRs (`182-189`) | 8 |
+| **Erfasste globale Architektur-ADRs** | **180** |
+| Davon `Accepted` (fachlich) | 152 |
+| Davon `Proposed` | 28 |
 | Davon `Superseded` als einzelne ADR-ID | 0 |
 | Beibehaltende Legacy-Fachaliase | 41 |
 | Aus `API_CONTRACTS.md` verlinkte bestätigte Fragen | 74 |
@@ -196,12 +199,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `090` | `Accepted` | HPA, Autoscaling und Kapazitätsmetriken |
 | `091` | `Accepted` | Workload-Identitäten, mTLS und interne API-Grenzen |
 | `092` | `Accepted` | Gemeinsamer Storage und immutable Paketversionen |
-| `093` | `Proposed` | Datenbankmigrationen bei Version-Skew |
+| `093` | `Accepted` | Datenbankmigrationen bei Version-Skew |
 | `094` | `Proposed` | Kubernetes-Produktionshärtung und Secrets |
-| `095` | `Proposed` | Combined-to-Split-Migration ohne doppelte Owner |
+| `095` | `Accepted` | Combined-to-Split-Migration ohne doppelte Owner |
 | `096` | `Accepted` | Startup, Liveness, Readiness und Funktionsgesundheit |
 | `097` | `Accepted` | Service-SLOs, Observability und Lasttests |
-| `098` | `Proposed` | Helm/Kustomize/Operator-Werkzeuge |
+| `098` | `Accepted` | Helm/Kustomize/Operator-Werkzeuge |
 | `099` | `Accepted` | Credential-Lifecycle und Aliasmodell |
 | `100` | `Accepted` | WebAuthn-/Passkey-Relying-Party-Policy |
 | `101` | `Accepted` | SSH-Agent-Signaturen und SSH-Key-Anmeldung |
@@ -285,6 +288,14 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `179` | `Accepted` | Transaktionssichere Block-GC und Papierkorb |
 | `180` | `Accepted` | Verpflichtende API-Qualitätsgates und Releasefreigabe |
 | `181` | `Accepted` | Durable Jobs, `Tasks.cloudApp` und auftragssichere Wiederaufnahme |
+| `182` | `Accepted` | Bedarfsgesteuerte Core-Auslagerung |
+| `183` | `Accepted` | Extern verwaltete PostgreSQL-/JetStream-Hochverfuegbarkeit |
+| `184` | `Accepted` | Fachlich getrennte JetStream-Streams und Consumer |
+| `185` | `Accepted` | Event-Retention und nachweisbare Gap-Recovery |
+| `186` | `Accepted` | Outbox-Publish-Ack, Retention und Reconciliation |
+| `187` | `Accepted` | Kontrollierte Offline-Migration von Storage-Backends |
+| `188` | `Accepted` | Providerunabhaengige Runtime-Secrets und Rotation |
+| `189` | `Accepted` | Providerunabhaengige Edge-, Ingress- und TLS-Architektur |
 
 **Historisch unbesetzt:** `ADR-042`, `ADR-043`, `ADR-044`, `ADR-045`, `ADR-046`, `ADR-047`, `ADR-048`, `ADR-049`, `ADR-050` (`Reserved`, keine zugewiesenen Entscheidungen).
 
@@ -860,9 +871,9 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 #### ADR-089 – SSE-Fanout, Replay und Rolling-Drain
 
 **Status:** `Accepted`  
-**Entscheidung / Stand:** Realtime-Replikate liefern über persistente Cursor und Fanout konsistent; Rolling Updates müssen Verbindungs-Drain und Wiederverbindung unterstützen.  
-**Begründung und Folgen:** Stickiness ist keine Voraussetzung für Korrektheit.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md), [PUSH_REALTIME.md](PUSH_REALTIME.md).
+**Entscheidung / Stand:** Realtime-Fanout und Cursor-/Replay-Vertraege gelten bei Replikat-Ausfall, Neustart und Wiederverbindung. Geplante Core-Releases nutzen den ausdruecklich bestaetigten vollstaendigen Wartungsstopp, nicht verpflichtende Rolling Releases.  
+**Begruendung und Folgen:** Ordinaeres Replica-Drain bleibt ein technische Faehigkeit; es hebt die Core-Update-Freigaberegel nicht auf.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-090 – HPA, Autoscaling und Kapazitätsmetriken
 
@@ -887,45 +898,45 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-093 – Datenbankmigrationen bei Version-Skew
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Expand-/Contract- und Versions-Skew-kompatible Migrationen sind als Release-Pflicht erkannt, aber das exakte Protokoll ist offen.  
-**Begründung und Folgen:** Vor Rolling Releases mit unterschiedlichen Versionen muss eine konkrete Migrationsmatrix akzeptiert werden.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Owner-eigene PostgreSQL-Migrationen mit zentraler dauerhafter Version-/Abhaengigkeitskoordination; Expand -> Migrate -> Contract, checkpointfaehige Backfills, minimale temporaere Rechte.  
+**Begruendung und Folgen:** Fehler blockieren Aktivierung; irreversible Schemaaenderungen lassen sich nicht durch Container-Image-Rollback rueckgaengig machen.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-094 – Kubernetes-Produktionshärtung und Secrets
 
 **Status:** `Proposed`  
-**Entscheidung / Stand:** NetworkPolicies, Secret-Provider, Rechte-Minimierung und Produktions-Härtung sind als Sicherheitsanforderungen vorgesehen.  
-**Begründung und Folgen:** Endgültige Cluster-/Ingress-/Providerprofile und Wirksamkeitsnachweise stehen aus.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+**Entscheidung / Stand:** Kubernetes-Produktion erfordert non-root, Least Privilege, wirksame NetworkPolicies, workload-gebundene Secrets, geschuetztes TLS/mTLS und getestete Infrastrukturprofile; Secret-Quellen bleiben providerunabhaengig.  
+**Begruendung und Folgen:** Konkrete CNI-/Provider-Konfigurationen und Nachweise bleiben technische Abnahmearbeit, nicht offene Grundsatzwahl.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-095 – Combined-to-Split-Migration ohne doppelte Owner
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Ein kontrollierter Übergang zu eigenständigen Service-Deployments ist erforderlich; aktive Schreib-Owner dürfen nicht überlappen.  
-**Begründung und Folgen:** Konkrete Drain-, Lock-/Lease- und Rollback-Sequenz noch zu entscheiden und zu testen.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Combined-to-Split nur durch vollstaendigen Core-Wartungsstopp mit geprueftem Backup, eindeutiger Owner-Uebergabe, validierten Workload-Identitaeten und anschliessender kontrollierter Freigabe.  
+**Begruendung und Folgen:** Kein parallel schreibender alter und neuer Owner; Rueckumstellung nur nach erneuter Konsistenz- und Sicherheitspruefung.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-096 – Startup, Liveness, Readiness und Funktionsgesundheit
 
 **Status:** `Accepted`  
-**Entscheidung / Stand:** Health-Probes und fachliche Degradierungszustände werden getrennt; nicht jede eingeschränkte Funktion rechtfertigt Pod-Neustart.  
-**Begründung und Folgen:** Im combined-Prozess kann eine logische Service-Störung nicht durch Prozessisolation repariert werden.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md), [API_CONTRACTS.md](API_CONTRACTS.md).
+**Entscheidung / Stand:** Startup, Liveness, Readiness und Functional Health getrennt; pro Owner essential/optional Abhaengigkeiten pruefen und selektiv degradieren.  
+**Begruendung und Folgen:** Kritische Autorisierungs- und Konsistenzgrenzen bleiben Fail-Closed; ein Readiness-Fehler ist nicht automatisch ein Neustartgrund.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-097 – Service-SLOs, Observability und Lasttests
 
 **Status:** `Accepted`  
-**Entscheidung / Stand:** Core-Dienste erhalten OpenTelemetry-Metriken, SLOs, Traces und lastbezogene Test-/Betriebsnachweise.  
-**Begründung und Folgen:** Konkrete SLA-Zielwerte, Sampling- und Kapazitätsgrenzen sind betrieblich zu definieren.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md), [API_CONTRACTS.md](API_CONTRACTS.md).
+**Entscheidung / Stand:** Dienstspezifische SLIs/SLOs und reproduzierbare Baseline-/Stress-/Soak-/Failover-/Skalierungstests. Ressourcenbudgets und HPA-Regeln werden anhand realer Last bestaetigt.  
+**Begruendung und Folgen:** Keine verbindlichen unbelegten Produktionsschwellwerte und keine automatischen Core-Releases oder Topologiewechsel aufgrund von SLO-Verletzungen.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 #### ADR-098 – Helm/Kustomize/Operator-Werkzeuge
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Verteilte Deployments sollen automatisierbar sein; verbindliche Auswahl zwischen Helm, Kustomize oder Operator bleibt offen.  
-**Begründung und Folgen:** Der MVP braucht keine unnötige Kubernetes-Produktionswerkzeugpflicht.  
-**Quellen:** [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Docker Compose bleibt Standard; Kustomize ist verbindliche Kubernetes-Referenz. Helm nur als semantisch gleichwertiger optionaler Pfad; Operator nur nach eigener Nutzen-/Sicherheitsentscheidung.  
+**Begruendung und Folgen:** Deployment-Werkzeuge uebernehmen keine fachliche Datenhoheit oder eigenstaendige Core-Update-Freigabe.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
 ### 5.6 Authentisierungsmethoden (ADR-099–103)
 
@@ -1524,6 +1535,66 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 **Begründung und Folgen:** Durable Jobs erfordern überprüfte Checkpoints, Leases, Idempotenz, begrenzte Retries und auditierte Abbruchrechte.  
 **Quellen:** [API_CONTRACTS.md](API_CONTRACTS.md), [CORE_DEPLOYMENT_SCALING.md](CORE_DEPLOYMENT_SCALING.md).
 
+
+### 5.14 Ergaenzende Infrastrukturentscheidungen (ADR-182-189)
+
+#### ADR-182 - Bedarfsgesteuerte Core-Auslagerung
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Getrennte Core-Prozesse nur bei nachgewiesenem Engpass und validierten Port-/Sicherheitsvertraegen; kein automatischer Split, gemischte Topologien sind opt-in.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-183 - Extern verwaltete PostgreSQL-/JetStream-Hochverfuegbarkeit
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Failover und Clusterverwaltung gehoeren der Infrastruktur; cloudOS behandelt Commit-Unklarheiten, Idempotenz, Konsistenz und sichere Wiederverbindung.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-184 - Fachlich getrennte JetStream-Streams und Consumer
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Streams nach fachlicher Klasse; durable Consumer mit beschraenkter Berechtigung, Ack-/Retry-/Quarantaene-Regeln, at-least-once und idempotenter Wirkung.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-185 - Event-Retention und nachweisbare Gap-Recovery
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Ereignisklassenspezifische Retention mit expliziter Gap-Erkennung; Projektionen aus autoritativen Owner-Zustaenden rekonstruieren, irreversible Effekte nicht blind wiederholen.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-186 - Outbox-Publish-Ack, Retention und Reconciliation
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Publisher-Leases, persistierte JetStream-Publish-Bestaetigung, klassenspezifische Outbox-Retention und kontrollierter Abgleich nach Abstuerzen.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-187 - Kontrollierte Offline-Migration von Storage-Backends
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Wartungsstopp, konsistente PostgreSQL-/Blob-/Key-Sicht, vollstaendige Integritaetspruefung, gesicherter Cutover; kein Dual-Write.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-188 - Providerunabhaengige Runtime-Secrets und Rotation
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Geschuetzte Secret-Quellen fuer Compose/Split/Kubernetes, minimale Rechte, pruefbare Rotation, keine geheimen Werte in Git/Images/Configs.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+#### ADR-189 - Providerunabhaengige Edge-, Ingress- und TLS-Architektur
+
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Nginx fuer Compose, alternative Ingress-Proxys bei gleichem Sicherheitsvertrag; HTTPS, mTLS intern, sichere Forwarded-Header und SSE ohne Buffering.  
+**Begruendung und Folgen:** Ausdruecklich am 15.11.2026 entschieden; numerische technische Detailparameter bleiben abnahme- und lasttestpflichtig.  
+**Quellen:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+
 ## 6. Rückverfolgbarkeit älterer Fach-ADR-IDs
 
 Fachkennungen bleiben unverändert als **Aliase**, nicht als zusätzliche unabhängige Architekturentscheidungen. Ein Alias kann mehreren globalen ADRs entsprechen, wenn die historische Fachfrage mehrere bereits beschlossene Aspekte vermischt hat. Dadurch bleiben alte Links und Diskussionen nachvollziehbar, ohne semantische Dubletten zu erzeugen.
@@ -1696,10 +1767,7 @@ Die folgenden Punkte sind nicht durch die bisherigen vier ADR-Organisationsentsc
 | `ADR-059` | Migration alter Desktop-Home-Verzeichnisse | Beim Desktop-Migrationskonzept: Umgang mit alten Layout-/Dateipfaden. |
 | `ADR-060` | Desktop-Performance, Browser und Barrierefreiheit | Vor Desktop-Release: Browser-/A11y-/Performance-Abnahmekriterien. |
 | `ADR-082` | Web Push bei geschlossenem Browser | Nur bei später gewünschtem externem Web Push: eigene Bedrohungs-/Einwilligungsentscheidung. |
-| `ADR-093` | Datenbankmigrationen bei Version-Skew | Vor Rolling-Releases: PostgreSQL-Migrations-/Skew-Protokoll. |
 | `ADR-094` | Kubernetes-Produktionshärtung und Secrets | Vor K8s-Produktivbetrieb: Härtungs- und Secret-Provider-Entscheidung. |
-| `ADR-095` | Combined-to-Split-Migration ohne doppelte Owner | Vor Combined→Split-Umstellung: Migration und Rollback ohne doppelte Owner. |
-| `ADR-098` | Helm/Kustomize/Operator-Werkzeuge | Bei Produktions-K8s-Planung: Helm/Kustomize/Operator-Auswahl. |
 | `ADR-103` | Externe Identity-Verknüpfung zu lokalen Credentials | Vor externer Konto-Verknüpfung: Identifier-Mapping und Recovery. |
 | `ADR-118` | Browserkompatibilität der Geräteprofile | Vor Browser-Gerätefreigabe: unterstützte WebUSB-/WebHID-/WebSerial-Profile. |
 | `ADR-131` | VFS-Namen, Unicode-Normalisierung und Case-Policy | Beim Storage-/VFS-Modell: Unicode/Case/Reserved-Names eindeutig definieren. |
