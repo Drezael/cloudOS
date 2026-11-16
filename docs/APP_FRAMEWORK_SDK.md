@@ -2,9 +2,9 @@
 
 > **Pfad:** `docs/APP_FRAMEWORK_SDK.md`  
 > **Projekt:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS) · Branch `main`  
-> **Stand:** 15.11.2026  
-> **Status:** Konzept und dokumentierte Konfliktbeschlüsse K1–K9; **nicht** als abgeschlossener Architekturreview, API-Implementierung oder verifizierte Implementation Readiness zu verstehen.  
-> **Entscheidungsbasis:** 156 in der Fragerunde behandelte Architekturfragen. Die historischen Originalantworten der frühen Fragen sind noch nicht vollständig nachgewiesen.
+> **Stand:** 16.11.2026  
+> **Status:** Dokumentarische K1–K9-Bestandsvertrags-Konsolidierung und früher SDK-Q-Kurzbeschlüsse ergänzt; **keine technische Readiness oder Implementierungsfreigabe**.  
+> **Entscheidungsbasis:** 156 SDK-Fragen und K1–K9; Q001–Q033 als Kurzbeschlüsse nachgetragen, ursprüngliche vollständige Frage-/Optionstexte teilweise nicht belegt.
 
 ## 1. Zweck
 
@@ -27,7 +27,14 @@ cloudOS ist ein browserbasierter Desktop mit einem **Go-Core**, API-first-System
 | [09-risk-register.md](app-framework/09-risk-register.md) | Konkrete Konflikte und Prüflücken | Offen |
 | [10-implementation-readiness.md](app-framework/10-implementation-readiness.md) | Definition of Ready und Prüf-/Abnahmeplan | Nicht freigegeben |
 | [11-architecture-decisions-K1-K9.md](app-framework/11-architecture-decisions-K1-K9.md) | Wortlaut der neun ausdrücklich beschlossenen Konfliktlösungen | Konzeptionell beschlossen |
-| [12-legacy-alignment.md](app-framework/12-legacy-alignment.md) | Abgleichsmatrix zur späteren Volltextintegration führender Bestandsdokumente | Volltextabgleich ausstehend |
+| [12-legacy-alignment.md](app-framework/12-legacy-alignment.md) | Bestandsvertrags-Abgleich zu K1–K9 | Dokumentarische Volltextintegration durchgeführt |
+| [14-owner-mapping.md](app-framework/14-owner-mapping.md) | R-008: SDK-Komponenten zu bestehenden Core-Ownern | Beschlossen, technische Quellprüfung offen |
+| [15-consent-boundaries.md](app-framework/15-consent-boundaries.md) | R-009: Purpose-/Consent-Trust-Boundaries | Beschlossen, technische Tests offen |
+| [16-historical-evidence.md](app-framework/16-historical-evidence.md) | R-007: Q001–Q033 und Provenienzqualität | Kurzbeschlüsse, Originalbelege teils offen |
+| [17-negative-contract-tests.md](app-framework/17-negative-contract-tests.md) | R-013: Verbotene SDK-Funktionen und Security-Negativtests | Tests spezifiziert, nicht ausgeführt |
+| [18-conformance-test-environment.md](app-framework/18-conformance-test-environment.md) | R-015: Echte isolierte cloudOS-Testinstanz | Testplanung, keine Testläufe |
+| [19-gap-and-evidence-register.md](app-framework/19-gap-and-evidence-register.md) | Transparente verbleibende Belege / Freigabeblocker | Laufende Gap-Liste |
+| [20-link-and-markdown-qa.md](app-framework/20-link-and-markdown-qa.md) | Link-/Markdown-QA des aktualisierten Fachbestands | Begrenzter Dokumentationsnachweis |
 
 ## 3. Verbindliche Eckpunkte der Fragerunde
 
@@ -79,7 +86,19 @@ Die ursprüngliche Fragerunde mit 156 Architekturfragen ist abgeschlossen. Danac
 
 ## 7. Nächster Arbeitsschritt
 
-1. Die [Abgleichsmatrix](app-framework/12-legacy-alignment.md) gegen die vollständigen aktuellen Bestandsdokumente bearbeiten, ohne bestehende Normen stillschweigend zu überschreiben.
-2. Q001–Q033 historisch verifizieren und R-008/R-009/R-013/R-015 weiter prüfen.
-3. Fachliche Schnittstellen, technische Tests und Definition of Ready pro Komponente konkretisieren.
-4. **Erst nach Abnahme** die Implementierungsreihenfolge freigeben. Dieses Paket enthält **keinen Implementierungscode**.
+1. **Dokumentarisch erledigt:** K1–K9 mit führenden Bestandsverträgen harmonisiert, R-008/R-009-Entscheidungen fachlich dokumentiert, Q001–Q033 als Kurzbeschlüsse ergänzt, R-013/R-015 als Prüfverträge geplant.
+2. **Externe Nachweise ausstehend:** Historische Originaloptionen, `services.json`-Quelldatei, finale typisierte API-/DB-Schemas, Datenretention/RPO/RTO-Messwerte und echte Browser-/Crypto-/Conformance-Tests. Details: [Gap-Register](app-framework/19-gap-and-evidence-register.md).
+3. **Erst nach technischer und formeller Abnahme** die komponentenweise Implementierungsfreigabe erteilen. Die Dokumentation enthält **keinen cloudOS-Implementierungscode**.
+
+## 8. Dokumentationsabgleich und Nachweisgrenzen (16.11.2026)
+
+Der bisherige `15.11.2026`-Readiness-Bericht wird durch den neuen fachlichen Abgleich ergänzt, **nicht** ohne Nachweis auf `READY` gesetzt. Verbindliche Konsolidierungsschritte und Ergebnisse:
+
+- [Historische SDK-Fragen Q001–Q033](app-framework/16-historical-evidence.md): fachliche Kurzentscheidungen nachvollziehbar, Originalfragen/Optionsbuchstaben teilweise weiterhin ohne vollständigen Beleg.
+- [SDK-/Core-Owner-Mapping](app-framework/14-owner-mapping.md): R-008 fachlich Option C, logischer App-Data-Owner im Combined-Core; technische Quelldatei `services.json` noch nicht über GitHub abrufbar.
+- [Consent und Trust Boundaries](app-framework/15-consent-boundaries.md): R-009 Option C mit Grenzen für bereits bei Drittanbietern empfangene Daten.
+- [Negative-Contract-Testmatrix](app-framework/17-negative-contract-tests.md): R-013 ist als Test-Spezifikation dokumentiert, **nicht ausgeführt**.
+- [Testinstanz/Conformance](app-framework/18-conformance-test-environment.md): R-015 Option A, echte isolierte cloudOS-Instanz und synthetische Daten; keine SDK-Simulator-Freigabe.
+- [Bestandsvertrags-Abgleich](app-framework/12-legacy-alignment.md) und [Readiness](app-framework/10-implementation-readiness.md) trennen behobene Textkonflikte von noch ausstehenden technischen Nachweisen.
+
+**Nicht freigegeben:** Implementierung, technische Conformance, Schlussabnahme oder neue fachliche Festlegungen. ADR-094 bleibt unangetastet.

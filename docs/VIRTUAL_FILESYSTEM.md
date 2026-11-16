@@ -1094,3 +1094,11 @@ Bei Teilfehlern bleibt die Migration geparkt; keine unvollstaendige Zielversion 
 **ADR-136 – Konsistente Sicherungsstände:** Koordinierte versionierte Backups umfassen PostgreSQL-/VFS-Metadaten, Datei-/Blockreferenzen, ACLs, Share-/Space-Bezüge und die benötigten Kryptoschlüsselgenerationen. Restore einer ganzen Instanz, eines Homes oder einer einzelnen Datei muss zuerst isoliert geprüft und danach kontrolliert aktiviert werden. System-Restore überschreibt nicht ungefragt Benutzerdaten und umgekehrt. Störungs- und Zeitbudgets folgen ADR-012, ohne ungemessene Zusagen.
 
 **ADR-059 – Migration:** `/Desktop/` wird **nicht** automatisch im MVP zu `/.desktop/` migriert. Bestehende Altdaten werden nicht gelöscht oder automatisch überschrieben; die bisher im Desktop-Konzept dargestellten Migrationsmechanismen sind ausschließlich künftige Optionen. Kanonischer Desktop bleibt `/.desktop/`.
+
+## Dokumentationsabgleich 16.11.2026 – SDK-E2EE und Event-Aufbewahrung (K6/K7)
+
+Die reguläre serverseitige Verschlüsselung (`server_managed`) und eine echte optionale, vom Client kontrollierte Ende-zu-Ende-Verschlüsselung (`e2ee_client_keys`) sind **getrennte Capability-Profile**. Bei E2EE erhält der Core keine allgemeine Entschlüsselungsberechtigung; insbesondere sind serverseitige Klartextvorschau, Volltextindizierung und Worker-Inhaltsanalyse nicht verfügbar. Der Browser darf eine solche Einschränkung nicht als erfolgreich ausgeführte Serverfunktion darstellen. Clientseitige Operationen benötigen gesonderte Prüfung.
+
+Dateirevisionen, Metadaten-Referenzen, Grants, Share-/Space-Entzug und Audit werden weiterhin serverseitig kontrolliert, ohne aus der Existenz eines verschlüsselten Blobs eine neue Inhaltsberechtigung abzuleiten. Deduplizierung und Cache-/Purge-Regeln müssen Verschlüsselungsdomänen respektieren; identischer Klartext begründet bei E2EE keine identische Ciphertext-Referenz. Realtime-Replays prüfen aktuelle ACL-/Owner-Revisionen. Der bestehende ADR-136-Vertrag für koordinierte versionierte Backups und isolierte Wiederherstellung bleibt maßgeblich.
+
+**Nicht abschließend spezifiziert:** E2EE-Schlüsselverteilung/-Recovery und konkrete Daten-/Index-/Preview-Fallback-Matrix; Details erst nach gesonderter technischer Vertragsabnahme.

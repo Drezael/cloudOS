@@ -714,3 +714,9 @@ Kustomize ist Kubernetes-Referenz, Helm optional bei semantischer Gleichwertigke
 [ADR-136](ADR_REGISTER.md) verlangt koordinierte **versionierte** Sicherungen von PostgreSQL, referenzierten VFS-Blobs, Metadaten, ACLs, Space-Referenzen und Schlüsselgenerationen. Full- und selektive Restores müssen isoliert geprüft und sicher freigegeben werden. Eine Sicherung gilt ohne nachgewiesene Metadaten-/Blob-/Schlüssel-Konsistenz nicht als erfolgreich. Storage-Backend-Wechsel folgen weiterhin dem separat entschiedenen Offline-Cutover aus [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
 
 ADR-094 bleibt ausdrücklich `Proposed` und wird durch diese Qualitäts- und Recoveryfestlegungen **nicht** stillschweigend freigegeben.
+
+## Dokumentationsabgleich 16.11.2026 – SDK-K2/K3/K5 und Combined-Core
+
+`combined`, `split` und Kubernetes verändern niemals die fachliche Autorität, nur die technische Platzierung. Eine getrennte App-Origin und kontrollierte Browser-Service-Worker-/iframe-Sandbox (K3) müssen **unabhängig** von Kubernetes/CNI-/Container-Netzen gewährleistet werden. Ein laufender Server-WASI-/Native-Runner darf nicht wegen `combined` im privilegierten Go-Core-Prozess ausgeführt werden (K2). Der reguläre Core-zu-Browser-Push bleibt SSE mit aktueller Autorisierung; fremde Provider-SSE-/WS-Verbindungen nutzen eigene Network-Broker-Grenzen (K5).
+
+Ein zusätzlicher logischer App-Data-Owner (R-008, Option C) begründet **keinen** neuen technischen HTTP-Service/Container; die existierenden 22 Bootstrap-Rollen bleiben die Referenz. Die Validierung des maschinenlesbaren Rollenkatalogs und des zugehörigen Quellcodes ist ein separater Repository-Nachweis und wird nicht als erfolgt ausgegeben.

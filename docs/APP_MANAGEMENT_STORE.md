@@ -139,7 +139,7 @@ Die dargestellte Ordnerhierarchie ist **logisch**, nicht zwingend eine physische
 ### 4.1 Unveränderlichkeit und Paketintegrität
 
 - Der Inhalt jeder installierten Paketversion wird über den kryptografischen Digest adressiert; eine vorhandene Version wird nicht in-place editiert.
-- Für das MVP gibt es **eine aktive Version je App-ID** für die gesamte cloudOS-Installation. Installierte ältere Versionen können bei Rollback vorübergehend als inaktive Artefakte vorliegen.
+- Für das MVP gibt es pro App-ID genau **ein aktives Standardrelease für neue App-Starts**. Signierte ältere Artefakte bleiben bei Migration/Rollback inaktiv; bereits laufende, an den bisherigen Digest gebundene Instanzen dürfen während eines genehmigten, begrenzten Übergangsfensters neben neuen Instanzen bestehen, **nur** wenn sie die einzige aktive Core-API-Major, aktuelle Grants und Sicherheitsrichtlinien erfüllen. Eine K9-Sicherheitsquarantäne oder Digest-Sperre beendet diese Ausnahme sofort. Das ist keine zweite aktive Core-API-Major und keine zweite systemweite Standardinstallation (K4/K9).
 - App-Metadaten, Freigaben, Herkunft und aktive Version liegen autoritativ in der Datenbank des jeweiligen Core-Owners; Paketspeicher ist kein Ersatz für die Registry.
 - Manuelle Änderungen an Paketdateien über File Explorer, VFS-API, Shell oder direkten Hostzugriff werden für reguläre Administratoren abgewiesen beziehungsweise beim Integritätscheck als Manipulation erkannt.
 - Dateinamen sind keine Quelle für App-ID oder Version; ausschließlich der geprüfte signierte Manifestinhalt ist maßgeblich.
@@ -830,3 +830,10 @@ Die sechs initialen OS-inspirierten Themes (**Northstar, Cedar, Coast, Prism, Sl
 Soll später ein Theme oder Wallpaper als Ressourcenanteil eines Drittanbieter-`.cloudApp`-Pakets verteilt werden, bleiben Installation, Aktualisierung, Rechtefreigabe und Deinstallation **ausschließlich Aufgabe von `Apps.cloudApp` bzw. des originären installierenden App Stores**. Alle ausführbaren App-Pakete liegen weiterhin unter `system:/apps/`, bleiben signiert und deklarieren ihre Endpoint-Rechte. Der Store darf keinerlei fremde Installationen verwalten; Theme-Assets begründen keinen Sonderzugriff.
 
 Ein reines Theme darf keinen ausführbaren, frei vom Browser nachgeladenen Code, kein unkontrolliertes CSS und keine freien externen Asset-URLs enthalten. Der Theme Service referenziert nur geprüfte, versionierte Ressourcen. Siehe [THEMING.md](THEMING.md) und [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md).
+
+## Dokumentationsabgleich 16.11.2026 – Conformance und Release-Übergangsregeln (K1/K4/K9)
+
+- `apps` verwaltet pro App-ID exakt **ein aktives Standardrelease** für neue Starts. Ältere, noch laufende Instanzen müssen ihren unveränderlichen Digest samt API-/Grant-Kompatibilität behalten und unterliegen zeitlich begrenzten Übergangsregeln, nicht einem zweiten Installations- oder Core-API-Major-Standard.
+- Eine gültige Signatur plus bewusste Self-signed-Herkunftsfreigabe ist **keine** Conformance-Ausnahme. Harte Manifest-/Integritäts-/Security-Gates bleiben vor dem Install-/Update-/Launch-Commit verbindlich.
+- K9-Sicherheitsquarantäne wirkt vor neuer Aktivierung, Update, Bridge-Aufruf und Rollback. Gesperrte Digests dürfen im Übergangsfenster niemals wieder als zulässige Version gelten.
+- Die technischen Status-Enums, das konkrete Zahlenfenster und die Umsetzung des Release-Revocation-Transports sind im [Testkatalog](app-framework/17-negative-contract-tests.md) als Abnahmegegenstände geführt, nicht schon durch dieses Dokument implementiert.

@@ -44,7 +44,7 @@ flowchart TB
 | Go-Core | Autoritative Systemfunktionen, Validierung, Persistenz | Policy Enforcement und Ressourcenzuordnung |
 | Externe Provider | OAuth/OIDC, Webhooks, APIs | Unvertrauenswuerdige Netzwerkgrenze |
 
-**Offener Abgleich:** Altbestand nennt optionale Native-/WASI-Jobs. Q113 begrenzt SDK-Ausfuehrungsformate auf JS/TS und WASM, ohne beliebigen nativen App-Code. Der Scope der historischen optionalen Native-Ausnahme ist in [09-risk-register.md](09-risk-register.md) zu klaeren.
+**Beschlossener Abgleich K2:** Browser-JS/TS und Browser-WASM sind reguläre SDK-Ausführung; isoliertes serverseitiges WASI folgt nach MVP und Native ist nur nach gesonderter späterer Freigabe möglich. Es gibt keinen generischen untrusted Native-/WASI-Runner im privilegierten Go-Core. Die genaue technische Sandbox bleibt gesondert zu verifizieren.
 
 ## 4. Grundlegende Dienste und Fachvertraege
 
@@ -74,7 +74,7 @@ Ein Schreibvorgang wird vom verantwortlichen Owner autorisiert und validiert; se
 - Keine App-zu-App-Erweiterungspunkte (Q52), keine app-eigenen globalen Suchanbieter (Q36/Q67), keine externen Gastlinks (Q75).
 - Kein SDK-Simulator (Q105): Integrationstests gegen echte cloudOS-Instanzen.
 - Browser-Push: regulaerer Push-Transport **SSE**, nicht pauschal WebSocket; Q35 betrifft externe SDK-Verbindungen nach gesondertem Netzvertrag.
-- Keine implizite Aufhebung der bestehenden Self-Signing-/Admin-Ausnahmen durch das Conformance-Gate; Konflikt Q154 vs. `APP_SIGNING.md` wird geprueft.
+- **K1 entschieden:** Die selbstsignierte Herkunftsausnahme setzt die **technische** Signatur-/Integritäts-/Conformance-Prüfung niemals außer Kraft; ein technischer Gate-Fehler blockiert die Aktivierung.
 
 ## 8. Architecture Baseline – Freigabebedingungen
 
@@ -93,3 +93,7 @@ Die vollständigen Beschlüsse stehen in [11-architecture-decisions-K1-K9.md](11
 - **Workflows (K8):** Widerruf stoppt neue normale Schritte. Kompensation benötigt eine neue zweckgebundene Recovery-Autorisierung.
 
 **Nicht abgenommen:** konkrete Origins/Hostnames, Release-Kill-Switch-Ausführung, E2EE-Recovery, Runtime-Sandbox, API-Schemas und Repo-weite Core-Owner-Zuordnung.
+
+## 10. Dokumentationskonsolidierung und verbleibende Nachweise (16.11.2026)
+
+R-008 ist als logischer App-Data-Owner im Combined-Go-Core entschieden; [Mapping](14-owner-mapping.md). R-009 trennt im [Consent-Vertrag](15-consent-boundaries.md) durchsetzbaren Core-Widerruf von nicht rückholbaren externen Kopien. R-013 besitzt [Negative-Contract-Fälle](17-negative-contract-tests.md), R-015 eine [echte isolierte Testinstanz](18-conformance-test-environment.md). Für R-007 sind Kurzentscheidungen [Q001–Q033](16-historical-evidence.md) verfügbar, aber nicht alle Originaloptionsworte. Vor formeller Freigabe sind Owner-/Schemas, Sicherheitstests, browserkonforme Topologie und die unten im [Readiness-Bericht](10-implementation-readiness.md) angeführten technischen Nachweise abzuschließen. Keine Implementierung oder technische Abnahme wird behauptet.

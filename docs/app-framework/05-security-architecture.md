@@ -85,3 +85,9 @@ Vor Implementierung je Komponente: Owner, Trust Boundary, Permissions, Failure M
 **K4/K9 – Release-Policy:** Nur kompatible Releases dürfen bei aktiver API-Major laufen. Kill-Switch-/Zertifikat-/Digest-Sperren gelten auch für laufende Bridges/Worker und blockieren Rollbacks.
 
 **Pflicht-Negativtests:** Self-signed-Bypass, Core-App-Impersonation, Cross-Origin-Bridge, SW-Scope, Provider-SSRF, E2EE-Klartextleck, Revocation-Replay, Saga-Recovery-Impersonation, Kill-Switch-Cache/Offline-Grenze. Vollständige Beschlüsse: [K1–K9](11-architecture-decisions-K1-K9.md).
+
+## Dokumentationsabgleich 16.11.2026 – Consent, Origin und Conformance
+
+**K1/K3/K9:** Eine Self-signed-Publisherausnahme übergeht keine technische Conformance. Eigene App-Origins, systemverwaltete Service-Worker-Scope-Isolation, getrennte Host/BFF-Sessions, aktuelle Instanz-/Grant-Revisionen und sofort wirksame Quarantäne sind harte Sicherheitsgrenzen. Ein App-CSP oder ungetesteter CORS-Header ist für sich **kein** Nachweis dieser Isolation.
+
+**R-009 Option C:** Zweckgebundene Zustimmung an Benutzer, App, Datenklasse, Empfänger und versionierten Zweck. Widerruf stoppt weitere Core-vermittelte Verarbeitung, nicht bereits erfolgte externe Nutzung oder Downloads. Siehe [Consent-Grenzen](15-consent-boundaries.md). Die geplanten Negativtests stehen in [17-negative-contract-tests.md](17-negative-contract-tests.md); technische Testresultate liegen hier noch nicht vor.

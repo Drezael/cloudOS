@@ -1,13 +1,14 @@
 # Decision Register – Architekturfragen Q001–Q156
 
-> **Stand:** 15.11.2026 · **Status:** Rekonstruktion aus dem vorliegenden Entscheidungsverlauf; **kein Nachweis der vollstaendigen Originalwortlaute**.  
+> **Stand:** 16.11.2026 · **Status:** Frühentscheidungen Q001–Q033 quellenkritisch nachgetragen; **Originalwortlaute und teils Wahlbuchstaben bleiben unvollständig belegt**.  
 > **Referenz:** [APP_FRAMEWORK_SDK.md](../APP_FRAMEWORK_SDK.md)
 
 ## Leseregeln
 
 - `BESTAETIGT_IM_VERLAUF`: Die Entscheidung ist im verfuegbaren Gespraech eindeutig belegt; Kurzform ist eine Verdichtung, kein Originalzitat.
 - `REKONSTRUIERT`: Thema und Grundsatz sind aus dem Entscheidungsverlauf bekannt, aber exakte Frage-/Optionsformulierung ist nicht vollstaendig belegt.
-- `OFFEN_QUELLNACHWEIS`: Kein belastbarer Originalentscheid abrufbar. **Keine Option wird erfunden.**
+- `OFFEN_QUELLNACHWEIS`: Kein belastbarer Kurzinhalt des ursprünglichen Entscheids verfügbar. **Keine Option wird erfunden.**
+- Auch `REKONSTRUIERT` und `BESTAETIGT_IM_VERLAUF` belegen ohne vollständigen Originalmitschnitt nicht den exakten Frage-/Optionswortlaut; unbekannte Buchstaben bleiben ungenannt.
 - `C` wird nur genannt, wenn im Verlauf explizit erkennbar. A/B-Entscheidungen werden nur dort angegeben, wo belegt.
 - **Ein abgeschlossener Fragebogen ist nicht mit einem verifizierten vollstaendigen Decision Register gleichzusetzen.**
 
@@ -15,39 +16,39 @@
 
 | Nr. | Thema | Entscheidung / Wissensstand | Nachweisstatus |
 |---:|---|---|---|
-| Q001 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q002 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q003 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q004 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q005 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q006 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q007 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q008 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q009 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q010 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q011 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q012 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q013 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q014 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q015 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q016 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q017 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q018 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q019 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q020 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q021 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q022 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q023 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q024 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q025 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q026 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q027 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q028 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q029 | Internationalisierung | Zentrale i18n-Unterstuetzung; Details historisch abgleichen | `REKONSTRUIERT` |
-| Q030 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q031 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q032 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
-| Q033 | Historische Frage noch nicht nachgewiesen | Thema, Option und Wortlaut anhand des Originalverlaufs pruefen | `OFFEN_QUELLNACHWEIS` |
+| Q001 | Modularer SDK-Kern | Zentrales SDK mit modularen, bedarfsorientierten Komponenten | `REKONSTRUIERT` |
+| Q002 | Initialisierung | Zweistufige Initialisierung mit App-Kontext und lazy geladenen SDK-Modulen | `REKONSTRUIERT` |
+| Q003 | Fehlersemantik | Sprachtypische Fehlerbehandlung mit gemeinsamem, typisiertem Fehlermodell | `REKONSTRUIERT` |
+| Q004 | App Lifecycle | Hybrides Lifecycle-System mit Hooks und Events | `REKONSTRUIERT` |
+| Q005 | SDK-Zustand | Hybride, versionierte Zustandsverwaltung | `REKONSTRUIERT` |
+| Q006 | Laufzeitereignisse | Typisierte Lifecycle-Hooks für Suspend, Resume, Offline, Reconnect, Shutdown und Restore; dauerhafte Checkpoints bleiben notwendig | `REKONSTRUIERT` |
+| Q007 | Laufzeitfähigkeiten | Signierte Pflicht-/Optionalkompatibilitäten im Manifest; harte Prüfung vor Start, keine Rechteableitung aus Capabilities | `REKONSTRUIERT` |
+| Q008 | Ereignismodell | Hybrides SDK-Ereignissystem | `REKONSTRUIERT` |
+| Q009 | Entwicklungsworkflow | Hybrider Entwicklungs- und Testworkflow | `REKONSTRUIERT` |
+| Q010 | Mocks und Testbarkeit | Vertragsbasierte Mocks mit programmierbaren Szenarien; keine Vollsimulation einer cloudOS-Instanz (Q105) | `REKONSTRUIERT` |
+| Q011 | SDK-Verteilung | SDK vollständig durch den vertrauenswürdigen App Host, modular und kompatibilitätsgeprüft bereitstellen | `BESTAETIGT_IM_VERLAUF` |
+| Q012 | Rust-Bindings | Rust/WASM-SDK-Bindings über wasm-bindgen und die Host-Bridge, keine privilegierte eigene Bridge | `BESTAETIGT_IM_VERLAUF` |
+| Q013 | SDK-Versionen | Ausschließlich neueste SDK-Version; kompatible Release-Übergänge gesondert prüfen | `REKONSTRUIERT` |
+| Q014 | SDK-Aktualisierung | Atomarer SDK-Wechsel mit Zustandswiederherstellung | `REKONSTRUIERT` |
+| Q015 | SDK-Diagnostik | Hybride SDK-Diagnose ohne Rechte-/Datenschutzumgehung | `REKONSTRUIERT` |
+| Q016 | Frontend Referenz | Vue 3 und Vite für cloudOS-eigene Oberflächen; öffentliches SDK bleibt frameworkneutral | `REKONSTRUIERT` |
+| Q017 | Rust/WASM Toolchains | Browserfähige Rust-/WASM-Pakete mit mehreren nachweislich kompatiblen Toolchains | `REKONSTRUIERT` |
+| Q018 | GPU und Threads | WebGPU und WebAssembly-Multithreading als verbindliche Mindestanforderung für das anspruchsvolle Rust-Profil, ohne WebGL-/Single-Thread-Fallback | `BESTAETIGT_IM_VERLAUF` |
+| Q019 | Cross-Origin Isolation | Striktes COEP require-corp und passende COOP/CORP/CORS/CSP-Isolation; bei fehlenden Voraussetzungen kein Rust-Profilstart | `BESTAETIGT_IM_VERLAUF` |
+| Q020 | SDK-Origin | SDK durch Host unter reserviertem, systemverwaltetem Bereich jeder App-Origin bereitstellen; App darf Module nicht überschreiben | `BESTAETIGT_IM_VERLAUF` |
+| Q021 | Offline-App-Start | Kein neuer Offline-App-Start; autorisierte laufende Offline-Funktionen können bei Unterbrechung fortgesetzt werden | `BESTAETIGT_IM_VERLAUF` |
+| Q022 | Schema-Contracts | Contract-first mit signierten, versionierten JSON-Schemas und erzeugten Rust-/TypeScript-Typen; serverseitige Validierung | `BESTAETIGT_IM_VERLAUF` |
+| Q023 | App Actions und IPC | App-Aktionen und laufzeitinternes IPC getrennt: keine automatischen Empfängerstarts durch IPC; IPC nur autorisiert an laufende Instanzen | `BESTAETIGT_IM_VERLAUF` |
+| Q024 | IPC-Zustellung | Hybride Zustellgarantien je Nachrichtenklasse, keine undifferenzierte Exactly-once-Zusage | `BESTAETIGT_IM_VERLAUF` |
+| Q025 | IPC-Routing | Kontextabhängiges IPC-Routing mit sicheren, instanzgebundenen Handles | `BESTAETIGT_IM_VERLAUF` |
+| Q026 | Settings | Typisierte, versionierte Einstellungen mit separaten Benutzer-/Gerätebereichen und passendem Synchronisationsscope | `BESTAETIGT_IM_VERLAUF` |
+| Q027 | Settings Migration | Signierte Einstellungsschemas mit kontrollierten Migrationsverträgen | `BESTAETIGT_IM_VERLAUF` |
+| Q028 | UI-Kit | Frameworkunabhängiges UI-Kit mit optionalen Adaptern; keine Bindung öffentlicher SDK-Apps an Vue | `BESTAETIGT_IM_VERLAUF` |
+| Q029 | Internationalisierung | Vollständiges SDK-i18n-Modul mit signierten Sprachressourcen und sicherem dynamischem Sprachwechsel | `BESTAETIGT_IM_VERLAUF` |
+| Q030 | Web Worker | Schlanker Worker-SDK-Adapter über App-Hauptkontext, keine privilegierte direkte Worker-Bridge | `BESTAETIGT_IM_VERLAUF` |
+| Q031 | Netzwerkclient | Modularer SDK-Netzwerkclient; externe SSE-/WebSocket-Kanäle gesondert über den kontrollierten Network Broker freigeben | `BESTAETIGT_IM_VERLAUF` |
+| Q032 | Netzwerk-Profile | Signierte restriktive Netzwerkziel-Profile mit Protokoll-/Methoden-/Ressourcenbegrenzungen | `BESTAETIGT_IM_VERLAUF` |
+| Q033 | Credentials | Hybride Benutzer-/Service-Credentials durch geschützte opake Handles statt freier Weitergabe langlebiger Secrets | `BESTAETIGT_IM_VERLAUF` |
 | Q034 | Externe Zugangsdaten | Gemeinsame Speicherung mit getrennten App-Freigaben | `BESTAETIGT_IM_VERLAUF` |
 | Q035 | Externe SSE-/WebSocket-Verbindungen | Lifecycle-gesteuertes Verbindungsmanagement | `BESTAETIGT_IM_VERLAUF` |
 | Q036 | App-Suchanbieter | Keine eigenen Suchanbieter im SDK | `BESTAETIGT_IM_VERLAUF` |
@@ -188,11 +189,11 @@ Diese neun Entscheidungen wurden nach Q156 im Gespräch **explizit** als Option 
 | K8/9 | R-011 | C | Separate minimale Kompensationsautorisierung nach Rechteentzug | `BESTAETIGT_IM_VERLAUF` |
 | K9/9 | R-014 | C | Release-spezifischer Kill Switch/Quarantäne und sicherer Rollback | `BESTAETIGT_IM_VERLAUF` |
 
-**Zählung der historischen Q-Fragen unverändert:** 156 Q-Einträge, davon weiterhin 32 `OFFEN_QUELLNACHWEIS`, 92 `REKONSTRUIERT`, 32 `BESTAETIGT_IM_VERLAUF`. Die neun neuen K-Beschlüsse sind davon getrennt zu zählen. Q029 ist rekonstruiert, aber noch ohne verifizierten Originalwortlaut.
+**Aktualisierte Zählung der SDK-Q-Fragen:** 156 Einträge, davon 0 `OFFEN_QUELLNACHWEIS`, 106 `REKONSTRUIERT` und 50 `BESTAETIGT_IM_VERLAUF`. Die 33 frühen Themen besitzen jetzt jeweils mindestens einen kontextgestützten Kurzinhalt. Dies ist **kein** Nachweis, dass alle ursprünglichen Frage-/Optionstexte oder Wahlbuchstaben erhalten sind. Die neun K-Beschlüsse werden separat gezählt. Provenienz und Restunsicherheiten: [16-historical-evidence.md](16-historical-evidence.md).
 
 ## Verifizierungs- und Freigabeprozess
 
-1. Fragen Q001–Q028 und Q030–Q033 gegen den vollstaendigen Originalverlauf nachweisen.
+1. Kurzbeschlüsse Q001–Q033 gegen den vollständigen Originalverlauf nachweisen, insbesondere fehlende exakte Optionen/Buchstaben; die dokumentierten Fachregeln nicht deshalb erneut entscheiden.
 2. Fuer `REKONSTRUIERT` den genauen Optionsbuchstaben und verbindlichen Entscheidungstext vervollstaendigen.
 3. Pro Entscheidung einen stabilen Quellverweis/ADR und betroffene Dokument-/Komponentenpfade ergaenzen.
 4. Konflikte mit bestehenden Repository-Vertraegen in [09-risk-register.md](09-risk-register.md) erfassen; nie stillschweigend ueberschreiben.

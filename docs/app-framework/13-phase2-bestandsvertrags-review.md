@@ -1,7 +1,7 @@
 # Phase 2: Bestandsvertrags-Abgleich zu K1–K9
 
 > Projekt: `Drezael/cloudOS` · GitHub-Branch: `main` · geprüft am 15.11.2026  
-> Status: **Quellenanalyse und Integrationsspezifikation; Original-Fachdateien hier nicht verändert.**  
+> Status: **Historischer Phase-2-Review vom 15.11.2026; dokumentarische Volltext-Integration erfolgte im Folgeschritt 16.11.2026 (siehe Nachtrag unten).**  
 > Keine Implementierung, kein technischer Freigabebeschluss.
 
 ## Ziel und Verbindlichkeit
@@ -93,3 +93,9 @@ Die neun Architekturentscheidungen sind in `docs/app-framework/11-architecture-d
 ## Technische Ausgangslage dieser Lieferung
 
 Die GitHub-Verbindung erlaubte vollständige fachliche Quellprüfung und SHA-Ermittlung, jedoch keine direkte Dateiübernahme in den lokalen ZIP-Arbeitsbereich. Daher enthält dieses Zwischenpaket **bewusst keine verkürzten Ersatzfassungen** der neun umfangreichen Bestandsdateien. Die vollständige textbewahrende Integration erfordert den zusammenhängenden Originaldateibestand im lokalen Arbeitsbereich, etwa als Repository-ZIP. Dieses Dokument ist eine verbindliche Vorprüfung, nicht die fälschliche Behauptung einer fertigen Originaldatei-Konsolidierung.
+
+## Nachtrag 16.11.2026 – tatsächliche redaktionelle Übernahme
+
+Die hier ursprünglich geforderten neun Volltext-Konsolidierungen wurden gegen GitHub-Blob-geprüfte Bestandsfassungen ausgeführt. B-01 ist in `APP_MANAGEMENT_STORE.md` mit **einem Defaultrelease** und erlaubten, unverändert digestgebundenen kompatiblen Altinstanzen unter einer aktiven Core-API-Major konkretisiert. B-02 ist in `APP_API_ACCESS.md` von „vorzugsweise“ auf **verpflichtende getrennte Origins** korrigiert. B-03 bis B-09 sind als verbindliche K1–K9-Klauseln in ihren jeweiligen fachlichen Owner-Dokumenten ergänzt.
+
+**Nicht geschlossen** sind technische/laufzeitliche Nachweise, abschließende API-/DB-Schemas, Sicherheits-/Browser-Testresultate und vollständige Originalbelege Q001–Q033. Der ursprüngliche Befund in den Abschnitten oben dokumentiert die Lage **vor** der Änderung; für den aktuellen Status sind [12-legacy-alignment.md](12-legacy-alignment.md), [09-risk-register.md](09-risk-register.md) und [10-implementation-readiness.md](10-implementation-readiness.md) maßgeblich. Kein Release-/Implementierungs-Sign-off.

@@ -1,12 +1,12 @@
 # Implementation Readiness Report – App Framework SDK
 
-> **Stand:** 15.11.2026  
-> **Gesamturteil:** **NOT READY FOR FULL IMPLEMENTATION** – 156 SDK-Fragen plus neun Konfliktentscheidungen K1–K9 konzeptionell abgeschlossen; führende Bestandsverträge und technische Tests noch nicht vollständig konsolidiert.  
+> **Stand:** 16.11.2026  
+> **Gesamturteil:** **NOT READY FOR FULL IMPLEMENTATION** – historisch unvollständige Originalnachweise, technische Schemas-/Browser-/Security-Tests und Freigaben fehlen weiterhin. **Die dokumentarische K1–K9-Konsolidierung ist weitgehend abgeschlossen**.  
 > **Kein Implementierungscode** ist Bestandteil der Dokumentationslieferung.
 
 ## 1. Management Summary
 
-Die Architekturfragen Q001–Q156 wurden im Gespraech behandelt; Q156 legt einen verbindlichen Architecture Baseline & Implementation Readiness Contract fest. Fuer einen belastbaren Start fehlen der historische Vollnachweis der fruehen Entscheidungen, die vollstaendige fachliche Integration der neun geklaerten Konflikte in fuehrende Bestandsdokumente, verbindliche API-/Owner-Vertraege und eine formelle Sicherheits- und Abhaengigkeitspruefung. Der Dokumentationsstand ist ein **Pruefstand**, keine bereits bestaetigte Implementierungsfreigabe.
+Die Architekturfragen Q001–Q156 wurden im Gespräch behandelt; Q156 enthält den Architecture Baseline & Implementation Readiness Contract. Alle Q001–Q033 sind nun zumindest fachlich in Kurzform dokumentiert; eine belastbare Originalverifikation sämtlicher Formulierungen/Optionsbuchstaben liegt weiterhin nicht vor. Die neun Konfliktentscheidungen K1–K9 sind jetzt auch in den fachlich führenden Bestandsdokumenten präzisiert und gegensätzliche Formulierungen (App-Origins, parallele App-Releases) wurden korrigiert. R-008/R-009 besitzen fachliche Verträge, R-013/R-015 detaillierte Testplanungen. **Fehlend sind technische Owner-/API-/DB-Schemas, Quellprüfung der Bootstrap-Rollen, Browser-/Crypto-/Conformance-Testresultate und formelle Abnahme.** Weder dieses Dokument noch die getroffene Architekturentscheidung stellt eine Implementierungsfreigabe dar.
 
 ## 2. Definition of Ready (je Komponente)
 
@@ -25,15 +25,15 @@ Die Architekturfragen Q001–Q156 wurden im Gespraech behandelt; Q156 legt einen
 
 | Bereich | Stand | Hindernis | Freigabe |
 |---|---|---|---|
-| Architekturentscheidungen | 156 Fragen behandelt; fruehe Nachweise fehlen | R-007 | NEIN |
-| SDK/Auth-/Capability-Konzept | Grundsatz vorhanden | AuthZ-Owner, API-Typen, Trust Boundary | NEIN |
-| App Signing/Release | Bestehende Konzepte vorhanden | K1/K2 beschlossen; technische Abnahme ausstehend | NEIN |
-| Browser Runtime / Service Worker | Konzept vorhanden | K3 beschlossen; Origin-/Browsernachweis ausstehend | NEIN |
-| Daten-/Messaging-Vertraege | Grundsaetze vorhanden | DB-/Outbox-Owner, Schemas, Limits | NEIN |
+| Architekturentscheidungen | 156 Einträge; frühe Kurzbeschlüsse ergänzt | Originalfrage-/Optionsbelege R-007 weiter offen | NEIN |
+| SDK/Auth-/Capability-Konzept | AuthZ- und Consent-Grenzen dokumentiert | konkrete typisierte Contracts und Tests offen | NEIN |
+| App Signing/Release | K1/K4/K9 in Bestandsverträgen integriert | technische Conformance/Release-Kill-Switch-Tests fehlen | NEIN |
+| Browser Runtime / Service Worker | K2/K3-Textkonflikte korrigiert | echte Origin-/SW-/Browser-Tests fehlen | NEIN |
+| Daten-/Messaging-Vertraege | Owner-Prinzip und R-008 Option C dokumentiert | Schemas, NATS/Outbox-Implementierungsnachweise, Limits fehlen | NEIN |
 | E2EE/Content/Index | Optionale Faehigkeiten | K6 beschlossen; Schluessel-/Datenmodell ausstehend | NEIN |
 | Diagnostik / Audit | Konzept vorhanden | Redaction, Audit bei Ausfall, Datenpolitik | NEIN |
-| Abhaengigkeitsplan | Vorlaeufig | R-008 | NEIN |
-| Dokumentationsqualitaet | Neues Paket erstellt | Push-Dateien verifiziert; Bestandsdatei-Integration und Link-QA offen | NEIN |
+| Abhaengigkeitsplan | SDK-/Core-Owner-Mapping erstellt | Bootstrap-Quellprüfung und technische Detailverträge fehlen | NEIN |
+| Dokumentationsqualitaet | Volltext-Integration/Scoped-Link-QA dokumentiert | vollständige Repository-weite QA und Originalwortlaut-Verifikation ausstehend | NEIN |
 
 ## 4. Abnahmeplan nach dem GitHub-Push
 
@@ -41,14 +41,14 @@ Die Architekturfragen Q001–Q156 wurden im Gespraech behandelt; Q156 legt einen
 
 - [x] Branch `main` und die 11 SDK-Dateien auf GitHub per Blob-SHA/Connector bestaetigen (Stand 15.11.2026).
 - [x] Existenz aller elf bisherigen SDK-Dokumente auf GitHub bestaetigt.
-- [ ] Relative Links vollstaendig und alle zusaetzlichen Dateien nach dem naechsten Push pruefen.
-- [ ] Q001–Q033 anhand Originalentscheidungen verifizieren.
-- [ ] Bestehende Fachkonzepte vollstaendig auf Owner-/Schnittstellenkonflikte pruefen.
+- [x] Relative Links innerhalb des aktualisierten Dokumentationsumfangs lokal geprüft; vollständige Repo-weite Kontrolle und Push-Nachprüfung noch offen.
+- [x] Alle Q001–Q033 fachlich in Kurzform rekonstruiert; Originaloptionen/Wahlbuchstaben **teilweise weiterhin unbelegt** (separater Freigabepunkt R-007).
+- [x] Neun führende Fachverträge zu K1–K9 abgeglichen und dokumentarisch konsolidiert; repo-weite technische Konfliktprüfung bleibt eigenständig.
 
 ### P2 – Architektur- und Threat-Review
 
 - [x] Alle drei urspruenglichen `BLOCKER` R-002, R-003 und R-005 **konzeptionell** entschieden (K1/K2/K3).
-- [ ] Diese Beschluesse in alle fuehrenden Bestandsvertraege vollstaendig integrieren.
+- [x] K1–K9-Klauseln in neun führende vollständige Bestandsverträge integriert; Quellstand und tatsächliche technische Umsetzung separat nachzuweisen.
 - [ ] Browser-/Runtime-/Conformance-Gates technisch verifizieren.
 - [x] SSE-/WebSocket-/Web-Push-Grenzen konzeptionell fixiert (K5).
 - [x] Signierte/self-signed/Conformance-Grenze konzeptionell fixiert (K1).
@@ -65,8 +65,8 @@ Die Architekturfragen Q001–Q156 wurden im Gespraech behandelt; Q156 legt einen
 
 ### P4 – Verifikations- und Release-Gates
 
-- [ ] Negative Security-/AuthZ-/Revocation-Tests festlegen.
-- [ ] Konformitaetstests gegen reale cloudOS-Testinstanz planen; kein Simulator.
+- [x] Fachliche Negative Security-/AuthZ-/Revocation-Testfälle in [Testmatrix](17-negative-contract-tests.md) festgelegt; Ausführung ausstehend.
+- [x] Testumgebungsvertrag auf echter isolierter cloudOS-Instanz dokumentiert; kein Simulator. Instanz und Läufe ausstehend.
 - [ ] Support-/Diagnose-Redaction-Tests definieren.
 - [ ] Review und finale Architecture Baseline sign-off dokumentieren.
 
@@ -76,10 +76,12 @@ Die Architekturfragen Q001–Q156 wurden im Gespraech behandelt; Q156 legt einen
 
 ## 6. Naechste konkrete Arbeit
 
-1. Die neun ausdruecklich bestaetigten K-Beschluesse wurden in [11-architecture-decisions-K1-K9.md](11-architecture-decisions-K1-K9.md) vollstaendig ausgearbeitet und in den SDK-Fachdokumenten verankert.
-2. Die **fuehrenden Bestandsdokumente** anhand [12-legacy-alignment.md](12-legacy-alignment.md) mit ihren aktuellen vollstaendigen GitHub-Versionen konsolidieren.
-3. Historische Entscheidungsluecken (R-007), Core-Dienst-Owner (R-008), Consent-Grenzen (R-009), Negativentscheidungen (R-013) und isolierte Testumgebung (R-015) verifizieren.
-4. Konkrete Schnittstellen, technische Abnahmetests und RPO/RTO-/Retention-/Recovery-Parameter spezifizieren.
-5. Die formale Architecture-Baseline-Freigabe erst nach vollstaendiger Definition of Ready erteilen und dann den Implementierungsplan erstellen.
+1. Die neun K-Beschlüsse K1–K9 wurden aus dem [Beschlussnachweis](11-architecture-decisions-K1-K9.md) in die vollständigen zuständigen Fachverträge übernommen. Das [Legacy-Alignment](12-legacy-alignment.md) dokumentiert den Stand.
+2. SDK Q001–Q033 fachlich nachgetragen; den fehlenden vollständigen Wortlaut/Optionsnachweis nur mit Originalquellen nachführen, **niemals erfinden**.
+3. R-008 und R-009 bleiben hinsichtlich exakter Datentypen, Consent-/DB-/API-Contracts und technischer Quellprüfung abnahmepflichtig.
+4. R-013 und R-015 anhand [Negativtestmatrix](17-negative-contract-tests.md) und [echter Testinstanz](18-conformance-test-environment.md) ausführen, Resultate dokumentieren.
+5. Browser-/Origin-/SW-/E2EE-/K9-Revoke-, Recovery- und Release-Tests nachweisen, messbare RPO/RTO-/Browser-/Retention-Zielwerte ausdrücklich freigeben.
+6. Erst danach Architecture Baseline und komponentenweise Definition of Ready formell abnehmen; vorher keine pauschale Implementierungsfreigabe.
+7. Vollständige aktuelle Evidenz- und Gapliste: [19-gap-and-evidence-register.md](19-gap-and-evidence-register.md).
 
 **Status:** Architekturentscheidung getroffen, Artefakte als Konsolidierungsbasis ausgearbeitet, Implementierung und formelle Abnahme ausstehend.

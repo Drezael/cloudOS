@@ -67,3 +67,9 @@ Isolation Levels, atomare Owner-Grenzen, Schema-Versionen, Stream-/Cursor-Format
 6. **Sicherheitssperre (K9):** Ein gesperrtes Release kann keine alte Datenmigration oder Workflow-Instanz unter früheren Rechten reaktivieren. Persistierte Daten bleiben nach Sperrung gemäß separater Retention und Recovery erhalten.
 
 Konkrete Schlüssel- und Schema-Formate, RPO/RTO, Retention-Zeiten, DLQ-Budgets und Saga-Enums sind **noch nicht festgelegt**. Referenz: [K1–K9](11-architecture-decisions-K1-K9.md).
+
+## Dokumentationsabgleich 16.11.2026 – App-Data-Ownership und K6/K7
+
+R-008 Option C bestimmt einen separaten **logischen** Daten-Owner im bestehenden Go-Core; der `apps`-Release-/Registry-Owner und der `files`-VFS-/Blob-Owner bleiben fachlich eigenständig. Fachliche Mutation, Eindeutigkeits-/Revisionserzwingung und eigene Outbox sind innerhalb desselben Owners transaktional; Cross-Owner-Abläufe erfordern Idempotenz/Saga. Ein eigenes physisches Datenbankschema und API DTOs sind noch **nicht** festgelegt: [Owner-Mapping](14-owner-mapping.md).
+
+K6 trennt regulär serververwaltete Verschlüsselung von optionaler Client-Key-E2EE; serverseitige Klartextverarbeitung auf E2EE-Payload bleibt verboten. K7 verlangt getrennte Retention-/Purge-Regeln nach Fachzustand, Outbox, Inbox, Delivery, Notification und Audit sowie erneute Rechteprüfung beim Replay. ADR-136 koordiniert VFS/Blob/Schlüsselversionen beim Backup; konkrete RPO/RTO-Werte bleiben messungsabhängig.

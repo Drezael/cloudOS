@@ -15,7 +15,7 @@ Jede Komponente besitzt genau einen fachlichen Owner fuer ihren autoritativen Zu
 | App Registry & Release | Paketquellen, Signaturen, Freigabe, Versionen | Installer, Administration | Q100/Q117–Q121/Q137/Q151/Q154 |
 | App Instance & Window | Fenster, App-Instanzen, Zustands-Lifecycle | Browser-App-Host | Q080–Q083/Q134–Q135 |
 | Browser Background & Tab Coordination | Service-Worker-Vertraege, sichere Tab-Leases | Browser-Kontext | Q138–Q140 |
-| App Data Service | App-Daten, Owner, Revisionen, Constraints | Autorisierte SDK-/Domain-Operation | Q094–Q099/Q145 |
+| App Data Service | **Eigenständiger logischer App-Data-Daten-Owner im bestehenden Go-Core (R-008 Option C)**; Nutzer-/App-/Tenant-Daten, Revisionen, Constraints | Autorisierte SDK-/Domain-Operation, keine direkten SQL-Rechte | Q094–Q099/Q145; [Owner-Mapping](14-owner-mapping.md) |
 | VFS / Files | Dateizugriff, Datei-Jobs, Picker, Trash, Revisionen | Core File APIs | Q068–Q075/Q086–Q092 |
 | Query / Index / Resource Watch | Autorisierte Abfragen, indexierte Metadaten, Deltas | SDK Query/Watch | Q064/Q066–Q067/Q109–Q110 |
 | Messaging | Versionierte Nachrichten, At-least-once, DLQ, Replay | Autorisierte Event-Subscriptions | Q042–Q044/Q148–Q149 |
@@ -47,7 +47,7 @@ Der Combined-Core bleibt Standard. Split-/Kubernetes-Ausfuehrung sind opt-in. Se
 1. Welche Komponenten entsprechen bereits vorhandenen benannten Go-Core-Diensten?
 2. Welche neue logische Funktion ist lediglich ein Zusatzvertrag eines bestehenden Services?
 3. Wer haelt persistente Owner-Tabellen, Event-Outbox und Consumer-Positionen?
-4. Welche Integrationspunkte sind innerhalb eines Combined-Core atomar und welche nicht?
+4. Welche Integrationspunkte sind innerhalb eines Combined-Core atomar und welche nicht? **Grundregel: eigene Owner-Transaktion + Outbox; konkrete Schemas/Sequenzen sind weiterhin technisch zu spezifizieren.**
 
 Siehe [09-risk-register.md](09-risk-register.md).
 
@@ -66,4 +66,4 @@ Die vollständige Norm findet sich in [11-architecture-decisions-K1-K9.md](11-ar
 | Event Delivery / Audit | Owner-spezifische Retention, Replay-Autorisierung, getrenntes Audit | K7: Cursor kein Rechtetoken |
 | Saga/Job Owner / Recovery | Workflow-Schritte, Checkpoint, Kompensations-Capabilities | K8: neue Rechte statt alte Delegation |
 
-**Offener R-008:** Die tabellarische Zuordnung muss noch gegen den vollständigen Go-Core-Dienstkatalog verifiziert werden. Begriffe dieser Tabelle sind fachliche Funktionen, keine neu beschlossenen Implementierungsdienste.
+**R-008 fachlich entschieden (Option C):** App-Daten erhalten einen eigenen logischen Daten-Owner im vorhandenen Combined-Go-Core, keinen zusätzlichen technischen Dienst/Container. Vollständiges [Owner-Mapping](14-owner-mapping.md) gegen den dokumentierten Dienstkatalog ist erfolgt; die maschinenlesbare Bootstrap-Liste und endgültige technische Persistenz-/API-Verträge bleiben separat nachzuweisen.

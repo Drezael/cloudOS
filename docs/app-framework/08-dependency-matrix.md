@@ -66,4 +66,4 @@ flowchart TD
 | Jobs/Sagas | K7, K8 | Dedupe/Checkpoint/Recovery-Identität, Human Approval und Rollback |
 | Release/Operations | K1, K4, K9 | Upgrade-Readiness, App-Parallelversionen, Quarantäne/Audit |
 
-R-008 (Core-Owner-Abgleich) ist trotz dieser Entscheidungen **offen**. Es darf keine Parallelimplementierung bestehender Go-Core-Dienste entstehen. Referenz: [Beschlussnachweis K1–K9](11-architecture-decisions-K1-K9.md).
+R-008 ist **fachlich entschieden**: logisch getrennter App-Data-Owner im Combined-Go-Core (Option C), keine zusätzliche Bootstrap-Rolle. Das [Owner-Mapping](14-owner-mapping.md) ordnet die SDK-Komponenten den dokumentierten technischen Rollen zu. Die tatsächliche `services.json`-Quellvalidierung und pro-Owner-Schema-/API-Detailprüfung stehen weiterhin aus; ohne diese Nachweise darf kein widersprüchlicher zweiter Dienst eingeführt werden. Referenz: [K1–K9](11-architecture-decisions-K1-K9.md).

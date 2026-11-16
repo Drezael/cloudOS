@@ -6,7 +6,7 @@
 
 ## Gültigkeit, Rang und Nachweis
 
-Die Entscheidungen K1–K9 wurden nach Abschluss der 156 SDK-Fragen explizit bestätigt. Jede Entscheidung verweist auf das im Risk Register vorhandene Konfliktkennzeichen. Wo ein bestehender Fachvertrag bereits einen Teil der Regel enthält, wird er **präzisiert**, nicht verdoppelt. Änderungsbedarf in Bestandsdokumenten ist in [12-legacy-alignment.md](12-legacy-alignment.md) dokumentiert und erfordert eine spätere überprüfte Volltextintegration.
+Die Entscheidungen K1–K9 wurden nach Abschluss der 156 SDK-Fragen explizit bestätigt. Jede Entscheidung verweist auf das im Risk Register vorhandene Konfliktkennzeichen. Wo ein bestehender Fachvertrag bereits einen Teil der Regel enthält, wird er **präzisiert**, nicht verdoppelt. Der Änderungsbedarf aus [12-legacy-alignment.md](12-legacy-alignment.md) wurde am 16.11.2026 in den vollständigen Bestandsverträgen dokumentarisch umgesetzt; die technischen Ausführungsnachweise bleiben gesondert offen.
 
 | Beschluss | Risiko | Option | Entscheidung | Fachlich führende Altverträge | Status |
 |---|---|---|---|---|---|
@@ -166,5 +166,5 @@ Die Entscheidungen K1–K9 wurden nach Abschluss der 156 SDK-Fragen explizit bes
 1. Alle Beschlüsse mit führenden Bestandsdokumenten in [12-legacy-alignment.md](12-legacy-alignment.md) abgleichen; deren Inhalt darf nicht durch diese neue Datei stillschweigend ersetzt werden.
 2. Betroffene SDK-Teilkonzepte verknüpfen, Decision Register und Risk Register aktualisieren.
 3. Reale technische Nachweise, Browser-/Runtime-/Crypto-/Recovery-Testpläne und maschinenlesbare Schnittstellen erst anschließend spezifizieren.
-4. Bestehende offene Risiken R-007, R-008, R-009, R-013 und R-015 bleiben offen. Alle anderen Risiken werden durch den Beschluss höchstens **konzeptionell**, nicht technisch erledigt.
+4. Die fachliche Nachdokumentation zu R-007/R-008/R-009/R-013/R-015 wird in [16-historical-evidence.md](16-historical-evidence.md), [14-owner-mapping.md](14-owner-mapping.md), [15-consent-boundaries.md](15-consent-boundaries.md), [17-negative-contract-tests.md](17-negative-contract-tests.md) und [18-conformance-test-environment.md](18-conformance-test-environment.md) geführt. Vollständige Originalbelege und technische Testresultate bleiben erforderlich.
 5. Keine Implementierungsfreigabe aus der bloßen Existenz dieser Beschlüsse ableiten.

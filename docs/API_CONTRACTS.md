@@ -986,3 +986,16 @@ Ack-Fristen, Retention-Dauer, Idempotenzfenster, Retry-Budgets, Poollimits, RTO/
 ## Architekturabgleich 16.11.2026 – Nachweise statt impliziter Implementierung
 
 Die am 16.11.2026 bestätigten ADRs sind in [ADR_REGISTER.md](ADR_REGISTER.md) und [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md) nachgeführt. Bereits beschlossene API-Schema-/Ownership-/Revisions-/Sicherheitsverträge bleiben gültig. Aus ADR-012, ADR-060 und ADR-136 folgt die Pflicht, messbare Qualitäts- und Restore-Nachweise zu dokumentieren; **keine** nicht gemessene Metrik oder konkrete Vertragszahl wird dadurch neu erfunden. Kryptografische Vertragstests orientieren sich an ADR-036, Passwort-/Recovery-Verträge an ADR-140 und Share-Expiry-Autorisierung an ADR-150.
+
+## Dokumentationsabgleich 16.11.2026 – SDK-K1–K9 und offene Spezifikationsparameter
+
+Die separaten [K1–K9-Beschlüsse](app-framework/11-architecture-decisions-K1-K9.md) konkretisieren diesen bestehenden API-Vertrag, ohne ihn durch einen konkurrierenden SDK-Owner zu ersetzen:
+
+- **K1/K9:** Vor Installation und Aktivierung sind alle harten Conformance-, Signatur-, Integritäts- und Trust-Checks erforderlich; gesperrte Releases verlieren neue Core-/Bridge-/Job-Berechtigungen und können nicht als Rollbackziel dienen.
+- **K4:** Der Core exponiert genau **eine** aktive API-Major. Gleichzeitige kompatible App-Instanzen aus einem kontrollierten Release-Übergang schaffen **keine** zweite API-Major.
+- **K5:** Core-zu-Browser-Push verwendet autorisiertes SSE; externe Provider-SSE/WS benötigen den gesonderten Network-Broker- und Consent-Vertrag.
+- **K6:** `server_managed`-Klartextverarbeitung und `e2ee_client_keys` besitzen unterschiedliche Fähigkeiten; serverseitige Suche, Preview, Content-Index und Worker-Zugriff auf E2EE-Klartext sind unzulässig.
+- **K7:** Fachzustand, Outbox, Inbox/Dedupe, Event-Transport, SSE-Delivery, Notification Inbox und Security Audit besitzen getrennte Retention-/Purge-Verantwortung. Ein Replay-Cursor ist keine Berechtigung.
+- **K8:** Nach Berechtigungsentzug stoppen reguläre Saga-Schritte; notwendige Kompensation benötigt eine **neue**, minimal zweckgebundene Recovery-Autorisierung, bei Bedarf Step-up/Human Approval.
+
+Konkrete DTO-Feldtypen, Fehlercodes je Operation, ID-Namespaces, Zahlenwerte für Retention/RPO/RTO und endgültige neue Routen bleiben bis zum Contract-Review **offene technische Spezifikationsparameter**; daraus folgt keine stillschweigende Freigabe.

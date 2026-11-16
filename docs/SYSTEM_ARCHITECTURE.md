@@ -2683,3 +2683,11 @@ Release- und K8s-Produktionsreife benoetigen erfolgreiche Durchgaengigkeitstests
 - VFS-Backups koordinieren PostgreSQL-Metadaten, referenzierte Blobs, ACLs, Shares/Spaces und Schlüsselgenerationen in konsistenten, versionierten Restore-Punkten; Wiederherstellungen werden isoliert geprüft. Die Datenhoheit der einzelnen Core-Services bleibt unverändert.
 
 Ältere Darstellungen von Vue/Vite, Rust-Toolchains oder Performancewerten als lediglich unverbindliche Grundsatzvorschläge sind durch diese Beschlüsse überholt; konkrete Implementierungsstände bleiben gesondert nachzuweisen.
+
+## Dokumentationsabgleich 16.11.2026 – SDK-Owner, Runtime-Trennung und Freigabegrenzen
+
+**K2/K3:** Ein kombinierter Go-Core-Container ist eine Deploymententscheidung, **keine Sandbox für nicht vertrauenswürdigen App-Code**. Browser-Apps laufen unter separaten Origins und über den Host-Broker. Isolierte serverseitige WASI-Runner sind nach MVP vorgesehen, native Runner sind eine spätere Option. Kein untrusted Runtime-Prozess erhält stillschweigend Core-Inprozess-Rechte.
+
+**R-008 (fachlich Option C):** `App Data Service` ist ein eigenständiger **logischer Daten-Owner innerhalb des bestehenden Go-Core**, nicht eine zusätzliche Pflicht-HTTP-Rolle oder ein zusätzlicher MVP-Container. `apps` verwaltet Registry/Installationen/Releaseidentität, `files` bleibt Owner von Datei-/VFS-Ressourcen, der App-Data-Owner verantwortet strukturierte, app- und mandantenbezogene Nutzdaten, Revisions-/Schema-Checks und autorisierte Domain-Operationen. Technische Dienstnamen, separate Schema-/Tabellendefinitionen und Migrationsreihenfolge dürfen erst nach eigenem Schema-/API-Review fixiert werden. Die bestehende Liste von 22 technischen Bootstrap-Rollen wird durch diesen Beschluss **nicht** erweitert.
+
+Die vollständige funktionale Zuordnung zum vorhandenen Rollenkatalog steht in [SDK-Owner-Mapping](app-framework/14-owner-mapping.md). Der maschinenlesbare Dienstkatalog `core/internal/platform/services.json` war bei dieser Dokumentationsprüfung über den GitHub-Dateizugriff nicht abrufbar; seine exakte technische Übereinstimmung ist **noch nicht nachgewiesen**.

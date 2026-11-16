@@ -66,3 +66,9 @@ Noch zu erstellen bzw. gegen Originalvertraege zu pruefen: ID-Namensraum, Fehler
 | Release Kill Switch | Digest-/App-/Trust-/Runtime-Sperre vor Start, Bridge und Rollback | Reaktivierung gesperrter Digests | K9 |
 
 Die Vertragstabelle beschreibt **Semantik**, nicht existierende REST-Endpunkte. Konkrete DTOs, Feature Negotiation, Policy-Revision, Error-Typen, AuthZ-Checkpoints und Zustands-Enums müssen aus diesen Invarianten abgeleitet und mit `API_CONTRACTS.md` abgestimmt werden. Vollständiger Beschlussnachweis: [K1–K9](11-architecture-decisions-K1-K9.md).
+
+## 9. Präzisierter MVP-Vertrag und keine impliziten API-Namen
+
+R-008 Option C bindet strukturierte App-Daten an einen dedizierten **logischen** App-Data-Owner im Go-Core, getrennt von `apps` (Registry/Installationen) und `files` (VFS). Die App besitzt keine direkte SQL-/Blob-Anbindung, sondern benötigt signierte, installativ genehmigte, instanzgebundene und vom Core ressourcenautorisierte Domain-Operationen. Für alle mutierenden Vorgänge gelten Owner-Revision, idempotenter Request-Kontext, atomare Mutation+Outbox (innerhalb des Owners), definierte Konflikt-/Unknown-Outcome-Semantik. Die konkreten OpenAPI-/Protobuf-/JSON-Schema-Feldnamen werden **nicht** durch dieses Dokument erfunden.
+
+R-009 konkretisiert den versionierten [Purpose-/Consent-Vertrag](15-consent-boundaries.md); ein Widerruf verhindert weitere Core-vermittelte Transfers, nicht rückwirkend externe Datenhaltung. Q001–Q033 sowie die Negativ- und Testumgebungs-Verträge sind unter [Historie](16-historical-evidence.md), [Negativtests](17-negative-contract-tests.md) und [Testinstanz](18-conformance-test-environment.md) dokumentiert.

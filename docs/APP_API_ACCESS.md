@@ -323,7 +323,7 @@ Dies ist eine **kritische technische Voraussetzung**. Ein Gateway-Check ist wirk
 
 ### 7.1 Trennung der Origins und Sitzungen
 
-- Jede nicht vertrauenswürdige App läuft in einem kontrollierten App Host, vorzugsweise unter eigener Origin und in einem sandboxed iframe.
+- Jede nicht vertrauenswürdige App läuft in einem kontrollierten App Host **zwingend unter einer von anderen Apps und der privilegierten Core-/BFF-Origin getrennten Origin** und in einem kontrolliert sandboxed iframe. Hostgesteuerte SDK-Ressourcen, Service-Worker-Scope, Cookies und Storage bleiben origin- und app-instanzgebunden (K3/9).
 - App-Origin und Core-/BFF-Origin verwenden **keine frei wiederverwendbaren gemeinsamen Authentifizierungscookies**.
 - Browser-Apps erhalten keine OIDC-Refresh-Tokens und keine langlebigen allgemeinen Core-Access-Tokens.
 - Der API-Gateway verweigert direkte privilegierte App-Aufrufe ohne einen **serverseitig nachweisbaren App-Kontext**; behauptete Herkunftsheader oder Query-IDs reichen nicht aus.
@@ -782,3 +782,12 @@ Betriebliche Credentials werden providerunabhaengig bereitgestellt, jedoch niema
 [ADR-036](ADR_REGISTER.md) definiert die **Signaturbytes für v1** verbindlich: vollständige SHA-512-Paketliste; RFC 8785/JCS; RSA-PSS/SHA-512 mit MGF1, 64-Byte-Salt und RSA mindestens 3072 Bit; X.509-gebundene Herausgeber-/App-ID-Identität. Jede `permissions/api-access.json` und `permissions/device-access.json` gehört zum signierten Paketindex und wird unverändert vor Freigabe geprüft. Kryptografische Profiländerungen sind nur explizit versioniert zulässig.
 
 [ADR-142](ADR_REGISTER.md) verlangt für Settings-Sub-Apps getrennte `app_instance_id`-/Grant-Kontexte und eigene signierte Allowlists. Deep Links starten oder fokussieren die explizit registrierte Child-App; sie dürfen niemals die API-Rechte der Kind-App in den Settings-Host übertragen. Zwingend administrative Core-Operationen bleiben bei zurückgestellter `PermissionManagement.cloudApp` durch unabhängige Policy und Audit geschützt.
+
+## Dokumentationsabgleich 16.11.2026 – K1, K3, K5 und K9
+
+1. **K1:** Eine genehmigte selbstsignierte Herkunft ist von technischen Signatur-/Integritäts- und Conformance-Gates getrennt. Ohne alle erforderlichen Prüfungen keine Aktivierung.
+2. **K3:** Jede untrusted `.cloudApp` hat eine vom Core-/BFF-Kontext und anderen Apps getrennte Origin. Der vertrauenswürdige Host kontrolliert iframe-Sandbox, Service-Worker-Zuständigkeit, isolierte Browser-Speicherbereiche und instanzgebundene MessagePort-/Bridge-Kommunikation. Ein gemeinsames Cookie und bloße CORS- oder CSP-Konfiguration bilden **keine** gleichwertige Sicherheitsgrenze; tatsächliche Browser-Topologie ist vor Freigabe nachzuweisen.
+3. **K5:** Reguläre Core-Events gehen über den autorisierten SSE-Push; von Apps initiierte **externe** SSE-/WebSocket-Providerverbindungen sind getrennte, deklarierte Network-Broker-Operationen, niemals ein zweiter allgemeiner App-zu-Core-Pushkanal.
+4. **K9:** Vor Ausführung jeder geschützten App-Operation gelten aktuelle Release-/Digest-/App-/Grant-Sperren. Bereits laufende Fenster, alte Delivery-Cursor oder Offline-Caches sind keine Ausnahme.
+
+Technische Browser-, Revocation- und Negative-Contract-Prüfungen: [Testkatalog](app-framework/17-negative-contract-tests.md). Keine neue REST-Route oder numerische Policy wird hier eingeführt.

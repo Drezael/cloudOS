@@ -1,7 +1,7 @@
 # Abgleichsmatrix zu führenden cloudOS-Bestandsverträgen
 
-> **Stand:** 15.11.2026 · **Status:** Quellenabgleich für Phase 1; **keine Bearbeitung der Bestandsdateien in diesem Paket**.  
-> Die elf SDK-Dateien wurden gegen die von GitHub `main` gelesenen Blob-SHAs verifiziert; die nachstehend genannten Bestandsdokumente wurden über den GitHub-Connector hinsichtlich ihrer relevanten Fachregeln geprüft. Eine vollständige zeichengetreue Übernahme der Bestandsdateien in dieses ZIP wäre ohne lokalen Originaldateibestand nicht sicher. Deshalb bleiben sie absichtlich unangetastet und sind Gegenstand der nächsten Volltext-Konsolidierung.
+> **Stand:** 16.11.2026 · **Status:** Volltext-Konsolidierung der bekannten neun führenden Bestandsverträge erstellt; **technische Verifikation bleibt offen**.  
+> Die SDK-Dokumente und die neun Bestandsdateien wurden auf vollständige, per Blob-SHA geprüfte GitHub-Fassungen zurückgeführt. Die folgenden Zeilen enthalten die ursprüngliche Prüfliste; der dokumentarische Übernahmestand vom 16.11.2026 folgt in Abschnitt 5. Dies ist weder ein technischer Konformitätsnachweis noch ein Push-Nachweis der in diesem Paket neuen Änderungen.
 
 ## Ziel und Änderungsregeln
 
@@ -17,17 +17,23 @@ Bei Integrationen dürfen vorhandene Normen nicht verdoppelt oder ohne explizite
 | `docs/PUSH_REALTIME.md` | K5, K7 | SSE als Core-Standard, transaktionale Outbox, `Last-Event-ID`, Policy-Replay, optional Web Push | Externe SSE/WS als andere Infrastruktur abgrenzen; Purge/Replay/Retention je Klasse fixieren |
 | `docs/VIRTUAL_FILESYSTEM.md` | K6, K7 | Berechtigte Vorschauen, Indexe und Ressourcen-Scopes; VFS-Ownership | E2EE-Ressourcenprofile, clientseitige Vorschau und Such-Limits, Datenlösch-/Cachefolgen |
 | `docs/CORE_DEPLOYMENT_SCALING.md` | K2, K3, K5 | Combined-Core-Standard und logisch entkoppelte Services | Network-/Browser-Origin-/Runner-Grenzen in Split/Kubernetes aufrechterhalten |
-| `docs/APP_MANAGEMENT_STORE.md` | K1, K9 | App-Release- und Store-Freigabekontext | Installations- und Sicherheitsquarantäne-UX gegen Bestand prüfen |
+| `docs/APP_MANAGEMENT_STORE.md` | K1, K4, K9 | App-Release- und Store-Freigabekontext | Installations- und Sicherheitsquarantäne-UX gegen Bestand prüfen |
 
 ## Keine stillschweigenden Festlegungen
 
 - **Nicht** beschlossen: ein konkretes DNS-/Origin-Schema, neue REST-Routen, numerische Retention-Werte, spezifische KMS/E2EE-Algorithmen, Container-Runtime für Native oder endgültige Zustands-Enum-Namen.
 - **Nicht** zulässig: zweite parallele Core-API-Major, zusätzlicher regulärer Core-WebSocket-Push, Self-signed-Integritätsausnahme, Direktstart unsignierter App-Payloads, beliebige App-Service-Worker.
-- **Nicht** nachgewiesen: vollständige Rekonstruktion der Q001–Q033; Repository-weite Owner-/Datenmodell-/Security-Validierung; vollständige Link-Verifikation aller externen Bestandsdokumente.
+- **Quellenkritisch:** Q001–Q033 sind fachlich als Kurzbeschlüsse rekonstruierbar; die vollständigen Originalwortlaute fehlen teils weiter. Eine repository-weite Owner-/Datenmodell-/Security-Validierung und vollständige Link-Verifikation **aller** Repository-Dateien werden nicht behauptet.
 
 ## Nächste Abnahme
 
-1. Vollständigen Bestand aller oben aufgeführten Dateien von `main` in ein lokales Arbeitsverzeichnis holen.
-2. Jedes Bestandsdokument **vollständig** unter Beibehaltung der bestehenden Regeln aktualisieren.
-3. Diff, Terminologie, Referenzen, Tabellen und Mermaid-Diagramme gegen bestehende Verträge prüfen.
-4. Risk Register und Readiness-Bericht erst nach vollendeter Quellen-/Technikprüfung auf `VERIFIZIERT` beziehungsweise `READY` setzen.
+1. Die vollständigen Bestandsfassungen wurden auf ihre GitHub-Blob-SHAs geprüft; in diesem Dokumentationspaket werden K1–K9 in den neun Fachverträgen integriert.
+2. Nach Änderung vollständige Markdown-, Querverweis- und Widerspruchs-QA durchführen, Ergebnis und Grenzen dokumentieren.
+3. **Keine** Anhebung auf `TECHNISCH_VERIFIZIERT`, `CLOSED` oder `READY` ohne echte Testresultate, historische Originalquellen und formelle Freigabe.
+4. Repo-weite Prüfung und Implementierungsdetails nach [Gap-Register](19-gap-and-evidence-register.md) nachführen.
+
+## 5. Quellenkritischer Stand 16.11.2026
+
+Die folgenden **vollständigen** Bestandsdokumente enthalten jetzt die zuvor nur im SDK-Beschlussprotokoll niedergelegten relevanten K1–K9-Regeln: `APP_SIGNING.md`, `APP_API_ACCESS.md`, `APPLICATION_SYSTEM.md`, `SYSTEM_ARCHITECTURE.md`, `API_CONTRACTS.md`, `PUSH_REALTIME.md`, `VIRTUAL_FILESYSTEM.md`, `CORE_DEPLOYMENT_SCALING.md` und `APP_MANAGEMENT_STORE.md`. Die alte unverbindliche Formulierung zur App-Origin in `APP_API_ACCESS.md` sowie die scheinbar widersprüchliche Versionsregel in `APP_MANAGEMENT_STORE.md` wurden in diesem Paket konkret ersetzt. Keine technische K1–K9-Prüfung wurde ausgeführt.
+
+**Offene Folgebelege:** exakte Browser-Origin-/Service-Worker-Topologie, reale Conformance, Runtime-Sandbox, E2EE-/Recovery-Test, Retention-Grenzwerte und Quellprüfung des technischen Dienstkatalogs. Siehe [Readiness](10-implementation-readiness.md) und [Testmatrix](17-negative-contract-tests.md).

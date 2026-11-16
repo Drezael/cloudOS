@@ -592,3 +592,12 @@ Alle Consumer erkennen drohende und eingetretene Retention-Luecken. Bei rekonstr
 **Abgrenzung zum Browser:** JetStream-Subjects und interne Consumer-Daten sind keine freigeschalteten Browser-Subscriptions. SSE wird weiterhin aus einer eigenen dauerhaften, nach Nutzer/Audience autorisierten Delivery-Schicht erstellt. Bei SSE-Reconnect und Retention-Gap gelten `Last-Event-ID`, Rechtepruefung, gezielte Snapshot-Wiederherstellung und kein periodisches Browser-Polling. Security Audit bleibt eigenstaendig.
 
 Ein Core-Upgrade stoppt den Core und setzt den geschuetzten Edge-Wartungsmodus; es nutzt keine verpflichtende Rolling-Core-Release-Strategie. Ausgefallene Realtime-Replikate im normalen Split-Betrieb duerfen nach Reconnect einen gesicherten Replay-/Resync-Ablauf verwenden. Verbindliche Festlegungen und offene konkrete Budgetwerte: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+## Dokumentationsabgleich 16.11.2026 – K5/K7: Transport- und Retention-Grenzen
+
+- **Interner Core-Push:** Autorisierte SSE-Verbindung vom Core über das BFF zum Trusted Desktop/App Host. Ein app-eigener allgemeiner Core-WebSocket- oder permanenter HTTP-Polling-Ersatz wird dadurch nicht geschaffen.
+- **Externe Providerverbindungen:** SDK-gesteuerte externe SSE-/WebSocket-Verbindungen verwenden gesonderte vom Network Broker genehmigte Ziel-/Protokoll-/App-/User-Scopes. Ihre Verbindungslebensdauer, Secrets und Widerrufe sind von Core-SSE unabhängig.
+- **Web Push:** Nur ein optionaler, zustimmungspflichtiger Zustellkanal für Browserbenachrichtigungen, nicht Ersatz für den internen SSE-Policy-Vertrag.
+- **Aufbewahrung (K7):** Jede Kategorie (Fachzustand, Outbox, Inbox/Dedupe, JetStream-Transport, SSE-Delivery, Notification Inbox, Audit) besitzt einen getrennten verantwortlichen Owner und kontrollierte Aufbewahrungs-/Purge-Regeln. Browser-Cursor erlauben nur aktuell autorisiertes Replay; bei Lücken autorisierte Snapshot-Resynchronisierung statt alter sicherheitswidriger Events.
+
+Exakte Retention-Werte und Queue-/NATS-Konfiguration werden erst mit Datenklassifizierung, Lastprofil und Release-Tests festgelegt; keine Zahlen sind durch diesen Architekturabgleich vorweggenommen.
