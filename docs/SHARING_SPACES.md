@@ -224,7 +224,7 @@ stateDiagram-v2
     Expired --> [*]
 ```
 
-Fuer das MVP kann eine interne Freigabe unmittelbar aktiv werden. Der Empfaenger darf sie ausblenden oder ablehnen. Spaetere Einladungs-/Genehmigungsregeln sind erweiterbar. Ablaufdatum, Ablauf-Benachrichtigung und Shared-by-/Shared-with-Ansichten werden von Beginn an im Datenmodell vorgesehen.
+Fuer das MVP kann eine interne Freigabe unmittelbar aktiv werden. Der Empfaenger darf sie ausblenden oder ablehnen. Spaetere Einladungs-/Genehmigungsregeln sind erweiterbar. **ADR-150 entscheidet optionale Ablaufzeiten mit Datum und Uhrzeit als MVP-Funktion**; nach Ablauf wird die Freigabe serverseitig gesperrt. Ablauf-Benachrichtigungen und Shared-by-/Shared-with-Ansichten werden in der Daten- und UI-Planung geführt. Resharing durch Empfänger bleibt im MVP verboten.
 
 **Share erstellen:** Nur der Benutzer mit autorisierter Rechtevergabekompetenz darf einen Share einrichten. Ein Empfaenger erhaelt keinen automatischen Anspruch, Inhalte weiterzuteilen. Resharing wird im MVP standardmaessig verboten.
 
@@ -751,3 +751,9 @@ Auch eine zweite Gateway-/Share-Replik darf die Home-Grenze `/` oder die POSIX-A
 ## Architektur-Ergänzung v0.12 – Auditing und Client-Dateien
 
 Space-/Share-Administrationsaktionen bleiben auch bei deaktiviertem Diagnose-Logging im Security Audit. Die vorinstallierte `Logs.cloudApp` kann diese nur mit expliziten `audit.view`-Rechten zeigen. Ein Client-USB-Dateipicker besitzt keine Fähigkeit, den systeminternen `system:/apps`-Paketstore oder fremde Space-Mounts direkt zu verändern; der Import/Export durchläuft den bestehenden File-/Sharing-Owner.
+
+## Architekturabgleich 16.11.2026 – Ablauf interner Freigaben (ADR-150)
+
+**Option B ist verbindlich:** Ein interner Share kann optional ein Ablaufdatum **mit Uhrzeit** besitzen. Nach dem Ablauf wird jede neue API-, Mount-, Datei-, Chunk- und Replay-Berechtigungsprüfung **serverseitig** negativ beantwortet; Browsercache, Link oder ein früherer SSE-Cursor verlängern die Freigabe nicht. Ersteller und entsprechend autorisierte Akteure können vor Ablauf widerrufen; Empfänger können ablehnen. Eine eingehende Freigabe darf im MVP nicht ohne eigenen neuen autorisierten Owner-Grant weitergeteilt werden; **Resharing durch Empfänger ist verboten**.
+
+Das Auslaufen oder Ablehnen einer Freigabe vernichtet **nicht** die ursprünglichen Datei-/Ordnerdaten. Share-/Space-Rollen und POSIX-/Mount-/App-API-Regeln gelten unverändert. Ein bereits außerhalb von cloudOS erstelltes Duplikat kann nicht nachträglich zurückgerufen werden. UI und Realtime müssen die autoritativ gültigen Ablauf- und Widerrufsstände sichtbar machen.

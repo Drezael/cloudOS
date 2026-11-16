@@ -43,7 +43,7 @@ cloudOS ist **kein eigener Betriebssystemkernel**, sondern eine über den Browse
 
 - **Festgelegt:** serverbasierte Variante B, API-first, Go als Sprache des **cloudOS Core**, funktionale Vollständigkeit des Core, versionierte APIs, serverseitige Berechtigungsprüfung, Mehrbenutzerbetrieb, Container-Deployment sowie grundsätzliche Unterstützung von Rust-Anwendungen und durchgängige Themebarkeit aller cloudOS-eigenen UI-Elemente.
 - **Architekturvorgabe:** Core als einziger Systemfunktionsanbieter; austauschbare Go-Core-Dienste, die untereinander über definierte Ports, gRPC und Events kommunizieren; **unvertrauenswürdiger App-Code läuft niemals im privilegierten Core-Prozess**. Änderungen erfordern einen ADR.
-- **Vorgesehen / zu bestätigen:** Vue 3, Vite, PostgreSQL, gRPC, NATS JetStream, OIDC-Provider, Nginx, App-Sandbox-Origin und Wasmtime als Server-WASI-Runtime. Browser-WASM ist das priorisierte Rust-GUI-Profil, WASI die vorgesehene Server-Komponentenlaufzeit. Einzelne Technologien und Browserkompatibilität werden in Phase 0 verifiziert.
+- **Verbindlich (ADR-002):** Vue 3 und TypeScript für eigene Desktop-, Window-Host-, App-Host- und Core-Oberflächen; Vite bevorzugt. Das öffentliche App-SDK bleibt frameworkneutral. **Weitere technische Prüfprofile:** PostgreSQL, gRPC, NATS JetStream, Nginx, App-Sandbox-Origin und das optionale, erst nach MVP vorgesehene Wasmtime/WASI sind nach ihren fachlich führenden Konzepten und Testplänen zu validieren. Externe OIDC-Provider sind nicht verpflichtend für den MVP. Browserkompatibilität wird gemäß ADR-017/060 nachgewiesen.
 - **Teilweise technisch implementiert:** Deployment-Bootstrap mit Go-Startmodi, Service-Katalog, HTTP-Probes, Dockerfile und Kubernetes-/Compose-Manifeste. Die Fach-APIs, Fach-Datenmodelle, Authentifizierung, SSE-Live-Events und gRPC-Verträge bleiben Entwürfe und sind noch nicht implementiert.
 
 Bei Widersprüchen zwischen Dokumenten werden die Abweichung und ihre Auflösung in einem ADR dokumentiert; Änderungen dürfen nicht stillschweigend als implementiert gelten.
@@ -678,7 +678,7 @@ sequenceDiagram
     P-->>B: Allowed launch context
 ```
 
-Passwoerter werden mit sicheren Verifiern (Argon2id als Ziel) gespeichert, Sessions mit kryptografisch zufaelligen Kennungen. Das Login-Bootstrap ist eine begrenzte Ausnahme der App-first-Regel, keine zweite Desktop-App.
+Passwoerter werden verbindlich mit Argon2id gemaess ADR-140 gespeichert; Sessions erhalten kryptografisch zufaellige Kennungen. Das Login-Bootstrap ist eine begrenzte Ausnahme der App-first-Regel, keine zweite Desktop-App.
 
 ### 9.2 Optionaler externer LDAP-Connector
 
@@ -2671,3 +2671,15 @@ Lokale persistente Storage-Adapter sind fuer den Combined-Start zulaessig; mehre
 ### 29.4 Verbindliche Abnahmen
 
 Release- und K8s-Produktionsreife benoetigen erfolgreiche Durchgaengigkeitstests fuer TLS/mTLS, Rechteentzug, Publish-Ack, Reconciliation, Event-Gaps, Fileintegritaet, Ausfall von PostgreSQL/NATS/Storage, Recovery, Lastprofile und die manuelle Wartungsfreigabe. Eine vorhandene YAML-Datei oder ein Go-Bootstrap-Endpunkt ist kein Fachimplementierungsnachweis.
+
+## Architekturabgleich 16.11.2026 – Frontend, Laufzeiten, Qualität und Recovery
+
+**Verbindliche Beschlüsse:** [ADR-002, ADR-012, ADR-017](ADR_REGISTER.md) sowie [ADR-060, ADR-136](ADR_REGISTER.md) (vollständige Historie: [Architekturentscheidungen 16.11.2026](ARCHITECTURE_DECISIONS_2026-11-16.md)).
+
+- Die eigenen Desktop-, Window-Host-, App-Host- und Core-Oberflächen verwenden **Vue 3 und TypeScript**; **Vite** ist die bevorzugte Build-Umgebung. Die bereitgestellten SDK-/App-Schnittstellen bleiben frameworkneutral. Fremd-Apps dürfen unabhängig von Vue in anderen Frameworks oder Rust/WASM entwickelt werden.
+- Das Rust-Browserprofil liefert ein signiertes `wasm32-unknown-unknown`-Artefakt samt kompatiblem JS-Glue/Assets. Die Referenztoolchain ist Rust Stable, Cargo, wasm-bindgen und Vite; andere kompatible Builds sind zulässig. Für das Rust/WASM-MVP-Runtimeprofil gelten WebGPU, WASM-Multithreading und strikte Cross-Origin-Isolation einschließlich `COEP: require-corp` als Startvoraussetzungen; keine stille automatische Downgrade-Ausführung.
+- Chrome, Edge, Firefox und Safari werden in einer fähigkeitsbasierten Testmatrix geprüft. Das Desktop-Basisprofil und das anspruchsvolle WASM-Profil haben getrennte Freigabematrizen; eine nicht erfüllte Runtime-Voraussetzung wird transparent als inkompatibel gemeldet.
+- RPO, RTO, p95-/Ressourcen-/GPU-Budgets und Browseranforderungen sind mess- und dokumentationspflichtige Freigabekriterien. Ohne nachgewiesene Referenzmessung und fachliche Freigabe existieren **keine zugesagten Zahlenwerte**. Der MVP verpflichtet nicht zum HA-/Clusterbetrieb.
+- VFS-Backups koordinieren PostgreSQL-Metadaten, referenzierte Blobs, ACLs, Shares/Spaces und Schlüsselgenerationen in konsistenten, versionierten Restore-Punkten; Wiederherstellungen werden isoliert geprüft. Die Datenhoheit der einzelnen Core-Services bleibt unverändert.
+
+Ältere Darstellungen von Vue/Vite, Rust-Toolchains oder Performancewerten als lediglich unverbindliche Grundsatzvorschläge sind durch diese Beschlüsse überholt; konkrete Implementierungsstände bleiben gesondert nachzuweisen.

@@ -706,3 +706,11 @@ Eine Backend-Migration von lokalem Blob-Speicher zu gemeinsamem Storage erfolgt 
 ### 29.5 Deployment-Werkzeuge und Qualitaetsgates
 
 Kustomize ist Kubernetes-Referenz, Helm optional bei semantischer Gleichwertigkeit, Operator nur nach separater Sicherheitsfreigabe. Infrastruktur-Autoscaling darf keine Core-Softwareversion installieren oder den Wartungsstopp bei Core-Releases umgehen. Vor Produktionsbetrieb sind die konkreten SLOs, Pool-/Replika-Grenzen, CNI/NetworkPolicies, Secret-/TLS-Provider, JetStream-Consumer-Schemas, Storage-Vertraege und dokumentierte Failover-/Restore-Tests verbindlich zu verifizieren.
+
+## Architekturabgleich 16.11.2026 – Recovery- und Qualitätsgates
+
+[ADR-012](ADR_REGISTER.md) verlangt dokumentierte, messbare RPO-/RTO-, Browser-/Leistungs- und Ressourcenbudgets, aber **keine ungemessenen Zielzahlen und keine HA-Garantie im MVP**. Die Referenzumgebung und die p95-/p99-/Restore-Tests sind vor Abnahme konkret zu kalibrieren. Die Combined-Core-Standardtopologie bleibt verbindlich, Split/Kubernetes ist optional.
+
+[ADR-136](ADR_REGISTER.md) verlangt koordinierte **versionierte** Sicherungen von PostgreSQL, referenzierten VFS-Blobs, Metadaten, ACLs, Space-Referenzen und Schlüsselgenerationen. Full- und selektive Restores müssen isoliert geprüft und sicher freigegeben werden. Eine Sicherung gilt ohne nachgewiesene Metadaten-/Blob-/Schlüssel-Konsistenz nicht als erfolgreich. Storage-Backend-Wechsel folgen weiterhin dem separat entschiedenen Offline-Cutover aus [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+ADR-094 bleibt ausdrücklich `Proposed` und wird durch diese Qualitäts- und Recoveryfestlegungen **nicht** stillschweigend freigegeben.

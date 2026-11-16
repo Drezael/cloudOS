@@ -967,19 +967,19 @@ users:/              # Zweites Volume, Verwaltungssicht
 
 Der Dateisystementwurf wird nicht stillschweigend als bereits implementiert betrachtet. Bei technischen Konflikten wird ein ADR erstellt und explizit beschlossen.
 
-## 19. Offene Entscheidungen (ADR-Backlog)
+## 19. Fach-ADR-Backlog und inzwischen entschiedene Grundlagen (Stand 16.11.2026)
 
 | ADR-Kandidat | Thema | Vorläufige Empfehlung |
 |---|---|---|
 | VFS-ADR-001 | Volume-/Mount-Namensraum | Genau `system` und `users`; Benutzer-`/` = eigenes Home. |
 | VFS-ADR-002 | Administrator- und Supportrechte | System sichtbar, fremde Homes nur bei gesonderter Freigabe. |
 | VFS-ADR-003 | Physische Trennung | Zwei getrennte persistente Storage-Mounts. |
-| VFS-ADR-004 | Namen und Normalisierung | Unicode-Normalisierung, definierte Case-Policy, keine reservierten Namen. |
-| VFS-ADR-005 | Standard-Home-Struktur | Kleine feste Ordnerliste; Erweiterungen optional. |
+| VFS-ADR-004 | Namen und Normalisierung | **Beschlossen in ADR-131:** Unicode NFC und case-sensitive; reservierte Namen und Import-/Exportkonflikte kontrollieren. |
+| VFS-ADR-005 | Standard-Home-Struktur | **Beschlossen in ADR-132:** `/.desktop/`, zwei Desktop-JSON-Dateien, `Documents`, `Downloads`, `Pictures`, `Music`, `Videos`, `.config`, `.local`. |
 | VFS-ADR-006 | Home-Provisionierung | Idempotent über Benutzer-ID, mit Recovery. |
 | VFS-ADR-007 | Cross-Volume-Operationen | Keine direkten Moves; nur kontrollierter Import/Export. |
 | VFS-ADR-008 | Quotas und Papierkorb | Pro Home + global; Versionen sauber abrechnen. |
-| VFS-ADR-009 | Backup und Wiederherstellung | Getrennte Restores bei konsistenten Metadaten. |
+| VFS-ADR-009 | Backup und Wiederherstellung | **Beschlossen in ADR-136:** koordinierte versionierte Snapshots und isoliert validierte Voll-/Home-/Datei-Restores. |
 | VFS-ADR-010 | App-Dateizugriffe | Capability Broker + instanzgebundene Handles. |
 
 ## 20. Zusammenfassung der verbindlichen Regeln
@@ -1084,3 +1084,13 @@ Der physische Storage-Adapter des File Service kann ausgetauscht werden, ohne di
 ### 26.2 Fehler- und Sicherheitsverhalten
 
 Bei Teilfehlern bleibt die Migration geparkt; keine unvollstaendige Zielversion wird produktiv. Eine Rueckumstellung ist eine gesonderte pruefpflichtige Datenmigration, kein blindes DR-Failback. Geloeschte, widerrufene oder gesperrte Daten duerfen aus der Quelle nicht erneut aktiv werden. Die Metadaten-/Blob-Konsistenz wird nach den bestehenden Revisions-, Retention-, Verschluesselungs- und Owner-Regeln geprueft. Die zugehoerigen offenen technischen Parameter werden in [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md) aufgefuehrt.
+
+## Architekturabgleich 16.11.2026 – VFS-Namen, Home und Recovery
+
+**ADR-131 – Namen und Case-Policy:** Jeder Dateiname wird in **Unicode NFC** normalisiert. Innerhalb eines Elternverzeichnisses sind normalisierte Namen eindeutig; der VFS-Vergleich ist ausdrücklich **case-sensitive**, somit sind `Bericht.txt` und `bericht.txt` verschiedene Nodes. Alle Import- und Create-/Rename-/Move-Wege verwenden dieselbe serverseitige Prüfung. Plattformspezifische Konflikte (z. B. case-insensitive Dateisysteme beim Export) werden angezeigt und dürfen nicht stillschweigend überschrieben werden. Reservierte und missbräuchliche Namen bleiben gesondert ausgeschlossen.
+
+**ADR-132 – Standard-Home:** Das persönliche `/` enthält initial `/.desktop/`, `/.taskbar.json`, `/.desktop-layout.json`, `Documents/`, `Downloads/`, `Pictures/`, `Music/`, `Videos/`, `.config/` und `.local/`. Die Provisionierung ist idempotent nach stabiler Benutzer-ID. Vom Benutzer gelöschte normale Standardordner werden nicht bei jedem Login wiederhergestellt. Die reservierten Desktop-Ressourcen besitzen eine getrennte, autorisierte Recovery. `Shared with me` und `Spaces` bleiben virtuelle, berechtigungsabhängige Einbindungen; keine dritte Festplatte.
+
+**ADR-136 – Konsistente Sicherungsstände:** Koordinierte versionierte Backups umfassen PostgreSQL-/VFS-Metadaten, Datei-/Blockreferenzen, ACLs, Share-/Space-Bezüge und die benötigten Kryptoschlüsselgenerationen. Restore einer ganzen Instanz, eines Homes oder einer einzelnen Datei muss zuerst isoliert geprüft und danach kontrolliert aktiviert werden. System-Restore überschreibt nicht ungefragt Benutzerdaten und umgekehrt. Störungs- und Zeitbudgets folgen ADR-012, ohne ungemessene Zusagen.
+
+**ADR-059 – Migration:** `/Desktop/` wird **nicht** automatisch im MVP zu `/.desktop/` migriert. Bestehende Altdaten werden nicht gelöscht oder automatisch überschrieben; die bisher im Desktop-Konzept dargestellten Migrationsmechanismen sind ausschließlich künftige Optionen. Kanonischer Desktop bleibt `/.desktop/`.

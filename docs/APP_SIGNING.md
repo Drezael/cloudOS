@@ -21,7 +21,7 @@ Zusätzlich zu regulär aus einer cloudOS-Vertrauenskette signierten Apps sind *
 
 Die fachlichen Regeln gelten gleichermaßen für Web-, Rust/WebAssembly-, WASI- und später isolierte native Apps. Die Signatur ersetzt weder die Sandbox noch die Berechtigungs- und Sicherheitsprüfung.
 
-**Entscheidungsstatus:** X.509-basierte App-Signierung, prüfbare signierte Inhalte, App-ID-Bindung, Core-App-Schutz und manuelle Selbstsignaturfreigabe sind verbindliches Ziel. Konkretes JSON-Schema, Key-Usage-Profile, CA-Betrieb und Algorithmusdetails müssen vor Implementierung durch ADR-027 akzeptiert werden. Die nachfolgend gewaehlten Algorithmen bilden einen konkret testbaren v1-Vorschlag.
+**Entscheidungsstatus:** X.509-basierte App-Signierung, prüfbare signierte Inhalte, App-ID-Bindung, Core-App-Schutz und manuelle Selbstsignaturfreigabe sind verbindlich. **ADR-036 (16.11.2026) akzeptiert das kryptografische Profil v1** einschließlich SHA-512, RFC 8785/JCS und RSA-PSS/SHA-512 (MGF1, Salt 64 Bytes, RSA mindestens 3072 Bit). Das konkrete restliche Zertifikats-/Key-Usage-/CA-Betriebsprofil sowie Implementierungs- und Interoperabilitätsnachweise sind weiterhin getrennt auszuarbeiten.
 
 ## 2. Was von Nextcloud übernommen wird - und was nicht
 
@@ -106,7 +106,7 @@ Die Root-CA wird offline und mit gesondertem Schlüsselschutz verwaltet. Herausg
 | Zertifikatsfingerprint | SHA-256 über Zertifikat-DER für Anzeige und Audit |
 | Paketfingerprint | SHA-256 über die exakten `.cloudApp`-Archivbytes für Preview-/Install-Bindung |
 
-Dieses Profil ist nicht byte-kompatibel zur Signaturfunktion von Nextcloud. Die Nutzung von RSA-PSS statt einer pauschal formulierten `RSA/SHA-512`-Variante muss im eigenen Contract fixiert und mit Go-Testvektoren verifiziert werden. Algorithmen werden fest per Allowlist ausgewaehlt; keine Akzeptanz beliebiger ungetesteter `alg`-Angaben aus dem Paket.
+Dieses Profil ist nicht byte-kompatibel zur Signaturfunktion von Nextcloud. Die Nutzung von RSA-PSS/SHA-512 mit MGF1 und 64-Byte-Salt ist durch ADR-036 beschlossen; sie muss im konkreten Verifikationsvertrag mit positiven und negativen Go-Testvektoren nachgewiesen werden. Algorithmen werden fest per Allowlist ausgewaehlt; keine Akzeptanz beliebiger ungetesteter `alg`-Angaben aus dem Paket.
 
 ### 4.4 Schlüsselerstellung für Entwickler
 
@@ -548,3 +548,11 @@ Signierte `.cloudApp`-Bundles werden in der gemeinsamen Ablage `system:/apps/` v
 ## Architektur-Ergänzung v0.12 – zusätzliche Vertrauensgrenzen
 
 Eine kryptographisch gültige App-Signatur verleiht weder Geräterecht noch privilegiertes Logging und macht aus einem fremden UI einen Systemdialog. Die vertrauenswürdige Desktop-/Window-Shell prüft die `window.mode=framework`-Deklaration und isoliert den App-Inhalt; die Device-API-Prüfung bindet Paketdigest, Instanz, Benutzer und Browserpermission. `Logs.cloudApp` und `AccountSecurity.cloudApp` werden ausschließlich durch die signierte Core-Baseline aktualisiert. Neue oder erweiterte Geräteberechtigungen erfordern bei jedem Update eine erneute administrative Bewertung.
+
+## Architekturabgleich 16.11.2026 – Kryptographisches Signaturprofil v1 (ADR-036)
+
+**Fachlich entschieden:** [ADR-036](ADR_REGISTER.md), Option C. Das Signaturprofil **v1** verpflichtet die vollständige Dateiliste auf **SHA-512**, die kanonische JSON-Serialisierung auf **RFC 8785/JCS** und die Paketindexsignatur auf **RSA-PSS mit SHA-512, MGF1, 64-Byte-Salt und RSA-Schlüsseln mit mindestens 3072 Bit**. Die zugehörige Vertrauenskette verwendet **X.509** und eine nachprüfbare Publisher-/App-ID-Bindung.
+
+Der Prüfer arbeitet auf exakt definierten und reproduzierbaren Bytes, behandelt Manifest, signierte API-/Geräte-Allowlists und Dateiliste zusammen und lehnt fehlende, zusätzliche, nicht berücksichtigte oder widersprüchlich serialisierte Paketbestandteile sowie ungültige, abgelaufene und widerrufene Zertifikate ab. Positive und negative Testvektoren müssen den Vertrag vor einer Produktfreigabe bestätigen.
+
+Frühere Stellen, die JCS/RSA-PSS-Parameter oder den Signaturalgorithmus als **ungewählten Vorschlag** bezeichnen, sind hinsichtlich dieser fachlichen Entscheidung überholt. Ein zusätzlicher Algorithmus oder ein anderer Signaturmodus darf nur nach **ausdrücklicher Freigabe und Versionierung** eingeführt werden. Der Betrieb privater Schlüssel, Zertifikatsrotation und konkrete Interoperabilitätstests bleiben separat abnahmepflichtig. Eine erfolgreiche Signatur ersetzt niemals App-API- oder Gerätefreigaben.

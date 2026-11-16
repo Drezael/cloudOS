@@ -3,14 +3,16 @@
 > **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
 
 > **Datei:** `docs/ADR_REGISTER.md`  
-> **Dokumentversion:** 1.1 – quellengestützte Erstkonsolidierung  
-> **Stand:** 15.11.2026  
+> **Dokumentversion:** 1.2 – Abgleich der ausdrücklich beschlossenen ADRs vom 16.11.2026  
+> **Stand:** 16.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), geprüfter `main`-Dokumentenbestand  
 > **Status:** Verbindliches Organisations- und Entscheidungsregister; technische ADR-Statusangaben beschreiben **fachliche Architekturfestlegungen**, keine implementierte Software.  
 > **Umfang:** 20 geprüfte Ausgangsdokumente, 121 ältere globale ADR-Kandidaten, 9 unbelegte reservierte Nummern, 41 ältere Fach-ADR-Aliase, 51 neu zugeordnete globale ADRs, 8 spaeter bestaetigte Infrastruktur-ADRs, 74 abgeglichene Entscheidungen aus `API_CONTRACTS.md`.  
 > **Änderungshoheit:** Neue fachliche Entscheidungen und Änderungen akzeptierter Entscheidungen benötigen ausdrücklich die Zustimmung des Projektverantwortlichen; rein redaktionelle Updates nicht.
 
 **Hinweis zur Nummernvergabe:** Von den 130 älteren numerischen IDs sind 121 belegt und `ADR-042` bis `ADR-050` nicht zugeordnet. Dieses Register erhält ihre Historie und führt 51 zusätzliche IDs (`ADR-131` bis `ADR-181`) aus eindeutig unterscheidbaren Fachthemen und den API-Entscheidungen ein. Die ID-Vergabe ist Dokumentationsorganisation, **keine neue technische Architekturentscheidung**. Alle 41 fachlichen Altkennungen bleiben über Aliaszeilen auffindbar; einige Aliase verweisen auf mehrere bereits existierende ADRs.
+
+> **Beschlussabgleich vom 16.11.2026:** Dreizehn zuvor als `Proposed` geführte ADRs wurden vom Projektverantwortlichen ausdrücklich entschieden (ADR-002, -012, -017, -036, -059, -060, -131, -132, -136, -138, -140, -142, -150). Die vollständigen Entscheidungsnachweise sind in [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md) konsolidiert. Die verbleibenden `Proposed`-Themen werden durch diesen Nachtrag nicht automatisch freigegeben. ADR-094 bleibt ausdrücklich unverändert offen und wird in dieser Runde nicht erneut zur Entscheidung gestellt. `Accepted` bedeutet nicht implementiert.
 
 ## 1. Zweck, Geltungsbereich und normativer Rahmen
 
@@ -72,6 +74,7 @@ Eine jüngere **ungenehmigte** Textänderung allein darf einen `Accepted`-ADR ni
 | [SHARING_SPACES.md](SHARING_SPACES.md) | Interne Freigaben/Spaces und ADR-COL |
 | [PUSH_REALTIME.md](PUSH_REALTIME.md) | SSE/Outbox/Replay und ADR-073–082 |
 | [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md) | IAM, lokale Accounts und IAM-ADRs |
+| [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md) | Settings-Host und geschützte MVP-Sub-Apps (ADR-142) |
 | [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md) | Passkey/SSH/Step-up und ADR-099–103 |
 | [LOGGING_OBSERVABILITY.md](LOGGING_OBSERVABILITY.md) | Diagnostik/Audit/Logs und ADR-104–108 |
 | [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md) | Window Host und ADR-109–113 |
@@ -82,6 +85,7 @@ Eine jüngere **ungenehmigte** Textänderung allein darf einen `Accepted`-ADR ni
 | [WALLPAPER_ENGINE.md](WALLPAPER_ENGINE.md) | Wallpaper und ADR-125–130 |
 | [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md) | LDAP/OIDC-Konnektoren und ADR-ID |
 | [API_CONTRACTS.md](API_CONTRACTS.md) | 74 verbindliche API-/Sync-/Storage-Entscheidungen |
+| [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md) | Ausdrückliche Freigaben der 13 ADRs vom 16.11.2026 |
 
 ### 2.2 Fachgrenzen bleiben erhalten
 
@@ -102,8 +106,8 @@ Eine jüngere **ungenehmigte** Textänderung allein darf einen `Accepted`-ADR ni
 | Zusätzlich eindeutig konsolidierte Themen (`131–181`) | 51 |
 | Neue am 15.11.2026 entschiedene Infrastruktur-ADRs (`182-189`) | 8 |
 | **Erfasste globale Architektur-ADRs** | **180** |
-| Davon `Accepted` (fachlich) | 152 |
-| Davon `Proposed` | 28 |
+| Davon `Accepted` (fachlich) | 165 |
+| Davon `Proposed` | 15 |
 | Davon `Superseded` als einzelne ADR-ID | 0 |
 | Beibehaltende Legacy-Fachaliase | 41 |
 | Aus `API_CONTRACTS.md` verlinkte bestätigte Fragen | 74 |
@@ -117,7 +121,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | ADR | Status | Gegenstand |
 |---|---|---|
 | `001` | `Accepted` | Core-Service-Ownership und logische Dienstgrenzen |
-| `002` | `Proposed` | Vue 3/Vite und Desktop-Host-Rendering |
+| `002` | `Accepted` | Vue 3/Vite und Desktop-Host-Rendering |
 | `003` | `Accepted` | Lokale Identität, BFF-Sitzungen und optionale externe IdPs |
 | `004` | `Accepted` | Dienstidentität und interne Ende-zu-Ende-Autorisierung |
 | `005` | `Accepted` | PostgreSQL-Schema-Ownership und Migrationen |
@@ -127,12 +131,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `009` | `Accepted` | VFS-IDs, Zugriffsgrenzen und File-Capabilities |
 | `010` | `Accepted` | Desktop- und Mehrgeräte-Synchronisierung |
 | `011` | `Accepted` | App-Origin-Trennung und Browser-Sandbox |
-| `012` | `Proposed` | Backup-RPO/RTO und Browser-/Leistungsbudgets |
+| `012` | `Accepted` | Backup-RPO/RTO und Browser-/Leistungsbudgets |
 | `013` | `Proposed` | Externe API-Clients und OAuth-/Grant-Modell |
 | `014` | `Accepted` | App-Runtime-Profile |
 | `015` | `Accepted` | App-Paketvertrauen, Manifest und Update-Modell |
 | `016` | `Accepted` | Capability Broker, Dateiauswahl und Consent |
-| `017` | `Proposed` | Rust-Web-Toolchain und GPU-Kompatibilität |
+| `017` | `Accepted` | Rust-Web-Toolchain und GPU-Kompatibilität |
 | `018` | `Proposed` | Wasmtime/WASI-Komponenten und Host-Funktionen |
 | `019` | `Accepted` | Isolierte Worker und Native-Runtimes |
 | `020` | `Proposed` | ArtCraft als Integrations-PoC |
@@ -151,7 +155,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `033` | `Accepted` | Core-App-Theming und vertrauenswürdige Systemdialoge |
 | `034` | `Accepted` | WASM-/WASI-/Native-Paketvarianten |
 | `035` | `Accepted` | Selbstsignierte App-Pakete und Risikoakzeptanz |
-| `036` | `Proposed` | Signaturalgorithmen und kanonische Serialisierung |
+| `036` | `Accepted` | Signaturalgorithmen und kanonische Serialisierung |
 | `037` | `Accepted` | Signierte App-API-Allowlist und zentraler Operationenkatalog |
 | `038` | `Accepted` | Enforcement an allen App- und Servicegrenzen |
 | `039` | `Accepted` | API-Risikoklassen und verpflichtender Installationsdialog |
@@ -165,8 +169,8 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `056` | `Accepted` | Taskbar an vier Bildschirmkanten |
 | `057` | `Accepted` | Signierte Dateisystem-Operationen von Core-Apps |
 | `058` | `Accepted` | Taskbar-Einstellungen als eigener geschützter App-Kontext |
-| `059` | `Proposed` | Migration alter Desktop-Home-Verzeichnisse |
-| `060` | `Proposed` | Desktop-Performance, Browser und Barrierefreiheit |
+| `059` | `Accepted` | Migration alter Desktop-Home-Verzeichnisse |
+| `060` | `Accepted` | Desktop-Performance, Browser und Barrierefreiheit |
 | `061` | `Accepted` | `system:/apps/` als kanonischer App-Paketspeicher |
 | `062` | `Accepted` | `Apps.cloudApp` als reguläre Installationsoberfläche |
 | `063` | `Accepted` | Globale App-Installation und Admin-Default |
@@ -237,18 +241,18 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `128` | `Accepted` | Worker-/OffscreenCanvas-Strategie mit Fallback |
 | `129` | `Accepted` | Wallpaper-Leistungsbudget und Reduced Motion |
 | `130` | `Accepted` | Wallpaper-Änderungen per SSE |
-| `131` | `Proposed` | VFS-Namen, Unicode-Normalisierung und Case-Policy |
-| `132` | `Proposed` | Standardstruktur neu angelegter Home-Verzeichnisse |
+| `131` | `Accepted` | VFS-Namen, Unicode-Normalisierung und Case-Policy |
+| `132` | `Accepted` | Standardstruktur neu angelegter Home-Verzeichnisse |
 | `133` | `Accepted` | Idempotente Home-Bereitstellung und Konto-Lifecycle |
 | `134` | `Accepted` | Cross-Volume-Kopie und kontrollierter Import/Export |
 | `135` | `Accepted` | VFS-Quotas, Versionen und Papierkorb |
-| `136` | `Proposed` | VFS-Backup-Konsistenz und selektives Restore |
+| `136` | `Accepted` | VFS-Backup-Konsistenz und selektives Restore |
 | `137` | `Accepted` | Lokaler LDAPv3-Protokollumfang und TLS |
-| `138` | `Proposed` | UID-/GID-Nummernkreise und Wiederverwendung |
+| `138` | `Accepted` | UID-/GID-Nummernkreise und Wiederverwendung |
 | `139` | `Accepted` | Kanonisches Benutzerkonto- und Gruppenschema |
-| `140` | `Proposed` | Passwort-Hashing, Passwortpolitik und Recovery |
+| `140` | `Accepted` | Passwort-Hashing, Passwortpolitik und Recovery |
 | `141` | `Accepted` | Systemrollen getrennt von POSIX-Gruppen |
-| `142` | `Proposed` | Settings-Sub-Apps und eigener Berechtigungskontext |
+| `142` | `Accepted` | Settings-Sub-Apps und eigener Berechtigungskontext |
 | `143` | `Proposed` | Erweiterte POSIX-ACLs und Named Grants |
 | `144` | `Accepted` | Interne Share-Rollen und Revocation |
 | `145` | `Accepted` | Share-Mounts im Benutzer-Home |
@@ -256,7 +260,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `147` | `Accepted` | Space-Root auf dem `users`-Volume |
 | `148` | `Accepted` | POSIX-DAC und zusätzliche Share-/Space-Grants |
 | `149` | `Accepted` | Gruppenvererbung und unmittelbarer Membership-Entzug |
-| `150` | `Proposed` | Share-Expiry, Ablehnung und Weiterfreigabe |
+| `150` | `Accepted` | Share-Expiry, Ablehnung und Weiterfreigabe |
 | `151` | `Accepted` | Space-Lifecycle, Archivierung, Papierkorb und Quotas |
 | `152` | `Accepted` | Cross-Scope-Move und Space-Konflikte |
 | `153` | `Accepted` | Externe Identity-Provenienz und Attributautorität |
@@ -314,10 +318,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-002 – Vue 3/Vite und Desktop-Host-Rendering
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Vue 3/Vite ist als Frontend-Ansatz dokumentiert, aber eine abschließende Framework- und Rendering-Freigabe ist nicht quellenfest belegt.  
-**Begründung und Folgen:** Konkrete Browser-/Build-/App-Host-Integration erst nach gesondertem Architekturentscheid verbindlich.  
-**Quellen:** [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Vue 3 mit TypeScript ist für Desktop, Window Host, App Host und cloudOS-eigene Oberflächen verbindlich; Vite ist das bevorzugte Build-Werkzeug. Das öffentliche App-SDK und der signierte App-Vertrag bleiben frameworkneutral. Drittanbieter können etwa React, Svelte oder Rust/WASM verwenden.  
+**Begründung und Folgen:** Die Frameworkwahl betrifft nur eigene Frontend-Implementierungen und darf Drittanbieter nicht an Vue binden. Browser- und Window-Host-Sicherheitsgrenzen bleiben unabhängig davon verpflichtend.  
+**Quellen:** [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-003 – Lokale Identität, BFF-Sitzungen und optionale externe IdPs
 
@@ -384,10 +388,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-012 – Backup-RPO/RTO und Browser-/Leistungsbudgets
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Backup-Recovery-Ziele, verbindliche Browserversionen sowie Speicher- und GPU-Budgets sind als Entscheidungsbedarf identifiziert.  
-**Begründung und Folgen:** Kein konkreter Zahlenwert darf ohne Messung und Freigabe als zugesagt gelten.  
-**Quellen:** [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [CONCEPT.md](CONCEPT.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Für den MVP werden messbare RPO-/RTO-, Browser- und Leistungsziele sowie eine reproduzierbare Referenzumgebung verbindlich definiert, gemessen, dokumentiert und regelmäßig geprüft. Konkrete Grenzwerte werden erst nach Messung und ausdrücklicher Freigabe als zugesagt behandelt. Eine Hochverfügbarkeitsgarantie ist nicht Bestandteil des MVP.  
+**Begründung und Folgen:** Recovery- und Performancebudgets sind Release-Abnahmekriterien, aber es werden keine ungemessenen SLA-Zahlen oder eine Pflicht zu Cluster-/HA-Betrieb vorweggenommen. Browserprofile werden mit ADR-060 abgestimmt.  
+**Quellen:** [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [CONCEPT.md](CONCEPT.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-013 – Externe API-Clients und OAuth-/Grant-Modell
 
@@ -419,10 +423,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-017 – Rust-Web-Toolchain und GPU-Kompatibilität
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Rust/WASM ist als Runtime vorgesehen; konkrete Toolchain-, Build-, WebGPU- und Thread-Kompatibilitätsprofile sind noch zu fixieren.  
-**Begründung und Folgen:** Eine Entscheidung darf nicht aus technischen Beispielen als produktive Browser-Zusage abgeleitet werden.  
-**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Browserfähige Rust-Apps liefern ein signiertes `web-wasm`-Paket mit `wasm32-unknown-unknown`-Artefakt, JS-Glue und Assets. Rust Stable/Cargo/wasm-bindgen/Vite ist die Referenztoolchain; weitere nachweislich konforme Toolchains bleiben zulässig. Für das Rust/WASM-MVP-Profil sind WebGPU und WebAssembly-Multithreading Pflicht, ohne automatischen WebGL-/Single-Thread-Fallback. Strikte Cross-Origin-Isolation mit COEP `require-corp`, abgestimmten COOP/CORP/CORS/CSP/Permissions-Policies und isolierter App-Origin wird vorausgesetzt.  
+**Begründung und Folgen:** Fehlende WebGPU-/Thread-Fähigkeiten oder unvollständige Isolation sperren den Start dieses Runtime-Profils mit klarer Inkompatibilitätsmeldung. Reproduzierbare Builds und Browser-Integrationstests sind Teil der Freigabe; die öffentliche API bleibt toolchainneutral.  
+**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-018 – Wasmtime/WASI-Komponenten und Host-Funktionen
 
@@ -552,10 +556,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-036 – Signaturalgorithmen und kanonische Serialisierung
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** JCS, SHA-512, RSA-PSS und X.509 sind im Kryptografieprofil vorgeschlagen; endgültige Byte-/Zertifikatsprofile sind noch freizugeben.  
-**Begründung und Folgen:** Vor Implementierung sind Interoperabilitäts- und Negativtestvektoren erforderlich.  
-**Quellen:** [APP_SIGNING.md](APP_SIGNING.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Das Signaturprofil v1 verwendet SHA-512 für die vollständige Dateiliste, RFC 8785/JCS für kanonisches JSON, RSA-PSS mit SHA-512 und MGF1, einer Salt-Länge von 64 Bytes und RSA-Schlüsseln mit mindestens 3072 Bit sowie X.509 mit überprüfter App-ID-/Publisher-Bindung. Signierte Berechtigungen und Paketdateien werden vollständig und strikt geprüft; mehrdeutige Serialisierung, zusätzliche/unbekannte unsignierte Bytes, ungültige oder widerrufene Zertifikate sind abzulehnen.  
+**Begründung und Folgen:** Die Prüfung erfolgt gegen exakt definierte Bytes und negative Interoperabilitätstests. Neue Algorithmen/Signaturprofile dürfen nur ausdrücklich freigegeben und versioniert eingeführt werden; v1 bleibt bis dahin verbindlich.  
+**Quellen:** [APP_SIGNING.md](APP_SIGNING.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-037 – Signierte App-API-Allowlist und zentraler Operationenkatalog
 
@@ -654,17 +658,17 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-059 – Migration alter Desktop-Home-Verzeichnisse
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Alte Desktop-Ablagen müssen konsistent nach `/.desktop/` und zugehörigen Layoutdateien migriert werden.  
-**Begründung und Folgen:** Konkrete Migrations- und Konfliktbehandlung ist noch nicht abschließend gewählt.  
-**Quellen:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Im MVP existiert ausschließlich `/.desktop/` als kanonische Desktop-Ablage. Neue Homes folgen ADR-132. Es erfolgt keine automatische Migration alter `/Desktop/`-Strukturen. Bereits vorhandene Altdaten bleiben unverändert und werden weder automatisch gelöscht noch überschrieben; ein kontrollierter Migrationsworkflow ist nach dem MVP gesondert zu spezifizieren.  
+**Begründung und Folgen:** Die Migrationsoptionen in älteren Konzepten sind Zukunftsentwürfe und keine MVP-Funktion. Veraltete Beispiele dürfen keinen zweiten Desktop-Root etablieren.  
+**Quellen:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-060 – Desktop-Performance, Browser und Barrierefreiheit
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Eine verbindliche Browser-/Accessibility-/Performance-Testmatrix muss vor Releases definiert werden.  
-**Begründung und Folgen:** Es liegen Anforderungen, aber nicht alle präzisen Akzeptanzgrenzen vor.  
-**Quellen:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Für Chrome, Edge, Firefox und Safari gilt eine verbindliche, fähigkeitsbasierte Browser-, Accessibility- und Performance-Testmatrix. Desktop-Kernfunktionen und das anspruchsvolle Rust/WebGPU/WASM-Profil werden getrennt bewertet. Fehlende Browser-Features werden sichtbar als nicht unterstützt gemeldet; die WebGPU-/WASM-Thread-Anforderungen aus ADR-017 werden nicht stillschweigend abgeschwächt.  
+**Begründung und Folgen:** Barrierefreiheit und reproduzierbare Performanceprüfungen sind Release-Gates. Konkrete Browserversionen, Hardwareprofile und Grenzwerte werden nach Prüfung und Messung freigegeben, statt pauschale Parität zu versprechen.  
+**Quellen:** [DESKTOP_ENVIRONMENT.md](DESKTOP_ENVIRONMENT.md), [WINDOW_FRAMEWORK.md](WINDOW_FRAMEWORK.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 ### 5.3 App-Installation und Store (ADR-061–072)
 
@@ -1178,17 +1182,17 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-131 – VFS-Namen, Unicode-Normalisierung und Case-Policy
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Pfadauflösung muss Unicode-Normalisierung, Vergleichsregeln und reservierte Namen einheitlich definieren.  
-**Begründung und Folgen:** Die konkrete Namens-/Case-Policy ist im VFS-Backlog noch als Präzisierung offen.  
-**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** VFS-Namen werden in Unicode NFC kanonisiert und innerhalb eines Verzeichnisses anhand des normalisierten Namens eindeutig geprüft. Vergleiche bleiben case-sensitive (`Bericht.txt` und `bericht.txt` sind verschieden). Server-Validatoren verhindern reservierte Namen, normalisierungsbedingte Kollisionen und unerlaubte Pfadtricks.  
+**Begründung und Folgen:** Import, Export und Synchronisation auf abweichend normalisierenden oder case-insensitiven Plattformen müssen Konflikte erkennbar und ohne stillschweigendes Überschreiben behandeln.  
+**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-132 – Standardstruktur neu angelegter Home-Verzeichnisse
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Neue Benutzer erhalten eine konsistente persönliche Basisordnerstruktur.  
-**Begründung und Folgen:** Die genaue verpflichtende Ordnerliste und deren Migration sind noch nicht abschließend freigegeben.  
-**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Ein neues Home enthält die reservierten Desktop-Ressourcen `/.desktop/`, `/.taskbar.json`, `/.desktop-layout.json` und die Standardordner `Documents/`, `Downloads/`, `Pictures/`, `Music/`, `Videos/`, `.config/`, `.local/`. Freigaben und Spaces werden nur als autorisierte virtuelle Einbindungen bereitgestellt.  
+**Begründung und Folgen:** Provisionierung ist über stabile Benutzer-IDs idempotent. Vom Benutzer später entfernte reguläre Standardordner werden beim Login nicht ungefragt neu erzeugt; geschützte Desktop-Ressourcen besitzen separate Reparatur- und Recovery-Regeln.  
+**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-133 – Idempotente Home-Bereitstellung und Konto-Lifecycle
 
@@ -1213,10 +1217,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-136 – VFS-Backup-Konsistenz und selektives Restore
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Restore muss VFS-Metadaten, Blob-/Blockspeicher, ACLs, Space-Referenzen und kryptografische Schlüssel konsistent behandeln.  
-**Begründung und Folgen:** Wiederherstellungszeitpunkte, Quorum und selektiver Restore-Fachvertrag bleiben offen.  
-**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [API_CONTRACTS.md](API_CONTRACTS.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Koordinierte versionierte Snapshots verknüpfen PostgreSQL-Metadaten, File-Nodes, ACLs, Space-Referenzen, referenzierte unveränderliche Blobs sowie zugehörige Schlüsselversionen zu einem konsistenten Sicherungsstand. Vollständige Instanz-, Home- und Einzeldatei-Restores sind vorgesehen; Wiederherstellung und Integritätsprüfung erfolgen zunächst isoliert vor kontrollierter Freigabe.  
+**Begründung und Folgen:** Backups und Restores dürfen keine aktuellen fremden Daten oder Systemrichtlinien ungewollt überschreiben und sollen den laufenden Betrieb möglichst wenig beeinträchtigen. Konkrete RPO-/RTO-Werte unterliegen ADR-012; kontinuierliche Point-in-Time-Recovery wird nicht allein durch diese ADR zugesagt.  
+**Quellen:** [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md), [API_CONTRACTS.md](API_CONTRACTS.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-137 – Lokaler LDAPv3-Protokollumfang und TLS
 
@@ -1227,10 +1231,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-138 – UID-/GID-Nummernkreise und Wiederverwendung
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** UID/GID müssen pro cloudOS-Installation stabil und eindeutig zugeordnet werden.  
-**Begründung und Folgen:** Exakte Reservierungsbereiche, Reuse-Sperrfristen und externer UID-Import sind noch zu entscheiden.  
-**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Virtuelle POSIX-UID und -GID werden zentral, eindeutig und transaktional vergeben, unabhängig voneinander in getrennten Nummernräumen. `0` ist reserviert; `1–9999` sind für interne Systemidentitäten vorgesehen; reguläre Benutzer und Gruppen erhalten Werte von `10000` bis `2147483647`. Stabile UUIDs bleiben autoritativ. Einmal vergebene UID-/GID-Werte werden niemals erneut vergeben, auch nicht nach Löschung. Private Primärgruppen werden unterstützt.  
+**Begründung und Folgen:** Provisionierung, Parallelität, Backup und Restore müssen Zuordnungen und Tombstones erhalten sowie Nummernkonflikte sicher ablehnen. Externe UID/GID-Importe werden durch ADR-156 separat entschieden und dürfen die lokale Eindeutigkeit nicht aufweichen.  
+**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-139 – Kanonisches Benutzerkonto- und Gruppenschema
 
@@ -1241,10 +1245,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-140 – Passwort-Hashing, Passwortpolitik und Recovery
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Passwörter sind mit geeignetem speicherhartem Verfahren zu schützen; Login-Rate-Limits und sichere Kontowiederherstellung sind nötig.  
-**Begründung und Folgen:** Endgültige KDF-Parameter, Recovery-Lifetime und Passwortpolitik sind noch nicht abgestimmt.  
-**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Passwörter werden mit Argon2id gehasht. Einstiegsparameter sind 19 MiB Speicher, zwei Durchläufe und Parallelität 1, mit messungs-/risikobasierter Nachkalibrierung. Mindestlänge 15 Zeichen, kein erzwungener regelmäßiger Passwortwechsel, Prüfung auf kompromittierte Passwörter und risikobasierte Rate-Limits. Self-Service- und administrative Wiederherstellung sind kontrolliert, auditierbar und dürfen kein universelles Masterpasswort benutzen.  
+**Begründung und Folgen:** Schlüssel-/Hashmaterial wird nie als Klartext preisgegeben; Recovery darf keinen Authentifizierungs- oder Rechte-Bypass erzeugen. Recovery-Token-Laufzeiten, Bindungen und genaue Re-Hash-Gates werden im Sicherheitsvertrag mit Testnachweisen präzisiert, nicht erfunden.  
+**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-141 – Systemrollen getrennt von POSIX-Gruppen
 
@@ -1255,10 +1259,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-142 – Settings-Sub-Apps und eigener Berechtigungskontext
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Systemeinstellungen sollen als geschützte App-Funktionen mit eigenen API-/Fensterrechten organisiert werden.  
-**Begründung und Folgen:** Die genaue Zerlegung in Sub-Apps und Manifest-/Deep-Link-Contracts gehört in `SETTINGS_SYSTEM.md`.  
-**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Für den MVP dient `Settings.cloudApp` als zentrale Navigation. `UserManagement.cloudApp` und `GroupManagement.cloudApp` werden als getrennte signierte Pflicht-Core-Apps ausgeliefert. `PermissionManagement.cloudApp` wird auf später verschoben; zwingende administrative Berechtigungsoperationen bleiben über gesondert geschützte Core-Verträge kontrollierbar. Deep Links und Fenster-/Startverträge sind versioniert. Jede Sub-App verfügt über eigene Identität und signierte API-Allowlist.  
+**Begründung und Folgen:** Die Settings-Eltern-App erbt niemals Child-App-Rechte. Eingebettete Fenster, Deep Links und Navigation dürfen App-Kontext, Session, Signatur- oder API-Genehmigung nicht umgehen.  
+**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-143 – Erweiterte POSIX-ACLs und Named Grants
 
@@ -1311,10 +1315,10 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-150 – Share-Expiry, Ablehnung und Weiterfreigabe
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Freigaben können Ablaufzeiten, Empfängerreaktionen und Einschränkungen für Weiterfreigaben benötigen.  
-**Begründung und Folgen:** Die genaue Kombination von Decline, Re-Share, Gruppenvererbung und Retention wird erst im Sharing-Vertrag fixiert.  
-**Quellen:** [SHARING_SPACES.md](SHARING_SPACES.md).
+**Status:** `Accepted`  
+**Entscheidung / Stand:** Interne Shares können eine optionale Ablaufzeit mit Datum und Uhrzeit erhalten. Nach Ablauf verweigert der Go-Core weitere Zugriffe automatisch und serverseitig, auch über alte Mount-Referenzen, Cache oder Event-Replay. Ersteller und berechtigte Akteure können Freigaben widerrufen, Empfänger sie ablehnen. Weiterfreigabe durch Empfänger bleibt im MVP verboten.  
+**Begründung und Folgen:** Der Ablauf oder Widerruf eines Share-Grants löscht keine Originaldateien. Der Status muss konsistent über alle Core-Replikate geprüft werden; bereits extern kopierte Daten sind naturgemäß nicht rückholbar.  
+**Quellen:** [SHARING_SPACES.md](SHARING_SPACES.md), [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md)
 
 #### ADR-151 – Space-Lifecycle, Archivierung, Papierkorb und Quotas
 

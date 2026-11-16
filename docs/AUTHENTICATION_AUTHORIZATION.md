@@ -51,7 +51,7 @@ Die hier beschriebenen Benutzer sind zunächst **cloudOS-Benutzer**, keine autom
 - Exakte Go-Bibliothek für LDAPv3-BER, Filter und Schema-Verarbeitung.
 - Ob der LDAP-Adapter beim ersten MVP bereits als Netzwerklistener aktiviert wird oder zunächst nur im internen Netzwerk für Kompatibilitätstests erreichbar ist.
 - Benutzername- und Gruppenname-Zeichensatz; empfohlen ist für die erste Version ein gut eingeschränkter POSIX-kompatibler Zeichensatz.
-- Standard-UID/GID-Bereiche und deren Mehrinstanz-/Importstrategie.
+- UID/GID-Nummernkreise und Nichtwiederverwendung sind mit ADR-138 entschieden; **offen** bleibt ausschließlich die separate externe UID-/GID-Importstrategie (ADR-156).
 - Erweiterte POSIX-ACLs als nächste Ausbaustufe nach den klassischen Modusbits.
 - Genaues MFA-Verfahren und mögliche spätere externe OIDC-/LDAP-Föderation.
 
@@ -239,7 +239,7 @@ Loginname, Anzeigename, E-Mail und LDAP-DN sind **keine** Eigentümer-IDs für V
 ### 6.2 UID/GID-Vergabe
 
 - UID und GID werden vom Directory Service **transaktional**, atomar und installationsweit eindeutig vergeben.
-- Vorschlag: UID/GID `0–9999` für reservierte interne Zwecke; normale Benutzer und Gruppen ab `10000`. Die konkrete Aufteilung wird als ADR festgelegt.
+- Verbindlich nach ADR-138: UID/GID `0` reserviert, `1–9999` interne Kennungen, `10000–2147483647` reguläre Kennungen. Vergabe zentral/transaktional, **niemals Wiederverwendung**; UUIDs bleiben autoritativ.
 - UID 0 und GID 0 sind reserviert. Daraus entsteht **kein** echter Host-Root-Account.
 - UIDs und GIDs werden nach Löschung **nicht automatisch neu vergeben**; Wiederverwendung erfordert eine kontrollierte Retention-/Migration-Policy.
 - Jede angelegte Person bekommt im MVP standardmäßig eine **private Primärgruppe** mit zugehöriger GID (User-Private-Group-Prinzip).
@@ -339,7 +339,7 @@ Der Ablauf ist ein **Entwurf**. Home-Provisionierung darf keine versteckte Privi
 ### 8.2 Speicherung von Passwörtern
 
 - Passwortverifier werden ausschließlich im **Auth-Credential-Store** geführt, nie im allgemeinen Directory-Attributspeicher, in App-Paketen oder auf dem durchsuchbaren Systemvolume.
-- Empfehlung: **Argon2id** mit individuellem kryptografisch zufälligem Salt und migrationsfähigen Kostenparametern; bei Produktionsübernahme anhand OWASP-Empfehlungen und eigener Benchmarks kalibrieren.
+- Verbindlich nach ADR-140: **Argon2id** mit individuellem kryptografisch zufälligem Salt; Anfangsparameter 19 MiB Speicher, 2 Iterationen und Parallelität 1. Die migrationsfähigen Kostenparameter sind anhand von Sicherheitsvorgaben und Benchmarks nachzukalibrieren. Mindestlänge 15 Zeichen, kompromittierte Passwörter sperren und keine erzwungene periodische Rotation.
 - Die Kostenparameter werden pro Verifier gespeichert; höhere Parameter erlauben späteres Rehashing beim Login.
 - Optionaler Server-Pepper liegt außerhalb des Datenbankbackups in einem separaten Secret-Store.
 - Kein Klartext-Passwort, kein reversibel verschlüsseltes Passwort, kein MD5/SHA-256 als einfacher Passwort-Hash.
@@ -1179,3 +1179,13 @@ Runtime-Zugangsdaten fuer PostgreSQL, JetStream, Service-Zertifikate und externe
 Nur autorisierte Edge-Proxys duerfen wirksame Forwarded-/Host-/Client-IP-Informationen vermitteln. Client-Header werden nicht als Identitaets- oder Privilegnachweis akzeptiert. Produktionszugriffe erfordern HTTPS und sichere Cookies; App-Origins bleiben strikt getrennt. Im Split-Modus sind interne Dienstverbindungen ueber mTLS, Workload Identity und minimale Service-Capabilities zu schuetzen. Der Proxy allein ist keine zweite unkontrollierte Autorisierungsquelle. Bei Core-Wartung wird der BFF-Zugang nicht unsicher ersetzt: APIs liefern definierte Nichtverfuegbarkeit und die Wartungsseite enthaelt keine privilegierten App-/Sitzungsdaten.
 
 Fachlich fuehrend: [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md).
+
+## Architekturabgleich 16.11.2026 – UID/GID, Passwort und Settings-Verwaltung
+
+**ADR-138 (Option C):** Die autoritative lokale Identität ist die stabile UUID. Virtuelle UID- und GID-Nummernräume werden jeweils **zentral und transaktional** vergeben: ID `0` reserviert, `1–9999` interne IDs, `10000–2147483647` reguläre Benutzer-/Gruppenkennungen. Schon einmal zugeteilte Nummern werden **niemals wiederverwendet**, auch nach Konto- oder Gruppenlöschung. Tombstones und Mapping müssen für Sicherungen und Wiederherstellungen erhalten bleiben. Private Primärgruppen sind möglich; externe Nummernübernahme bleibt eine eigene, nicht implizit freigegebene Connectorentscheidung.
+
+**ADR-140 (Option C):** Lokale Passwörter werden mit **Argon2id** gespeichert. Anfangswerte sind **19 MiB Speicher, zwei Iterationen, Parallelität 1**, später mess-/risikobasiert nachkalibrierbar. Mindestlänge **15 Zeichen**, keine erzwungene periodische Rotation, kompromittierte Passwörter sperren, risikobasierte Rate-Limits anwenden. Self-Service- und Admin-Recovery sind kontrolliert, auditierbar und **ohne Masterpasswort**. Recovery-Zeiträume und Tokenbindung werden als eigener testbarer Sicherheitsvertrag spezifiziert; sie sind mit dieser Entscheidung nicht numerisch vorgegeben.
+
+**ADR-142 (Option A):** Im MVP stellt `Settings.cloudApp` die Navigation bereit; `UserManagement.cloudApp` und `GroupManagement.cloudApp` sind getrennte signierte Pflicht-Core-Apps. `PermissionManagement.cloudApp` gehört **noch nicht** zum MVP. Die notwendigen administrativen Verwaltungsoperationen bleiben über gesondert geschützte, autorisierte Core-Verträge erreichbar; eigenständige App-Identität, signierte API-Allowlist und versionierte Deep Links sind verpflichtend. Keine Child-App kann Rechte an `Settings.cloudApp` vererben.
+
+Die älteren unter »bewusst noch offen« aufgeführten UID/GID-Nummernkreise, Passwort-Hashparameter und die Frage nach der eigenständigen Permission-UI sind durch diesen Nachtrag fachlich entschieden; externe Identity-Connectoren und erweiterte POSIX-ACLs bleiben weiterhin eigene Fragen.

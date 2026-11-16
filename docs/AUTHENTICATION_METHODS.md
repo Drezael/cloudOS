@@ -282,3 +282,9 @@ Standard ist `CLOUDOS_MODE=combined` in einem Core-Container. Auth-/Credential-M
 ## 22. Statusabgrenzung
 
 Dieses Dokument ist die **Architektur**. Die Go-Deployment-Bootstraps aus 0.11 besitzen noch keine produktive Passwort-, WebAuthn-, SSH- oder YubiKey-Verifikation. Es dürfen bis zur tatsächlichen Implementierung keine Login-Routen aus Mockantworten einen erfolgreichen Login simulieren.
+
+## Architekturabgleich 16.11.2026 – Passwort- und Kontowiederherstellung (ADR-140)
+
+Für den lokalen Passwort-Credential-Pfad ist **Argon2id** verbindlich; Anfangsparameter **19 MiB, 2 Iterationen, Parallelität 1**, mit geplanter technischer Kalibrierung. Konto-Passwörter müssen mindestens **15 Zeichen** besitzen, kompromittierte Werte sind abzulehnen. Es gibt keine pauschal erzwungene regelmäßige Rotation; Wechsel werden bei Kompromittierung, Recovery oder ausdrücklicher Nutzerentscheidung erforderlich. Risikobasierte Login-Limits und eine kontrollierte Self-Service-/Admin-Recovery ohne universelles Masterpasswort sind Pflicht.
+
+Recovery oder Admin-Reset dürfen bestehende Passwörter nicht auslesen oder wiederherstellen, keine Signatur-/Assurance-Prüfung umgehen und müssen relevante Sitzungen/Grants nach Policy neu bewerten. Konkrete Token-TTL, Step-up-Grenzen, Auditfelder und Fehlertests werden vor der Implementierung spezifiziert, jedoch nicht ohne Entscheidung erfunden. WebAuthn-/Passkey-, Hardware-FIDO2- und SSH-Challenge-Verträge bleiben davon unverändert.

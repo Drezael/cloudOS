@@ -982,3 +982,7 @@ Produktive Core-Updates erfolgen nur manuell autorisiert unter vollstaendigem Wa
 ### 23.4 Offene Zahlenwerte
 
 Ack-Fristen, Retention-Dauer, Idempotenzfenster, Retry-Budgets, Poollimits, RTO/RPO, p95-/p99-Ziele und die konkreten Protokoll-/Kryptografieprofile werden erst im jeweiligen Implementierungs-/Abnahmedokument nach Messung bzw. Sicherheitsbewertung festgelegt. Diese Detailwerte sind nicht durch pauschale Beispiele als produktive Defaults genehmigt.
+
+## Architekturabgleich 16.11.2026 – Nachweise statt impliziter Implementierung
+
+Die am 16.11.2026 bestätigten ADRs sind in [ADR_REGISTER.md](ADR_REGISTER.md) und [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md) nachgeführt. Bereits beschlossene API-Schema-/Ownership-/Revisions-/Sicherheitsverträge bleiben gültig. Aus ADR-012, ADR-060 und ADR-136 folgt die Pflicht, messbare Qualitäts- und Restore-Nachweise zu dokumentieren; **keine** nicht gemessene Metrik oder konkrete Vertragszahl wird dadurch neu erfunden. Kryptografische Vertragstests orientieren sich an ADR-036, Passwort-/Recovery-Verträge an ADR-140 und Share-Expiry-Autorisierung an ADR-150.

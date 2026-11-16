@@ -339,3 +339,9 @@ Das **Window Framework ist der einzige vertrauenswürdige Host für sichtbare Ap
 Jedes Theme muss Minimieren, Maximieren, Wiederherstellen, Fokus, Snap, Drag/Resize, Taskleisten-Vorschau und „App beenden“ per Taskbar-Rechtsklick unverändert unterstützen. Die Position einer Taskbar (`/.taskbar.json`) ist **Benutzerentscheidung, nicht Theme-Zwang**. Das Wallpaper wird unter allen Fenstern dargestellt und fängt keine Pointerereignisse ab; siehe [`WALLPAPER_ENGINE.md`](WALLPAPER_ENGINE.md).
 
 **Sicherheit:** Der Window Host zeichnet Berechtigungsdialoge und andere kritische UI in eindeutig vertrauenswürdiger Gestaltung. Ein Theme darf Warnstatus, Fokusindikator oder Bestätigungstext nicht manipulieren. Geöffnete Apps verlieren beim Themewechsel keine Instanz-/Fensteridentitäten.
+
+## Architekturabgleich 16.11.2026 – Framework und Browser-Matrix
+
+[ADR-002](ADR_REGISTER.md): Die trusted Desktop-/Window-/App-Host-Oberflächen verwenden Vue 3/TypeScript und bevorzugt Vite; das öffentliche Window-/App-SDK ist frameworkneutral. Eine Third-Party-App darf weder zu Vue gezwungen werden noch die Host-Fensterkontrolle ersetzen.
+
+[ADR-060](ADR_REGISTER.md): Chrome, Edge, Firefox und Safari werden in getrennten, fähigkeitsbezogenen Desktop- und Rust/WebGPU/WASM-Profilen auf Tastaturbedienung, Fokus, Screenreader-/Kontrastzugänglichkeit und Performance geprüft. Für das Rust/WASM-MVP-Profil gelten die Startvoraussetzungen aus ADR-017 ohne stille Downgrades. Konkrete Browserversionen und Budgets sind erst nach Testnachweis verbindlich.

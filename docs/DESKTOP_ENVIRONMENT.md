@@ -777,3 +777,13 @@ Das Desktop-Framework unterstützt sechs in [`THEMING.md`](THEMING.md) spezifizi
 Die wallpaperbezogene Konfiguration liegt gemeinsam mit der Theme-Präferenz in `/.config/cloudos/appearance.json` (`0600`). **Wallpaper und Theme sind unabhängig wählbar.** Bei einer expliziten Wallpaper-Auswahl darf ein Theme-Wechsel sie nicht ersetzen. Ohne explizite Auswahl liefert das Theme ein empfohlenes Preset. Eigene Bilder/Videos werden ausschließlich über berechtigte VFS-Datei-Handles gewählt; das `system`-Volume wird nicht eingebunden.
 
 Für die erste Version sind **Milky Way, Waves, Hexells, Matrix 2D, Matrix 3D und Coastal Landscape** sowie statische Bilder, stumme Videos und Slideshow geplant. Clientseitige Animationen benötigen **keine** Netzwerkabfragen pro Frame. Ein anderer Browser-Tab erhält Änderungen per SSE (`wallpapers.preference.changed`, `themes.active.changed`), ohne Polling und ohne Seiten-Reload. Die detaillierten Regeln zu Rendering, Energy Saver, Accessibility und Fallback sind in [`WALLPAPER_ENGINE.md`](WALLPAPER_ENGINE.md) festgelegt.
+
+## Architekturabgleich 16.11.2026 – neue Home-Struktur und Browser-Abnahme
+
+**ADR-059, Option A:** Der MVP verwendet `/.desktop/` als einzige Desktop-Datenquelle; **keine automatische Migration** aus einem älteren `/Desktop/`. Eventuell vorhandene Altdaten bleiben unangetastet und werden erst in einer später gesondert freigegebenen Migration behandelt. Die bereits beschriebenen Konfliktdialoge, Alias- und Migrationspfade sind **kein MVP-Leistungsversprechen**.
+
+**ADR-132, Option B:** Neue Homes erhalten `/.desktop/`, `/.taskbar.json`, `/.desktop-layout.json`, `Documents/`, `Downloads/`, `Pictures/`, `Music/`, `Videos/`, `.config/`, `.local/` beim ersten Provisionieren. Später gelöschte gewöhnliche Ordner werden beim Login nicht automatisch rekonstruiert; reservierte Desktop-Ressourcen sind gesondert geschützt und reparierbar. Die Nutzerwurzel `/` bleibt das eigene Home.
+
+**ADR-060, Option B:** Die browserübergreifende Abnahme bewertet Chrome, Edge, Firefox und Safari nach einer versionierten Feature-/Accessibility-/Performance-Matrix. Desktop und Rust/WebGPU/WASM haben getrennte Profile. Tastaturbedienung, Fokus, Screenreader- und Kontrastprüfungen sowie messbare UX-Leistungsbudgets sind Release-Gates. Fehlende Browserfähigkeiten werden kenntlich gemacht; das unter ADR-017 definierte verbindliche Rust/WASM-MVP-Profil darf nicht auf WebGL oder Single-Thread stillschweigend herabgestuft werden. Konkrete Versionen und Grenzwerte werden nach Referenzmessung freigegeben.
+
+Die Entscheidung für Vue 3/TypeScript und bevorzugt Vite betrifft Desktop- und trusted Window/App Host (ADR-002), nicht Drittanbieter-App-Frameworks.
