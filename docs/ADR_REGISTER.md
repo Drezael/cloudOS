@@ -3,7 +3,7 @@
 > **Verbindlicher Architekturabgleich vom 15.11.2026:** [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md). Die dort ausdruecklich bestaetigten neueren Infrastrukturentscheidungen gehen widersprechenden aelteren Entwurfs- und Rollout-Formulierungen vor; dies ist kein Implementierungsnachweis.
 
 > **Datei:** `docs/ADR_REGISTER.md`  
-> **Dokumentversion:** 1.2 – Abgleich der ausdrücklich beschlossenen ADRs vom 16.11.2026  
+> **Dokumentversion:** 1.3 – Abschluss von 14 zusätzlichen ADRs (delegierte Projektwahl) vom 16.11.2026  
 > **Stand:** 16.11.2026  
 > **Repository:** [Drezael/cloudOS](https://github.com/Drezael/cloudOS), geprüfter `main`-Dokumentenbestand  
 > **Status:** Verbindliches Organisations- und Entscheidungsregister; technische ADR-Statusangaben beschreiben **fachliche Architekturfestlegungen**, keine implementierte Software.  
@@ -13,6 +13,8 @@
 **Hinweis zur Nummernvergabe:** Von den 130 älteren numerischen IDs sind 121 belegt und `ADR-042` bis `ADR-050` nicht zugeordnet. Dieses Register erhält ihre Historie und führt 51 zusätzliche IDs (`ADR-131` bis `ADR-181`) aus eindeutig unterscheidbaren Fachthemen und den API-Entscheidungen ein. Die ID-Vergabe ist Dokumentationsorganisation, **keine neue technische Architekturentscheidung**. Alle 41 fachlichen Altkennungen bleiben über Aliaszeilen auffindbar; einige Aliase verweisen auf mehrere bereits existierende ADRs.
 
 > **Beschlussabgleich vom 16.11.2026:** Dreizehn zuvor als `Proposed` geführte ADRs wurden vom Projektverantwortlichen ausdrücklich entschieden (ADR-002, -012, -017, -036, -059, -060, -131, -132, -136, -138, -140, -142, -150). Die vollständigen Entscheidungsnachweise sind in [ARCHITECTURE_DECISIONS_2026-11-16.md](ARCHITECTURE_DECISIONS_2026-11-16.md) konsolidiert. Die verbleibenden `Proposed`-Themen werden durch diesen Nachtrag nicht automatisch freigegeben. ADR-094 bleibt ausdrücklich unverändert offen und wird in dieser Runde nicht erneut zur Entscheidung gestellt. `Accepted` bedeutet nicht implementiert.
+
+> **Delegierter Beschlussnachtrag vom 16.11.2026:** Der Projektverantwortliche hat ausdrücklich autorisiert, alle noch offenen ADRs außer ADR-094 anhand der fachlich empfohlenen Option abzuschließen. 14 Architekturentscheidungen (ADR-013, -018, -020, -082, -103, -118, -143, -154 bis -160) sind in [ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md) begründet. **ADR-094 bleibt alleiniger offener globaler ADR; dies ist keine Implementierungs-/Lizenz-/Sicherheitsfreigabe.** Die technischen App-Data-Detailentscheidungen 1–17 sind separat in [app-framework/20-technical-decisions-E03-E04-2026-11-16.md](app-framework/20-technical-decisions-E03-E04-2026-11-16.md) dokumentiert.
 
 ## 1. Zweck, Geltungsbereich und normativer Rahmen
 
@@ -106,8 +108,8 @@ Eine jüngere **ungenehmigte** Textänderung allein darf einen `Accepted`-ADR ni
 | Zusätzlich eindeutig konsolidierte Themen (`131–181`) | 51 |
 | Neue am 15.11.2026 entschiedene Infrastruktur-ADRs (`182-189`) | 8 |
 | **Erfasste globale Architektur-ADRs** | **180** |
-| Davon `Accepted` (fachlich) | 165 |
-| Davon `Proposed` | 15 |
+| Davon `Accepted` (fachlich) | 179 |
+| Davon `Proposed` | 1 |
 | Davon `Superseded` als einzelne ADR-ID | 0 |
 | Beibehaltende Legacy-Fachaliase | 41 |
 | Aus `API_CONTRACTS.md` verlinkte bestätigte Fragen | 74 |
@@ -132,14 +134,14 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `010` | `Accepted` | Desktop- und Mehrgeräte-Synchronisierung |
 | `011` | `Accepted` | App-Origin-Trennung und Browser-Sandbox |
 | `012` | `Accepted` | Backup-RPO/RTO und Browser-/Leistungsbudgets |
-| `013` | `Proposed` | Externe API-Clients und OAuth-/Grant-Modell |
+| `013` | `Accepted` | Externe API-Clients und OAuth-/Grant-Modell |
 | `014` | `Accepted` | App-Runtime-Profile |
 | `015` | `Accepted` | App-Paketvertrauen, Manifest und Update-Modell |
 | `016` | `Accepted` | Capability Broker, Dateiauswahl und Consent |
 | `017` | `Accepted` | Rust-Web-Toolchain und GPU-Kompatibilität |
-| `018` | `Proposed` | Wasmtime/WASI-Komponenten und Host-Funktionen |
+| `018` | `Accepted` | Wasmtime/WASI-Komponenten und Host-Funktionen |
 | `019` | `Accepted` | Isolierte Worker und Native-Runtimes |
-| `020` | `Proposed` | ArtCraft als Integrations-PoC |
+| `020` | `Accepted` | ArtCraft als Integrations-PoC |
 | `021` | `Accepted` | App-zu-App-Kommunikation und Message-Bridge |
 | `022` | `Accepted` | Service Discovery, Skalierung und Runtime-Leases |
 | `023` | `Accepted` | Designsystem und Theme-Resolver |
@@ -192,7 +194,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `079` | `Accepted` | Persistente Benutzerbenachrichtigungen |
 | `080` | `Accepted` | SSE-Auth, Origin-Bindung und Widerruf |
 | `081` | `Accepted` | SSE-Proxy, Multi-Tab und Backpressure |
-| `082` | `Proposed` | Web Push bei geschlossenem Browser |
+| `082` | `Accepted` | Web Push bei geschlossenem Browser |
 | `083` | `Accepted` | Combined-Core als Standard, Split/Kubernetes opt-in |
 | `084` | `Accepted` | Gemeinsamer Servicekatalog und identischer Go-Code |
 | `085` | `Accepted` | Lokale Adapter versus gRPC-Ports |
@@ -213,7 +215,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `100` | `Accepted` | WebAuthn-/Passkey-Relying-Party-Policy |
 | `101` | `Accepted` | SSH-Agent-Signaturen und SSH-Key-Anmeldung |
 | `102` | `Accepted` | Assurance-Level, Step-up und Admin-Recovery |
-| `103` | `Proposed` | Externe Identity-Verknüpfung zu lokalen Credentials |
+| `103` | `Accepted` | Externe Identity-Verknüpfung zu lokalen Credentials |
 | `104` | `Accepted` | Strukturierte Logs, OpenTelemetry und Logger-Hierarchie |
 | `105` | `Accepted` | Verteilung der Logging-Policy und sicherer Fallback |
 | `106` | `Accepted` | Unabschaltbares Security-Audit |
@@ -228,7 +230,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `115` | `Accepted` | Device-Capabilities und Installations-Risikoanzeigen |
 | `116` | `Accepted` | Browser-Permission, User Activation und Grant-TTL |
 | `117` | `Accepted` | USB-Dateiimport und VFS-Isolation |
-| `118` | `Proposed` | Browserkompatibilität der Geräteprofile |
+| `118` | `Accepted` | Browserkompatibilität der Geräteprofile |
 | `119` | `Accepted` | Sechs integrierte Theme-Presets |
 | `120` | `Accepted` | Benutzer-Overrides für Theme und Wallpaper |
 | `121` | `Accepted` | Theme Service und kontrollierte Browser-Tokens |
@@ -253,7 +255,7 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `140` | `Accepted` | Passwort-Hashing, Passwortpolitik und Recovery |
 | `141` | `Accepted` | Systemrollen getrennt von POSIX-Gruppen |
 | `142` | `Accepted` | Settings-Sub-Apps und eigener Berechtigungskontext |
-| `143` | `Proposed` | Erweiterte POSIX-ACLs und Named Grants |
+| `143` | `Accepted` | Erweiterte POSIX-ACLs und Named Grants |
 | `144` | `Accepted` | Interne Share-Rollen und Revocation |
 | `145` | `Accepted` | Share-Mounts im Benutzer-Home |
 | `146` | `Accepted` | Space-Rollen und Meta-Administration |
@@ -264,13 +266,13 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 | `151` | `Accepted` | Space-Lifecycle, Archivierung, Papierkorb und Quotas |
 | `152` | `Accepted` | Cross-Scope-Move und Space-Konflikte |
 | `153` | `Accepted` | Externe Identity-Provenienz und Attributautorität |
-| `154` | `Proposed` | LDAP-Sync-Intervalle und Sicherheitsgrenzen bei Massenänderungen |
-| `155` | `Proposed` | Missing User, Deaktivierung und Stale-Identity-Richtlinie |
-| `156` | `Proposed` | Import externer UID/GID oder interne Nummernvergabe |
-| `157` | `Proposed` | Externe Gruppenverschachtelung und lokale Overlays |
-| `158` | `Proposed` | LDAP-Bind-Login als optionaler Auth-Adapter |
-| `159` | `Proposed` | Integrationsvertrag externer OIDC-Provider |
-| `160` | `Proposed` | Secret-Store und Zertifikatsverwaltung externer Connectoren |
+| `154` | `Accepted` | LDAP-Sync-Intervalle und Sicherheitsgrenzen bei Massenänderungen |
+| `155` | `Accepted` | Missing User, Deaktivierung und Stale-Identity-Richtlinie |
+| `156` | `Accepted` | Import externer UID/GID oder interne Nummernvergabe |
+| `157` | `Accepted` | Externe Gruppenverschachtelung und lokale Overlays |
+| `158` | `Accepted` | LDAP-Bind-Login als optionaler Auth-Adapter |
+| `159` | `Accepted` | Integrationsvertrag externer OIDC-Provider |
+| `160` | `Accepted` | Secret-Store und Zertifikatsverwaltung externer Connectoren |
 | `161` | `Accepted` | Nur eine aktive API-Major und kontrollierte Kompatibilität |
 | `162` | `Accepted` | Offizielles SDK, Capability-Filter und Entwicklerdokumentation |
 | `163` | `Accepted` | Ressourcenbezogenes Benutzer-Consent |
@@ -395,10 +397,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-013 – Externe API-Clients und OAuth-/Grant-Modell
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Der erste Release richtet sich an autorisierte Core-Dienste und `.cloudApp`-Instanzen; externe eigenständige API-Clients sind ausdrücklich auf später verschoben.  
-**Begründung und Folgen:** Vor externer Freigabe sind Client-Identität, Scopes, Delegation und Missbrauchsschutz gesondert zu entscheiden.  
-**Quellen:** [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [API_CONTRACTS.md](API_CONTRACTS.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Externe eigenständige API-Clients bleiben im MVP deaktiviert. Für eine spätere gesondert freigegebene Erweiterung ist ein registriertes, providerunabhängiges OAuth-2.0-Sicherheitsprofil nach aktueller Security BCP mit kurzlebigen, audience-, client-, scope- und gegebenenfalls benutzergebundenen Tokens verbindlich. Interaktive Clients verwenden Authorization Code mit PKCE; Maschinenzugriffe benötigen eine eigenständig genehmigte, eng begrenzte Client-/Workload-Identität. Keine allgemeinen statischen Master-API-Keys.  
+**Begründung und Folgen:** Externe Zugänge dürfen weder die signierte App-API-Allowlist noch BFF-Sessions, Resource-Scope oder Tenant-Isolation umgehen. Ein API-Contract allein autorisiert keine externe Veröffentlichung.  
+**Freigabe-/Nachweisgrenze:** Vor externer Aktivierung: Client-Registrierung, Consent/Delegation, Token-Rotation und Widerruf, Replay-/SSRF-/Rate-Limit-Tests, AuthZ-Audit und ausdrückliche Betriebsfreigabe.  
+**Einführungsprofil:** Nach MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [API_CONTRACTS.md](API_CONTRACTS.md), [APP_API_ACCESS.md](APP_API_ACCESS.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-013).
 
 #### ADR-014 – App-Runtime-Profile
 
@@ -430,10 +434,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-018 – Wasmtime/WASI-Komponenten und Host-Funktionen
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** WASI-Component-Model und kontrollierte Host-Funktionen sind vorgesehen; Versionen, WIT-Schemas und Ressourcenlimits bleiben zu spezifizieren.  
-**Begründung und Folgen:** Serverseitige Gastprogramme benötigen eigene sicherheitsgeprüfte Runner.  
-**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Serverseitige WASI-Komponenten bleiben im MVP deaktiviert. Für die spätere Erweiterung werden Wasmtime, das WASI Component Model und versionierte, freigegebene WIT-Contracts eingesetzt; Komponenten laufen ausschließlich in einem vom Go-Core getrennten, unprivilegierten Runner. Standardmäßig kein Host-Filesystem, Netzwerk, Environment/Secrets, Docker-Socket oder Datenbankzugang. Jeder Host-Call erfordert einen expliziten instanz-/jobgebundenen Grant.  
+**Begründung und Folgen:** Ausführung von nicht vertrauenswürdigem WASM ist keine Autorisierung und darf den Go-Core nicht kompromittieren.  
+**Freigabe-/Nachweisgrenze:** Vor Runtime-Freigabe: gepinnte, getestete Wasmtime-/WASI-/WIT-Versionen; Fuel/Epoch, RAM, Laufzeit, Ausgabe, Parallelität, Egress, Abbruch und Crash-Isolation; Negativtests. Keine Produktionsbehauptung allein aus der Architektur.  
+**Einführungsprofil:** Nach MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-018).
 
 #### ADR-019 – Isolierte Worker und Native-Runtimes
 
@@ -444,10 +450,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-020 – ArtCraft als Integrations-PoC
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Eine konkrete ArtCraft-Version kann als Referenz für Browser-Rust genutzt werden; Release, Lizenz und Nutzungsumfang sind noch auszuwählen.  
-**Begründung und Folgen:** Keine implizite Freigabe fremden Codes, Assets oder Marken durch dieses Register.  
-**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** ArtCraft ist keine Pflichtabhängigkeit des cloudOS-MVP. Als optionale, unverändert bezogene Rust-Browser-WASM-PoC-Referenz wird PhotoCraft v0.23.1 (Upstream-Tag v0.23.1; Stand 16.11.2026) ausgewählt. Zunächst nur Integrationsstufe A: lokal gehosteter, isolierter App-Host-Start mit Browser-/WebGPU-/Thread-/Origin-Konformität. Stufe B (File Bridge) erst nach eigenem separatem Gate; Stufe C ist kein Teil dieses Beschlusses. Für den Quellcode kann nach Prüfung die Apache-2.0-Lizenzoption gewählt werden; Dritt-Assets und Marken bleiben gesondert geschützt.  
+**Begründung und Folgen:** Ein reproduzierbarer Fremd-App-Test ist nützlich, darf aber weder Build- noch Rechts- oder Produktzwänge für den MVP erzeugen.  
+**Freigabe-/Nachweisgrenze:** Vor Ausführung/Distribution: Upstream-Tag, heruntergeladenes Artefakt und SHA-256, Source-/NOTICE-/Asset-/Trademark-Lizenzen, CSP/COEP/CORP, App-Signatur, Browser-Ressourcen und Isolation prüfen. Kein automatisches Repaketieren/Branding.  
+**Einführungsprofil:** Optionaler, nicht blockierender PoC nach Browser-Baseline; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [APPLICATION_SYSTEM.md](APPLICATION_SYSTEM.md), [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md), [PhotoCraft Releases](https://github.com/storytold/photocraft/releases), [PhotoCraft README](https://github.com/storytold/photocraft#license-and-credits); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-020).
 
 #### ADR-021 – App-zu-App-Kommunikation und Message-Bridge
 
@@ -823,10 +831,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-082 – Web Push bei geschlossenem Browser
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Optionaler Web Push außerhalb aktiver Browser-Tabs ist eine spätere Erweiterung, nicht Bestandteil des Standard-SSE-Vertrags.  
-**Begründung und Folgen:** Benötigt gesonderte Nutzerzustimmung, Sicherheits- und Datenschutzevaluierung.  
-**Quellen:** [PUSH_REALTIME.md](PUSH_REALTIME.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Browser-Web-Push bleibt außerhalb des MVP und ist strikt opt-in: ausdrückliche Browser- und cloudOS-Zustimmung pro Benutzer/Gerät, widerrufbare Subscription, serverseitig verwaltete Push-Schlüssel und privacy-minimierter Payload. Externer Push überträgt ausschließlich einen neutralen Zustellungshinweis und niemals vertrauliche Dokumente, Nutzinhalte, Berechtigungsdaten oder ausführbare Aktionen. Der Notification Owner bleibt autoritativ; Details erst nach gültigem Login per bestehender autorisierter Core-API. SSE bleibt für offene Tabs verbindlich.  
+**Begründung und Folgen:** Browser-/Push-Dienst-Verfügbarkeit ist nicht garantiert und Web Push darf keine zweite Rechteautorität werden.  
+**Freigabe-/Nachweisgrenze:** Datenschutzprüfung der Push-Provider/Egress-Domäne, Consent, Logout/Revoke, veraltete Subscriptions, SW-Origin-Policy, Browser-Kompatibilität, Zustelllücken/Replay.  
+**Einführungsprofil:** Nach MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [PUSH_REALTIME.md](PUSH_REALTIME.md), [API_CONTRACTS.md](API_CONTRACTS.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-082).
 
 ### 5.5 Core-Deployment und Kubernetes (ADR-083–098)
 
@@ -974,10 +984,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-103 – Externe Identity-Verknüpfung zu lokalen Credentials
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Externe OIDC-/LDAP-Konten sollen auf stabile lokale Identitäten abgebildet werden; automatisches Namensmatching ist unzulässig.  
-**Begründung und Folgen:** Exacte Join-/Recovery-/Revocation-Flows sind vor Aktivierung externer Provider freizugeben.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Externe Konten werden ausschließlich an stabile lokale `user_id` gebunden. LDAP nutzt stabile source_id + source_object_id; OIDC nutzt `(issuer, sub)`. Keine automatische Fusion anhand E-Mail, Loginname, DN oder Anzeigename. Die erstmalige Verknüpfung erfordert einen nachgewiesenen Besitz-/Authentifizierungsbezug zu beiden Identitäten oder einen explizit genehmigten, step-up-geschützten, auditierten Admin-Workflow. Konflikte werden blockiert/quarantänisiert, keine automatische Rechteübernahme oder Home-Neuanlage durch Providerwechsel.  
+**Begründung und Folgen:** Account-Takeover und Verwechslung vorhandener Benutzerrechte, Homes oder Space-Mitgliedschaften verhindern.  
+**Freigabe-/Nachweisgrenze:** Tests für Rename, Dubletten, Identifier-Reuse, Provider-Migration, Revocation, OIDC-Sub-Wechsel, verlorenes externes Konto und sicheren Break-Glass-Pfad.  
+**Einführungsprofil:** Für optionale LDAP/OIDC-Adapter; lokal im MVP unabhängig; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-103).
 
 ### 5.7 Logging, Audit und Tracing-Basis (ADR-104–108)
 
@@ -1085,10 +1097,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-118 – Browserkompatibilität der Geräteprofile
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Die unterstützten WebUSB-/WebHID-/WebSerial-/Datei-Profile sind als Browser- und Sicherheitstests zu bestätigen.  
-**Begründung und Folgen:** Nicht vorhandene Browser-APIs erhalten einen ehrlichen Unsupported-Fallback statt stiller Sicherheitsumgehung.  
-**Quellen:** [CLIENT_DEVICES.md](CLIENT_DEVICES.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Der Device Broker veröffentlicht eine browser- und geräteprofilbezogene, getestete Capability-Matrix. WebUSB, WebHID, Web Serial und File-Picker sind niemals generell vorausgesetzt. Pflichtfähigkeiten fehlen: Profilstart/Operation wird mit `UNSUPPORTED` gesperrt; optionale Fähigkeiten werden nachvollziehbar deaktiviert. Kein Umgehen durch untrusted App-iframe, privilegierte Hintergrundzugriffe oder rohe USB-Mounts. Standard-Dateiauswahl und Keyboard-Wedge nur, wenn die jeweilige fachliche Funktion damit sicher vollständig erfüllt ist.  
+**Begründung und Folgen:** Heterogene Browser müssen ehrlich und sicher behandelt werden, ohne implizite Gerätefreigaben.  
+**Freigabe-/Nachweisgrenze:** Chrome/Edge/Firefox/Safari mit positiven und negativen Browser-/OS-/Gerätetests; HTTPS, Permissions Policy, User Activation, Revoke, HID-Sperrlisten und Origin-Isolation.  
+**Einführungsprofil:** Profilweise vor jeweiliger Device-Releasefreigabe; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [CLIENT_DEVICES.md](CLIENT_DEVICES.md), [APP_API_ACCESS.md](APP_API_ACCESS.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-118).
 
 ### 5.10 Themes (ADR-119–124)
 
@@ -1266,10 +1280,12 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-143 – Erweiterte POSIX-ACLs und Named Grants
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Künftige erweiterte ACLs dürfen die bestehenden POSIX-Modusbits und ausdrücklichen Share-/Space-Grants nicht aushebeln.  
-**Begründung und Folgen:** ACL-Priorität, Vererbung und `chmod`-Wechselwirkung noch nicht finalisiert.  
-**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Named-User/Named-Group-ACLs und Verzeichnis-Default-ACLs werden als optionale spätere VFS-Ausbaustufe nach dem Basismodell `owner:group:mode` eingeführt. Die Auswertung orientiert sich an POSIX-ACL-Einträgen einschließlich effektiver Gruppen-/Named-User-Maske, Vererbungs- und `chmod`-Wechselwirkungen. ACLs erweitern nie Mount-Sicht, Share-/Space-Grant, signierte App-API-Operationen oder aktuelle System-/Deny-Policy. Es gibt keine impliziten Named-ACLs im MVP.  
+**Begründung und Folgen:** POSIX-nahe Semantik ist nur sicher, wenn ein `chmod`- oder ACL-Update nicht unbemerkt andere Grants verstärkt.  
+**Freigabe-/Nachweisgrenze:** Vor Freigabe: geprüfte Masken-/Vererbungs-Matrix, `chmod`/`setfacl`-Äquivalenzfälle, Widerruf, Multiuser-/Share-/Space-Negativtests, Migration bestehender Mode-Bits.  
+**Einführungsprofil:** Nach Basis-VFS-MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [VIRTUAL_FILESYSTEM.md](VIRTUAL_FILESYSTEM.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-143).
 
 #### ADR-144 – Interne Share-Rollen und Revocation
 
@@ -1343,52 +1359,66 @@ Dieser Index dient zum Auffinden; der vollständige begründete Datensatz folgt 
 
 #### ADR-154 – LDAP-Sync-Intervalle und Sicherheitsgrenzen bei Massenänderungen
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Externe LDAP-Synchronisation benötigt Paging, Delta-/Vollabgleich und Schutz gegen versehentliche Massendeaktivierungen.  
-**Begründung und Folgen:** Intervalle, Schwellen, Retry- und Sicherheitsfreigaben sind noch offen.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Optionaler LDAP-Connector synchronisiert nur read-only via paginierte, idempotente Delta-Abgleiche und regelmäßig verifizierte Vollscans. Ausgangskadenz nach aktivierter Quelle: Delta alle 15 Minuten, vollständiger Abgleich alle 24 Stunden; Jitter, Backoff, zentraler Lease/Fencing-Owner und administrative Anpassbarkeit sind Pflicht. Ein unvollständiger Scan erzeugt niemals `missing`- oder Massen-Disable-Entscheidungen. Für Massenänderungen ist ein konfigurierbarer Guard mit konservativen Ausgangsschwellen (mehr als 5 % oder mehr als 20 betroffene Identitäten je verifiziertem Lauf) plus Dry Run, Audit und step-up-geschützter Freigabe vorgesehen; diese Werte sind vor Produktivfreigabe last-/betriebsseitig zu validieren. Explizit nachgewiesene sicherheitsrelevante Einzel-Entzüge werden zeitnah übernommen, ohne den Schutz vor fehlerhaftem Gesamtimport auszuhebeln.  
+**Begründung und Folgen:** Filterfehler und leere/inkomplette LDAP-Antworten dürfen nicht zum Massenverlust lokaler Identitäten oder privilegierten Fehlzuordnungen führen.  
+**Freigabe-/Nachweisgrenze:** Tests: leerer/abgebrochener Paged Scan, Filterwechsel, Source-ID-Tausch, Delta-/Vollscan-Konflikt, Burst-Änderungen, Abbruch, Wiederaufnahme, Quellenstale und Massenänderungs-Freigabe.  
+**Einführungsprofil:** Optionaler LDAP-Connector, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [PUSH_REALTIME.md](PUSH_REALTIME.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-154).
 
 #### ADR-155 – Missing User, Deaktivierung und Stale-Identity-Richtlinie
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Verschwundene externe Benutzer sollen nicht unkontrolliert gelöscht werden; sichere Deaktivierungs-/Retention-Policies sind erforderlich.  
-**Begründung und Folgen:** Grace Period, Restore-Verhalten und Offline-Entzug werden später spezifiziert.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Ein Benutzer gilt erst nach einem vollständig erfolgreichen, konsistenten Quellabgleich als `missing`. Er wird dann kontrolliert quarantänisiert: externe Neuanmeldung und wirksame externe Grants werden gesperrt bzw. widerrufen, erforderliche Sitzungen revalidiert; lokale UUID/UID/GID, Home, Space- und Audit-Referenzen bleiben erhalten. Ein 30-tägiges administrativ änderbares Wiederherstellungsfenster trennt Reaktivierung und endgültige fachliche Deaktivierung; es ist keine automatische Datenlöschung. Wiederauftauchen derselben stabilen Quell-ID ermöglicht nach sicheren Prüfungen Reaktivierung, keine stille Identity-Fusion. Ein Ausfall/Stale-Scan ist niemals Nachweis einer Löschung; für sicherheitskritische Berechtigungen greift eine begrenzte Stale-Policy mit Fail-Closed, ohne pauschale Datenvernichtung.  
+**Begründung und Folgen:** Deprovisioning muss sicher wirken, ohne Konten durch temporäre Providerstörungen oder falsche Filter unwiederbringlich zu zerstören.  
+**Freigabe-/Nachweisgrenze:** Missing-vs-outage, 30-Tage-Recovery, Session-/Grant-Revoke, Offline-Leases, VFS-/Space-Erhalt, Reappear mit gleicher/anderer ID, massenhaft fehlende Benutzer.  
+**Einführungsprofil:** Optionaler LDAP-Connector, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-155).
 
 #### ADR-156 – Import externer UID/GID oder interne Nummernvergabe
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Externen Identitäten muss eine stabile lokale UID/GID-Zuordnung zugewiesen werden.  
-**Begründung und Folgen:** Ob externe Nummern übernommen oder vollständig intern verwaltet werden, ist noch offen.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Verbindlich ausschließlich lokal kontrollierte UID-/GID-Vergabe nach ADR-138: separate zentrale Nummernkreise, transaktional vergeben, einmalig, keine Wiederverwendung. Externe `uidNumber`/`gidNumber` werden als unverbindliche Quellmetadaten gespeichert und dürfen die lokale Nummer oder Dateieigentümerschaft nicht ersetzen. Es gibt auch unter expliziter Connector-Policy keine direkte externe POSIX-Nummernübernahme; eine spätere echte Migration wäre eine neue separat zu genehmigende Architekturänderung.  
+**Begründung und Folgen:** Kein Konflikt mit bereits entschiedenem ADR-138; Verzeichniswechsel können lokale Dateirechte nicht neu zuordnen.  
+**Freigabe-/Nachweisgrenze:** UID/GID-Kollisionen, gleichzeitiger Import, Rename, Restore, Tombstone, Quellenwechsel und Test, dass externe Zahländerungen nie VFS-Rechte umhängen.  
+**Einführungsprofil:** Bei optionalem LDAP-Import, ADR-138 unverändert; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [ADR-138](ADR_REGISTER.md#adr-138--uid-gid-nummernkreise-und-wiederverwendung); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-156).
 
 #### ADR-157 – Externe Gruppenverschachtelung und lokale Overlays
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Gruppensynchronisation muss verschachtelte externe Gruppen und lokale Ergänzungen sicher behandeln.  
-**Begründung und Folgen:** Maximale Tiefe, Schleifenerkennung und Autoritätsvorrang sind noch zu entscheiden.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Externe Gruppenverschachtelung ist für die erste optionale LDAP-Integration standardmäßig deaktiviert. Spätere explizite Aktivierung nutzt deterministisches, begrenztes Flattening mit maximal 8 Ebenen (Ausgangslimit), Zyklus-/Duplikaterkennung, Member-/Zeitbudgets und vollständiger Provenienz. Zu tiefes, zyklisches oder unvollständiges Nesting darf keine neuen Berechtigungen gewähren. Lokal administrierte Overlays bleiben gesonderte Gruppen oder explizite Ergänzungen mit eigener Herkunft; keine stille Überschreibung extern verwalteter Mitgliedschaften und kein implizites Mapping zur privilegierten `Admin`-Gruppe.  
+**Begründung und Folgen:** LDAP-Gruppenrekursion darf weder Endlosschleifen noch unkontrollierte Privileg-Eskalation erzeugen.  
+**Freigabe-/Nachweisgrenze:** Zyklen, Alias-/DN-Wechsel, tiefe Gruppen, stale Mitgliedschaften, lokale Overlay-Kollisionen, Admin-Impersonation, sofortige Revoke-Wirkung.  
+**Einführungsprofil:** Nesting separat opt-in, erstes LDAP-Profil flach; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [SHARING_SPACES.md](SHARING_SPACES.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-157).
 
 #### ADR-158 – LDAP-Bind-Login als optionaler Auth-Adapter
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Ein zusätzlicher LDAP-Bind-Login könnte später angeboten werden; der lokale Core-Auth-Pfad bleibt unabhängig.  
-**Begründung und Folgen:** Die Aktivierung, TLS-/Credential-Grenzen und Fallback-Policy sind noch nicht entschieden.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** LDAP-Bind-Login bleibt separat vom LDAP-Verzeichnissync und standardmäßig deaktiviert. Eine spätere Aktivierung erfolgt pro Quelle und zulässiger Konto-Policy durch Administratoren. Zugang nur über streng geprüfte LDAPS-/StartTLS-Verbindungen, begrenzte Authentifizierungsversuche und ohne dauerhafte Speicherung/Protokollierung des Benutzerpassworts. Erfolgreicher Bind erstellt nur nach verifizierter lokaler ID-Bindung und lokaler Policy eine cloudOS-BFF-Sitzung. Kein unkontrollierter Fallback auf lokales Passwort bei LDAP-Ausfall; ein gesicherter lokaler Break-Glass-Admin bleibt unabhängig.  
+**Begründung und Folgen:** Ein LDAP-Bind darf keine Fremd-Passwortkopie, zusätzliche Directory-Autorität oder stillen Identity-Link erzeugen.  
+**Freigabe-/Nachweisgrenze:** TLS-Fehler, LDAP-Injection, unbekannte Bindung, Account-Lockout, Provider-Ausfall, Session-Revoke, Backoff, Audit ohne Credential-Leak.  
+**Einführungsprofil:** Nach MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_METHODS.md](AUTHENTICATION_METHODS.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-158).
 
 #### ADR-159 – Integrationsvertrag externer OIDC-Provider
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Externe OIDC-Provider sind optional, müssen aber explizit an lokale Identitäten und sichere BFF-Sitzungen gebunden werden.  
-**Begründung und Folgen:** Konkreter Provider, Claims, PKCE, Provisionierung und Logout-/Recovery-Policy bleiben offen.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Optionaler providerunabhängiger OpenID-Connect-Adapter mit Authorization Code Flow, PKCE und vertraulichem serverseitigem BFF. Verbindlich sind exakte Issuer-/Audience-/Redirect-Validierung, `state`/`nonce`, signierte ID-Token-/JWKS-/Expiry-/Algorithmenprüfung, kontrollierte Schlüsselrotation sowie Bindung an `(issuer, sub)` und eine lokal freigeschaltete `user_id`. Keine automatische Provisionierung oder Rechteübernahme allein aufgrund E-Mail-/Gruppenclaims; neue Benutzer nur durch explizite Admin-Policy und sicheren Provisionierungsworkflow. Lokale Sitzung und Grant-/Revocation-Policy bleiben autoritativ; kein stiller Provider-Fallback.  
+**Begründung und Folgen:** Login-Delegation darf die lokale AuthZ, POSIX-UID/GID und Space-/App-Policies nicht ersetzen.  
+**Freigabe-/Nachweisgrenze:** Login CSRF/PKCE/nonce Replay, falscher Issuer/JWKS, Sub-Takeover, Provider-Ausfall, Admin-Gruppenclaim, Token-Rotation, Logout/Session-Stale und Recovery-Test.  
+**Einführungsprofil:** Nach MVP, standardmäßig aus; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-159).
 
 #### ADR-160 – Secret-Store und Zertifikatsverwaltung externer Connectoren
 
-**Status:** `Proposed`  
-**Entscheidung / Stand:** Connector-Secrets, TLS-Zertifikate und Prüfregeln sollen getrennt von normalen Benutzer-/App-Daten verwaltet werden.  
-**Begründung und Folgen:** Konkreter Secret-Provider und Rotationsmodus sind noch nicht beschlossen.  
-**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md).
+**Status:** `Accepted` (fachlich; delegierte Wahl vom 16.11.2026)  
+**Entscheidung / Stand:** Ein zentraler Core-Secret-Broker verwaltet Connector-Credentials, Auth-Client-Secrets, Zertifikats-/CA-Referenzen und Rotation unter getrennten, minimalen Service-Capabilities. Verwaltet werden nur opake Handles und versionierte Metadaten in normalen Fachschemas; sensible Werte liegen KMS-/Envelope-geschützt in einem separaten Secret-Backend, dessen Root-Schlüssel nicht gemeinsam mit verschlüsselten Nutzdaten in derselben Datenbank liegt. Das Adaptermodell ist providerunabhängig und erlaubt später externe Secret-Manager/HSM. Zertifikatsketten und Hostnamen sind zu prüfen, unsichere Trust-Skip-Optionen produktiv verboten; Rotation atomar mit Test-/Rollback-Status und Audit. Kein Credential im App-Paket, Browser, Quellcode, Log oder normalen App-Data-Feld.  
+**Begründung und Folgen:** Ein kompromittierter Connector darf nicht alle Core- oder Tenant-Secrets offenlegen; Secret-Lifecycle bleibt unabhängig vom LDAP-/IdP-Provider.  
+**Freigabe-/Nachweisgrenze:** Secret-ACL-Isolation, Zertifikatsfehler, Trust-Store-Update, Wechsel während LDAP-Job, Rotation/Outage-Rollback, keine Secret-Logs/Traces/Exports, Key-Recovery mit getrennter Freigabe.  
+**Einführungsprofil:** Grundlegende Broker-Schnittstelle im Design; optionaler Connector später; `Accepted` bedeutet nicht implementiert oder freigeschaltet.  
+**Quellen:** [IDENTITY_INTEGRATION.md](IDENTITY_INTEGRATION.md), [AUTHENTICATION_AUTHORIZATION.md](AUTHENTICATION_AUTHORIZATION.md), [INFRASTRUCTURE_DECISIONS_2026-11-15.md](INFRASTRUCTURE_DECISIONS_2026-11-15.md); [Entscheidungsnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md#adr-160).
 
 ### 5.13 Konkrete neue Verträge aus 74 API-Entscheidungen (ADR-161–181)
 
@@ -1755,40 +1785,15 @@ Die Auflösungen ersetzen nur **tatsächlich überholte Aussagen**. Sie berechti
 
 ## 9. Tatsächlich offene Entscheidungen und präzisierende Folgeaufgaben
 
-Die folgenden Punkte sind nicht durch die bisherigen vier ADR-Organisationsentscheidungen oder die 74 API-Antworten beschieden. Sie bleiben bewusst `Proposed` bzw. **Detailpräzisierung** und sind erst im fachlich passenden Folgekonzept oder vor dem genannten Implementierungsschritt zu entscheiden. Ein priorisierter Backlog ist keine neue implizite Architekturfreigabe.
+Die delegierte Architekturentscheidung vom 16.11.2026 hat alle zuvor noch offenen globalen ADRs **außer ADR-094** fachlich abgeschlossen. Die 14 neu angenommenen ADRs sind im [vollständigen Beschlussnachtrag](ARCHITECTURE_DECISIONS_OPEN_ADRS_2026-11-16.md) dokumentiert. Auch die zuvor bereits vom Projektverantwortlichen bestätigten 13 ADRs sind weiterhin `Accepted`.
 
-### 9.1 Offene ADRs (`Proposed`)
+### 9.1 Einziger verbliebener globaler ADR (`Proposed`)
 
 | ADR | Offenes Thema | Nächster geeigneter Schritt |
 |---|---|---|
-| `ADR-002` | Vue 3/Vite und Desktop-Host-Rendering | Beim App-Framework/SDK: verbindliche GUI- und Build-Toolchain freigeben. |
-| `ADR-012` | Backup-RPO/RTO und Browser-/Leistungsbudgets | Beim Backup-/Lifecycle-Konzept: messbare RPO/RTO, Browser- und Ressourcenbudgets festlegen. |
-| `ADR-013` | Externe API-Clients und OAuth-/Grant-Modell | Vor eigenständiger öffentlicher API-Freigabe: OAuth-/Grant- und externe Client-Strategie. |
-| `ADR-017` | Rust-Web-Toolchain und GPU-Kompatibilität | Beim SDK-Konzept: Rust-Web-Toolchain-/GPU-/Thread-Matrix. |
-| `ADR-018` | Wasmtime/WASI-Komponenten und Host-Funktionen | Bei WASI-Sandbox-Konzept: WIT-/Runtime-Version, Host-Funktionen, Limits. |
-| `ADR-020` | ArtCraft als Integrations-PoC | Vor ArtCraft-PoC: Release, Lizenz, Integrationsumfang. |
-| `ADR-036` | Signaturalgorithmen und kanonische Serialisierung | Vor Signierimplementierung: Krypto-Profil mit echten interoperablen Testvektoren. |
-| `ADR-059` | Migration alter Desktop-Home-Verzeichnisse | Beim Desktop-Migrationskonzept: Umgang mit alten Layout-/Dateipfaden. |
-| `ADR-060` | Desktop-Performance, Browser und Barrierefreiheit | Vor Desktop-Release: Browser-/A11y-/Performance-Abnahmekriterien. |
-| `ADR-082` | Web Push bei geschlossenem Browser | Nur bei später gewünschtem externem Web Push: eigene Bedrohungs-/Einwilligungsentscheidung. |
-| `ADR-094` | Kubernetes-Produktionshärtung und Secrets | Vor K8s-Produktivbetrieb: Härtungs- und Secret-Provider-Entscheidung. |
-| `ADR-103` | Externe Identity-Verknüpfung zu lokalen Credentials | Vor externer Konto-Verknüpfung: Identifier-Mapping und Recovery. |
-| `ADR-118` | Browserkompatibilität der Geräteprofile | Vor Browser-Gerätefreigabe: unterstützte WebUSB-/WebHID-/WebSerial-Profile. |
-| `ADR-131` | VFS-Namen, Unicode-Normalisierung und Case-Policy | Beim Storage-/VFS-Modell: Unicode/Case/Reserved-Names eindeutig definieren. |
-| `ADR-132` | Standardstruktur neu angelegter Home-Verzeichnisse | Beim System-Lifecycle: Standard-Home-Verzeichnisse und Migrationspfad. |
-| `ADR-136` | VFS-Backup-Konsistenz und selektives Restore | Beim Backup-/Restore-Konzept: konsistente Restore-Mengen und Schlüssel-/Manifestabgleich. |
-| `ADR-138` | UID-/GID-Nummernkreise und Wiederverwendung | Beim IAM-/Datenmodell: UID/GID-Ranges und Reuse-Sperren. |
-| `ADR-140` | Passwort-Hashing, Passwortpolitik und Recovery | Beim Auth-Konzept: Argon2id-Parameter, Recovery-/Lockout-Regeln. |
-| `ADR-142` | Settings-Sub-Apps und eigener Berechtigungskontext | Beim Settings-Konzept: Host-/Sub-App-Grenzen, Rechte und Deep Links. |
-| `ADR-143` | Erweiterte POSIX-ACLs und Named Grants | Beim VFS-Konzept: POSIX-ACL-Vererbung und `chmod`-Semantik. |
-| `ADR-150` | Share-Expiry, Ablehnung und Weiterfreigabe | Beim Sharing-Konzept: Ablauf, Ablehnung und Weiterfreigabe. |
-| `ADR-154` | LDAP-Sync-Intervalle und Sicherheitsgrenzen bei Massenänderungen | Beim Identity-Connector-Konzept: Sync-Kadenz, Massendel-Throttling. |
-| `ADR-155` | Missing User, Deaktivierung und Stale-Identity-Richtlinie | Beim Identity-Connector-Konzept: Missing-/Stale-/Retention-Regeln. |
-| `ADR-156` | Import externer UID/GID oder interne Nummernvergabe | Beim Identity-/Datenmodell: Übernahme oder interne UID-/GID-Nummern. |
-| `ADR-157` | Externe Gruppenverschachtelung und lokale Overlays | Beim Identity-Konzept: externe Gruppentiefe, Cycles und Overlays. |
-| `ADR-158` | LDAP-Bind-Login als optionaler Auth-Adapter | Nur bei Bedarf: LDAP-Bind als zusätzlicher Auth-Adapter. |
-| `ADR-159` | Integrationsvertrag externer OIDC-Provider | Vor externer OIDC-Integration: konkrete IdP-Profile und Claims. |
-| `ADR-160` | Secret-Store und Zertifikatsverwaltung externer Connectoren | Beim Settings-/Secret-Konzept: TLS-, Secret- und Rotationsprovider. |
+| `ADR-094` | Kubernetes-Produktionshärtung und Secrets | Wie ausdrücklich angeordnet, nicht entschieden; vor optionalem Kubernetes-Produktivbetrieb gesonderte Umsetzung/Abnahme, ohne bestehende Sicherheitsinvarianten aufzuweichen. |
+
+**Einführung oder technische Freigabe ist ein anderes Gate als ADR-Annahme:** Noch ausstehende Messwerte, exakte DTOs, Vertragsartefakte, E2EE-Tests, Lizenzprüfungen und konkrete Browser-/WASI-Abnahmen sind keine Gründe, akzeptierte Architekturentscheidungen erneut zur Wahl zu stellen. Sie dürfen aber bis zum Nachweis nicht als implementiert oder produktionsbereit gelten.
 
 ### 9.2 Bereits akzeptierte Richtungen mit noch offenen Detailparametern
 
@@ -1850,7 +1855,7 @@ Bei jeder wesentlichen Core-/SDK-/VFS-Änderung werden die betroffenen `Accepted
 - [x] Alle 74 Entscheidungen aus `API_CONTRACTS.md` zu globalen ADRs verknüpft.
 - [x] `Accepted` fachlich von „implementiert“ und „getestet“ getrennt.
 - [x] Erkennbar veraltete allgemeine Aussagen ohne neue Nutzerfragen aufgelöst und als Folgearbeiten sichtbar gemacht.
-- [x] Tatsächlich offene Entscheidungen als `Proposed` ohne erfundene Freigabe ausgewiesen.
+- [x] Nach ausdrücklicher Delegation 14 bisher offene ADRs fachlich entschieden; ausschließlich ADR-094 bleibt `Proposed`. Aktivierungs-/Test-/Lizenz-Gates bleiben offen.
 - [ ] Formale Einzel-Freigabe eventuell neu erstellter vollständiger Detail-ADR-Dateien (entsteht erst bei Bedarf).
 - [ ] Technische Implementierung, Testausführung und Release-Abnahme (nicht Bestandteil dieses Konzeptdokuments).
 
